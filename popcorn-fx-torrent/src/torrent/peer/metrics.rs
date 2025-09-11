@@ -1,10 +1,14 @@
-use crate::torrent::metrics::{Counter, Gauge, Metric};
+use crate::torrent::metrics::{Counter, Gauge, Metric, State};
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
 
 #[derive(Debug, Default, Clone)]
 pub struct Metrics {
     pub available_pieces: Gauge,
+    pub client_interested: State,
+    pub remote_interested: State,
+    pub client_choked: State,
+    pub remote_choked: State,
     pub bytes_in: Counter,
     pub bytes_in_useful: Counter,
     pub bytes_out: Counter,
@@ -26,6 +30,10 @@ impl Metric for Metrics {
     fn snapshot(&self) -> Self {
         Self {
             available_pieces: self.available_pieces.snapshot(),
+            client_interested: self.client_interested.snapshot(),
+            remote_interested: self.remote_interested.snapshot(),
+            client_choked: self.client_choked.snapshot(),
+            remote_choked: self.remote_choked.snapshot(),
             bytes_in: self.bytes_in.snapshot(),
             bytes_in_useful: self.bytes_in_useful.snapshot(),
             bytes_out: self.bytes_out.snapshot(),
@@ -36,6 +44,10 @@ impl Metric for Metrics {
 
     fn tick(&self, interval: Duration) {
         self.available_pieces.tick(interval);
+        self.client_interested.tick(interval);
+        self.remote_interested.tick(interval);
+        self.client_choked.tick(interval);
+        self.remote_choked.tick(interval);
         self.bytes_in.tick(interval);
         self.bytes_in_useful.tick(interval);
         self.bytes_out.tick(interval);

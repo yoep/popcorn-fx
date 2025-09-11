@@ -861,6 +861,7 @@ impl BitTorrentPeer {
         let extension_registry = Self::create_extension_registry(&extensions);
         let peer_handle = PeerHandle::new();
         let total_pieces = torrent.total_pieces().await;
+
         let client = PeerClientInfo {
             handle: peer_handle,
             id: peer_id,
@@ -868,6 +869,9 @@ impl BitTorrentPeer {
             connection_type,
             connection_protocol,
         };
+        metrics.client_choked.set(true);
+        metrics.remote_choked.set(true);
+
         let inner = Arc::new(PeerContext {
             client,
             // the remote information is unknown until the handshake has been completed
@@ -1912,8 +1916,9 @@ impl PeerContext {
         }
 
         {
-            let mut mutex = self.client_choke_state.write().await;
-            *mutex = state;
+            let mut client_choke_state = self.client_choke_state.write().await;
+            *client_choke_state = state;
+            self.metrics.client_choked.set(state == ChokeState::Choked);
         }
 
         let send_result: Result<()>;
@@ -1944,8 +1949,9 @@ impl PeerContext {
     async fn update_remote_peer_choke_state(&self, state: ChokeState) {
         // update the choke state of the remote peer
         {
-            let mut mutex = self.remote_choke_state.write().await;
-            *mutex = state;
+            let mut remote_choke_state = self.remote_choke_state.write().await;
+            *remote_choke_state = state;
+            self.metrics.remote_choked.set(state == ChokeState::Choked);
         }
 
         if state == ChokeState::Choked {
@@ -1970,8 +1976,11 @@ impl PeerContext {
         }
 
         {
-            let mut mutex = self.client_interest_state.write().await;
-            *mutex = state;
+            let mut client_interest_state = self.client_interest_state.write().await;
+            *client_interest_state = state;
+            self.metrics
+                .client_interested
+                .set(state == InterestState::Interested);
         }
 
         let send_result: Result<()>;
@@ -1993,14 +2002,17 @@ impl PeerContext {
 
     /// Updates the interest state of the remote peer.
     async fn update_remote_peer_interest_state(&self, state: InterestState) {
-        let mut mutex = self.remote_interest_state.write().await;
-        if state == *mutex {
+        if *self.remote_interest_state.read().await == state {
             return;
         }
 
-        *mutex = state;
-        drop(mutex);
-        debug!("Peer {} remote entered {} state", self, state);
+        {
+            let mut remote_interest_state = self.remote_interest_state.write().await;
+            *remote_interest_state = state;
+            self.metrics
+                .remote_interested
+                .set(state == InterestState::Interested);
+        }
 
         // if the remote peer is no longer interested
         // choke the client so that another peer can obtain the permit
@@ -2156,6 +2168,7 @@ impl PeerContext {
         let bitfield_len = self.torrent.total_pieces().await;
         self.update_remote_pieces(BitVec::from_elem(bitfield_len, have_all))
             .await;
+        self.metrics.available_pieces.set(bitfield_len as u64);
         self.send_command_event(PeerCommandEvent::DetermineClientInterestState);
     }
 

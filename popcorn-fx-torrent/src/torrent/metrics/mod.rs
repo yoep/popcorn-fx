@@ -2,9 +2,11 @@ use std::time::Duration;
 
 pub use counter::*;
 pub use gauge::*;
+pub use state::*;
 
 mod counter;
 mod gauge;
+mod state;
 
 pub trait Metric: Sized {
     /// Check if the current metric is immutable, aka a snapshot metric.

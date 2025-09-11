@@ -9,13 +9,13 @@ use crate::torrent::tracker::{
     AnnounceEntryResponse, Announcement, Result, ScrapeFileMetrics, ScrapeResult, Tracker,
     TrackerError, TrackerHandle, TrackerState,
 };
-use crate::torrent::{InfoHash, Metrics, TorrentHandle};
+use crate::torrent::{InfoHash, Metrics};
 use derive_more::Display;
 use futures::future;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, info, trace, warn};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
-use tokio::sync::{Mutex, MutexGuard, RwLock, RwLockReadGuard};
+use tokio::sync::{Mutex, RwLock, RwLockReadGuard};
 use tokio::{select, time};
 use tokio_util::sync::CancellationToken;
 use url::Url;
@@ -176,8 +176,10 @@ impl TrackerManager {
     /// Get the discovered peers for the given info hash.
     /// The info hash should be first registered through the [TrackerManager::add_torrent].
     pub async fn discovered_peers(&self, info_hash: &InfoHash) -> Option<Vec<SocketAddr>> {
-        let mut torrents = self.inner.torrents.lock().await;
-        torrents
+        self.inner
+            .torrents
+            .lock()
+            .await
             .get(info_hash)
             .map(|e| e.peers.iter().cloned().collect())
     }

@@ -1,5 +1,5 @@
 use crate::app::{FXKeyEvent, FXWidget};
-use crate::widget::print_optional_string;
+use crate::widget::{print_optional_string, print_string_len};
 use async_trait::async_trait;
 use crossterm::event::KeyCode;
 use fx_callback::{Callback, Subscription};
@@ -25,8 +25,10 @@ use std::collections::HashMap;
 use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 const PERFORMANCE_HISTORY: usize = 150;
+const REMOVE_CLOSED_PEER_AFTER: Duration = Duration::from_secs(3);
 
 #[derive(Debug)]
 pub struct TorrentInfoWidget {
@@ -83,11 +85,9 @@ impl TorrentInfoWidget {
                 data.peers = self.torrent.active_peer_connections().await;
                 self.peers_widget.remove_peer(&peer.handle);
             }
-            TorrentEvent::TrackersChanged => {}
             TorrentEvent::PiecesChanged(total_pieces) => {
                 data.total_pieces = *total_pieces as u64;
             }
-            TorrentEvent::PiecePrioritiesChanged => {}
             TorrentEvent::PieceCompleted(piece) => {
                 data.completed_pieces = self.torrent.total_completed_pieces().await as u64;
                 self.files_widget.on_piece_completed(piece);
@@ -97,7 +97,6 @@ impl TorrentInfoWidget {
                 self.files_widget
                     .on_files_changed(self.torrent.files().await);
             }
-            TorrentEvent::OptionsChanged => {}
             TorrentEvent::Stats(stats) => {
                 data.progress = stats.progress();
                 data.wanted_completed_size = stats.wanted_completed_size.get();
@@ -112,6 +111,7 @@ impl TorrentInfoWidget {
                     data.up.remove(0);
                 }
             }
+            _ => {}
         }
     }
 }
@@ -158,7 +158,7 @@ impl Widget for &TorrentInfoWidget {
         let [metadata_area, performance_area] = header.areas(header_area);
         let performance = Layout::vertical([Percentage(50), Percentage(50)]);
         let [down_performance, up_performance] = performance.areas(performance_area);
-        let details = Layout::horizontal([Percentage(75), Percentage(25)]);
+        let details = Layout::horizontal([Percentage(70), Percentage(30)]);
         let [files_area, peers_area] = details.areas(details_area);
 
         let data = &self.data;
@@ -310,7 +310,7 @@ impl TorrentFilesWidget {
                         .selected()
                         .unwrap_or(0)
                         .saturating_add(1)
-                        .max(self.files.len().saturating_sub(1));
+                        .min(self.files.len().saturating_sub(1));
 
                     state.select(Some(offset));
                 }
@@ -429,21 +429,31 @@ impl TorrentPeersWidget {
             peer.handle(),
             TorrentPeerData {
                 client: peer.client(),
+                available_pieces: metrics.available_pieces.get(),
+                client_interested: metrics.client_interested.get(),
+                remote_interested: metrics.remote_interested.get(),
+                client_choked: metrics.client_choked.get(),
+                remote_choked: metrics.remote_choked.get(),
                 bytes_in: metrics.bytes_in.rate(),
+                bytes_in_total: metrics.bytes_in.total(),
                 bytes_out: metrics.bytes_out.rate(),
+                bytes_out_total: metrics.bytes_out.total(),
                 peer,
                 state,
                 is_seed,
                 events_receiver,
+                closed_since: None,
             },
         );
     }
 
     fn remove_peer(&mut self, handle: &PeerHandle) {
-        self.peers.remove(handle);
+        if let Some(peer) = self.peers.get_mut(handle) {
+            peer.closed_since = Some(Instant::now());
+        }
     }
 
-    async fn tick(&mut self) {
+    async fn handle_peer_events(&mut self) {
         for (_, peer_data) in &mut self.peers {
             while let Ok(event) = peer_data.events_receiver.try_recv() {
                 match &*event {
@@ -454,13 +464,36 @@ impl TorrentPeersWidget {
                         peer_data.is_seed = peer_data.peer.is_seed().await;
                     }
                     PeerEvent::Stats(metrics) => {
+                        peer_data.available_pieces = metrics.available_pieces.get();
+                        peer_data.client_interested = metrics.client_interested.get();
+                        peer_data.remote_interested = metrics.remote_interested.get();
+                        peer_data.client_choked = metrics.client_choked.get();
+                        peer_data.remote_choked = metrics.remote_choked.get();
                         peer_data.bytes_in = metrics.bytes_in.rate();
+                        peer_data.bytes_in_total = metrics.bytes_in.total();
                         peer_data.bytes_out = metrics.bytes_out.rate();
+                        peer_data.bytes_out_total = metrics.bytes_out.total();
                     }
                     _ => {}
                 }
             }
         }
+    }
+
+    fn handle_closed_peers(&mut self) {
+        self.peers.retain(|_, peer_data| {
+            peer_data
+                .closed_since
+                .as_ref()
+                .unwrap_or(&Instant::now())
+                .elapsed()
+                <= REMOVE_CLOSED_PEER_AFTER
+        });
+    }
+
+    async fn tick(&mut self) {
+        self.handle_peer_events().await;
+        self.handle_closed_peers();
     }
 }
 
@@ -477,10 +510,14 @@ impl Widget for &TorrentPeersWidget {
                     Color::Rgb(80, 80, 80)
                 };
                 let seed_text = if peer.is_seed { " :: seed :: " } else { " :: " };
+                let client_interest = if peer.client_interested { "I" } else { "" };
+                let remote_interest = if peer.remote_interested { "i" } else { "" };
+                let client_choked = if peer.client_choked { "C" } else { "" };
+                let remote_choked = if peer.remote_choked { "c" } else { "" };
 
                 ListItem::new(vec![
                     Line::from(vec![
-                        peer.client.addr.to_string().into(),
+                        print_string_len(peer.client.addr.to_string(), 21).into(),
                         " :: ".into(),
                         peer.client.connection_protocol.to_string().into(),
                         seed_text.into(),
@@ -488,11 +525,27 @@ impl Widget for &TorrentPeersWidget {
                     ])
                     .style(Style::new().bold()),
                     Line::from(vec![
-                        "down: ".into(),
-                        format_bytes(peer.bytes_in as usize).into(),
+                        format!(
+                            "down: {}/s ({})",
+                            format_bytes(peer.bytes_in as usize),
+                            format_bytes(peer.bytes_in_total as usize)
+                        )
+                        .into(),
                         " - ".into(),
-                        "up: ".into(),
-                        format_bytes(peer.bytes_out as usize).into(),
+                        format!(
+                            "up: {}/s ({})",
+                            format_bytes(peer.bytes_out as usize),
+                            format_bytes(peer.bytes_out_total as usize)
+                        )
+                        .into(),
+                        " - ".into(),
+                        format!("pieces: {}", peer.available_pieces).into(),
+                        " - ".into(),
+                        format!(
+                            "{}{}{}{}",
+                            client_interest, remote_interest, client_choked, remote_choked
+                        )
+                        .into(),
                     ]),
                 ])
                 .style(Style::new().bg(color))
@@ -511,9 +564,17 @@ struct TorrentPeerData {
     client: PeerClientInfo,
     state: PeerState,
     is_seed: bool,
+    available_pieces: u64,
+    client_interested: bool,
+    remote_interested: bool,
+    client_choked: bool,
+    remote_choked: bool,
     bytes_in: u32,
+    bytes_in_total: u64,
     bytes_out: u32,
+    bytes_out_total: u64,
     events_receiver: Subscription<PeerEvent>,
+    closed_since: Option<Instant>,
 }
 
 fn peer_state_as_str(state: &PeerState) -> &'static str {

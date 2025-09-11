@@ -111,11 +111,9 @@ impl PeerPool {
     /// Remove a torrent [Peer] from the pool by the given [PeerHandle].
     ///
     /// It returns the peer info when the peer was found and removed, else [None].
-    pub async fn remove_peer(&self, handle: &PeerHandle) -> Option<PeerClientInfo> {
+    pub async fn remove_peer(&self, handle: &PeerHandle) -> Option<Arc<dyn Peer>> {
         let mut peers = self.peers.write().await;
-        self.internal_remove_peer(&mut peers, handle)
-            .await
-            .map(|e| e.client())
+        self.internal_remove_peer(&mut peers, handle).await
     }
 
     /// Get the total amount of candidates for creating new connections.
@@ -238,9 +236,10 @@ impl PeerPool {
 
     /// Remove any closed or invalid peers from the pool.
     /// The cleanup tries to close the peer connection within a timely manner if possible.
-    pub async fn clean(&self) {
+    pub async fn clean(&self) -> Vec<Arc<dyn Peer>> {
         let mut peers = self.peers.write().await;
         let mut total_cleaned_peers = 0;
+        let mut removed_peers = vec![];
 
         let futures: Vec<_> = peers
             .iter()
@@ -258,11 +257,14 @@ impl PeerPool {
                             self, peer
                         );
                     }
+
+                    removed_peers.push(peer);
                 }
             }
         }
 
         debug!("Cleaned a total of {} peers", total_cleaned_peers);
+        removed_peers
     }
 
     /// Shut down the peer pool, closing all peer connections.

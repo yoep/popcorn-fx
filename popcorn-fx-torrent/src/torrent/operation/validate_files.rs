@@ -36,8 +36,12 @@ impl TorrentFileValidationOperation {
     }
 
     async fn validate_files(&self, torrent: &Arc<TorrentContext>, files: Vec<File>) {
+        let info_hash = torrent.metadata_lock().read().await.info_hash.clone();
         let state = self.state.clone();
         let context = torrent.clone();
+
+        // stop announcing the torrent
+        torrent.tracker_manager().stop_announcing(&info_hash);
 
         tokio::spawn(async move {
             if let Some(pieces) = context.pieces().await {
@@ -88,6 +92,9 @@ impl TorrentFileValidationOperation {
                     context
                 );
             }
+
+            // start announcing the torrent again
+            context.tracker_manager().start_announcing(&info_hash);
 
             *state.lock().await = ValidationState::Validated;
             let new_state = context.determine_state().await;

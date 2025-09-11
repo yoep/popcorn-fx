@@ -4,7 +4,7 @@ use crate::torrent::{
     TorrentCommandEvent, TorrentContext, TorrentOperation, TorrentOperationResult,
 };
 use async_trait::async_trait;
-use futures::{future, TryFutureExt};
+use futures::future;
 use log::{debug, trace, warn};
 use std::net::SocketAddr;
 use std::sync::Arc;

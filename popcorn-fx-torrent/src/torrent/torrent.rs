@@ -2125,7 +2125,7 @@ impl TorrentContext {
     /// Remove the given peer from the torrent as it has been closed.
     async fn remove_peer(&self, handle: &PeerHandle) {
         trace!("Removing peer {} from torrent {}", handle, self);
-        if let Some(peer) = self.peer_pool.peers.read().await.get(&handle) {
+        if let Some(peer) = self.peer_pool.remove_peer(handle).await {
             let mut mutex = self.pieces.write().await;
             let bitfield = peer.remote_piece_bitfield().await;
 
@@ -2135,10 +2135,8 @@ impl TorrentContext {
                     piece.decrease_availability();
                 }
             }
-        }
 
-        if let Some(peer_info) = self.peer_pool.remove_peer(handle).await {
-            self.invoke_event(TorrentEvent::PeerDisconnected(peer_info));
+            self.invoke_event(TorrentEvent::PeerDisconnected(peer.client()));
         }
     }
 
@@ -3199,7 +3197,10 @@ impl TorrentContext {
     /// Cleanup the peer resources which have been closed or are no longer valid.
     async fn clean_peers(&self) {
         trace!("Torrent {} is executing peer cleanup cycle", self);
-        self.peer_pool.clean().await;
+        for peer in self.peer_pool.clean().await {
+            self.callbacks
+                .invoke(TorrentEvent::PeerDisconnected(peer.client()));
+        }
     }
 
     /// Try to write the given completed piece data to the torrent storage.

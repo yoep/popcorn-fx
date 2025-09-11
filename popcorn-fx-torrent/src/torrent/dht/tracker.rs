@@ -1177,7 +1177,7 @@ impl InnerTracker {
 
         // half the response timeout during the bootstrap phase
         // this is to reduce the actual bootstrap process time
-        timeout(RESPONSE_TIMEOUT / 2, rx)
+        timeout(RESPONSE_TIMEOUT, rx)
             .await
             .map_err(|_| Error::Timeout)?
             .map_err(|_| Error::Closed)?

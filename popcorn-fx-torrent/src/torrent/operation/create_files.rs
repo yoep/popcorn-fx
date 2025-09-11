@@ -194,7 +194,6 @@ mod tests {
         let pieces_operation = TorrentCreatePiecesOperation::new();
         let operation = TorrentCreateFilesOperation::new();
         let context = torrent.instance().unwrap();
-        let metadata = context.metadata().await;
 
         // create the torrent pieces
         let result = pieces_operation.execute(&context).await;

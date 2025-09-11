@@ -972,7 +972,7 @@ impl TorrentMetadataBuilder {
     ///
     /// * `tracker_uri` - The URL of the tracker to add.
     pub fn tracker<T: Into<String>>(&mut self, tracker_uri: T) -> &mut Self {
-        let mut announce_list = self.announce_list.get_or_insert(Vec::new());
+        let announce_list = self.announce_list.get_or_insert(Vec::new());
         announce_list.push(vec![tracker_uri.into()]);
         self
     }

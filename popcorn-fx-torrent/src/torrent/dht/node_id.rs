@@ -4,7 +4,7 @@ use rand::{rng, Rng, RngCore};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sha1::{Digest, Sha1};
 use std::fmt::{Debug, Display, Formatter};
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::net::{IpAddr, SocketAddr};
 use std::result;
 
 const NODE_ID_SIZE: usize = 20;
@@ -139,13 +139,6 @@ impl NodeId {
         // no need to verify local IPs, they would be incorrect anyway
         if source_ip.is_local() {
             return true;
-        }
-        // early fail when the source ip address is unspecified
-        if match source_ip {
-            IpAddr::V4(ip) => ip == &Ipv4Addr::UNSPECIFIED,
-            IpAddr::V6(ip) => ip == &Ipv6Addr::UNSPECIFIED,
-        } {
-            return false;
         }
 
         let verification_id = NodeId::from_ip_with_rand(&source_ip, self.0[19]);

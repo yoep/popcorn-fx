@@ -4,7 +4,7 @@ use itertools::Itertools;
 use log::trace;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::time::{Duration, Instant};
 use thiserror::Error;
 
@@ -214,6 +214,14 @@ impl RoutingTable {
 
     /// Validate if the given node is valid.
     fn is_valid(node: &Node) -> bool {
+        // early fail if the node address is unknown
+        if match &node.addr.ip() {
+            IpAddr::V4(ip) => ip == &Ipv4Addr::UNSPECIFIED,
+            IpAddr::V6(ip) => ip == &Ipv6Addr::UNSPECIFIED,
+        } {
+            return false;
+        }
+
         node.id.verify_id(&node.addr.ip()) && node.addr.port() != 0
     }
 }

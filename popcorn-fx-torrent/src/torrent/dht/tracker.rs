@@ -15,7 +15,7 @@ use rand::Rng;
 use socket2::Socket;
 use std::collections::{HashMap, HashSet};
 use std::io;
-use std::net::{IpAddr, SocketAddr};
+use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -235,7 +235,7 @@ impl DhtTracker {
 
     /// Try to bind a dual stack IPv4 & IPv6 udp socket.
     async fn bind_dual_stack() -> Result<UdpSocket> {
-        let socket = UdpSocket::bind("[::]:0").await?;
+        let socket = UdpSocket::bind(SocketAddr::from((Ipv6Addr::UNSPECIFIED, 0))).await?;
         let std_socket: std::net::UdpSocket = socket.into_std()?;
         let socket2 = Socket::from(std_socket);
         socket2.set_only_v6(false)?;
@@ -968,7 +968,7 @@ impl InnerTracker {
     }
 
     /// Add the given verified node.
-    /// This should only be called if the node could be reached with a ping.
+    /// This should only be used if the node has successfully responded to a query.
     async fn add_verified_node(&self, node: Node) {
         let mut routing_table = self.routing_table.lock().await;
         if !routing_table.contains(&node) {
@@ -1155,7 +1155,13 @@ impl InnerTracker {
             .into_iter()
             .flat_map(|node| targets.iter().map(move |t| (node.clone(), *t)))
             .map(|(node, target)| {
-                Self::iterative_bootstrap_from(vec![node], target, &command_sender, per_target_goal)
+                Self::iterative_bootstrap_from(
+                    vec![node],
+                    target,
+                    &tracker_info,
+                    &command_sender,
+                    per_target_goal,
+                )
             })
             .collect();
 
@@ -1199,6 +1205,7 @@ impl InnerTracker {
     async fn iterative_bootstrap_from(
         seeds: Vec<Node>,
         target: NodeId,
+        tracker_info: &str,
         command_sender: &UnboundedSender<TrackerCommand>,
         goal: usize,
     ) -> usize {
@@ -1215,7 +1222,13 @@ impl InnerTracker {
                 .map(|node| async {
                     match Self::find_bootstrap_nodes(node.addr, &target, &command_sender).await {
                         Ok(nodes) => Some((node, nodes)),
-                        Err(_) => {
+                        Err(e) => {
+                            trace!(
+                                "{} failed to find bootstrap nodes for {}, {}",
+                                tracker_info,
+                                node.addr,
+                                e
+                            );
                             let _ = command_sender.send(TrackerCommand::RemoveRouterNode(node));
                             None
                         }
@@ -1237,8 +1250,6 @@ impl InnerTracker {
                     }
 
                     queue.push(n.clone());
-
-                    let _ = command_sender.send(TrackerCommand::AddNode(n));
                     added += 1;
                 }
             }
@@ -1605,27 +1616,42 @@ mod tests {
             let rand = 13;
             let node_id = NodeId::from_ip_with_rand(&[141, 130, 12, 89].into(), rand);
             let bootstrap_node_id = NodeId::from_ip_with_rand(&[180, 13, 0, 3].into(), rand);
-            let find_node_id = NodeId::from_ip_with_rand(&Ipv4Addr::LOCALHOST.into(), rand);
-            let (bootstrap_node, find_node) =
-                create_node_server_pair!(bootstrap_node_id, find_node_id);
+            let bootstrap_node = DhtTracker::builder()
+                .node_id(bootstrap_node_id)
+                .build()
+                .await
+                .unwrap();
 
-            // add a node to the bootstrap node which can be found by the `find_node` search
-            let distance = bootstrap_node_id.distance(&node_id);
-            let node_id = create_bucket_matching_node(distance, bootstrap_node_id);
-            bootstrap_node
-                .inner
-                .add_verified_node(Node::new(
-                    NodeId::new(),
-                    (Ipv4Addr::LOCALHOST, find_node.port()).into(),
-                ))
-                .await;
+            // fill the bootstrap node with nodes which can be found through the `find_node` search
+            let futures = (1..111u8)
+                .into_iter()
+                .map(|e| async move {
+                    DhtTracker::builder()
+                        .node_id(NodeId::from_ip_with_rand(
+                            &IpAddr::V4(Ipv4Addr::new(127, 0, 0, e)),
+                            rand,
+                        ))
+                        .build()
+                        .await
+                        .unwrap()
+                })
+                .collect::<Vec<_>>();
+            let nodes = futures::future::join_all(futures).await;
 
+            for node in &nodes {
+                bootstrap_node
+                    .inner
+                    .add_verified_node(Node::new(
+                        node.id(),
+                        (Ipv4Addr::LOCALHOST, node.port()).into(),
+                    ))
+                    .await;
+            }
+
+            // create the DHT tracker which will use the bootstrap node for its bootstrap process
             let tracker = DhtTracker::builder()
                 .node_id(node_id)
-                .routing_nodes(vec![
-                    (Ipv4Addr::LOCALHOST, bootstrap_node.port()).into(),
-                    (Ipv4Addr::LOCALHOST, find_node.port()).into(),
-                ])
+                .routing_nodes(vec![(Ipv4Addr::LOCALHOST, bootstrap_node.port()).into()])
                 .build()
                 .await
                 .expect("expected a new DHT tracker to have been created");

@@ -1,4 +1,4 @@
-use crate::torrent::peer::{Peer, PeerClientInfo, PeerHandle, PeerState};
+use crate::torrent::peer::{Peer, PeerHandle, PeerState};
 use crate::torrent::{PeerPriority, TorrentHandle, TorrentPeer};
 use derive_more::Display;
 use itertools::Itertools;

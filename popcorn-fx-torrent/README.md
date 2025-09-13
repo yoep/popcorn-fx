@@ -1,7 +1,7 @@
 # FX-Torrent
 
 FX-Torrent is the most complete BitTorrent implementation fully written in Rust, which supports both Linux, MacOS and Windows. 
-It supports most of the Bittorrent protocol specification such as multi-file torrents, validating existing files, resuming torrent files, 
+It supports most of the Bittorrent protocol specifications, such as multi-file torrents, validating existing files, resuming torrent files, 
 and is based on the `libtorrent` library for functionality and naming convention.
 
 ## Features
@@ -60,4 +60,4 @@ async fn main() {
 }
 ```
 
-For more examples, check the tests which are present within the crate.
+For more examples, see the [examples](./examples).

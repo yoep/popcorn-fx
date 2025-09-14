@@ -1,6 +1,6 @@
-use crate::torrent::fs::Error;
+use crate::torrent::storage::Error;
 use crate::torrent::tracker::TrackerError;
-use crate::torrent::{dht, fs, peer, SessionState, TorrentHandle};
+use crate::torrent::{dht, peer, storage, SessionState, TorrentHandle};
 use std::io;
 use thiserror::Error;
 
@@ -141,10 +141,12 @@ impl From<PieceError> for TorrentError {
     }
 }
 
-impl From<fs::Error> for TorrentError {
-    fn from(err: fs::Error) -> Self {
+impl From<storage::Error> for TorrentError {
+    fn from(err: storage::Error) -> Self {
         match err {
-            Error::Unavailable => Self::Io(io::Error::new(io::ErrorKind::Other, err.to_string())),
+            Error::Unavailable | Error::OutOfBounds => {
+                Self::Io(io::Error::new(io::ErrorKind::Other, err.to_string()))
+            }
             Error::InvalidFilepath(e) => {
                 Self::Io(io::Error::new(io::ErrorKind::NotFound, format!("{:?}", e)))
             }

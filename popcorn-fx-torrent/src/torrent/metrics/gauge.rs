@@ -133,7 +133,22 @@ impl Metric for Gauge {
     }
 
     fn tick(&self, _: Duration) {
-        // no-op
+        match &*self.inner {
+            InnerGauge::Mutable { values } => {
+                // only keep the last value
+                if let Ok(mut values) = values.lock() {
+                    if values.is_empty() {
+                        return;
+                    }
+
+                    let len = values.len();
+                    values.swap(0, len - 1);
+                    values.truncate(1);
+                    values.shrink_to_fit();
+                }
+            }
+            InnerGauge::Snapshot { .. } => {}
+        }
     }
 }
 
@@ -154,13 +169,38 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_is_snapshot() {
+        let gauge = Gauge::new();
+
+        let result = gauge.is_snapshot();
+        assert_eq!(false, result, "expected the gauge to not be a snapshot");
+
+        let snapshot = gauge.snapshot();
+        assert_eq!(true, snapshot.is_snapshot());
+    }
+
+    #[test]
     fn test_tick() {
-        let guage = Gauge::new();
+        let gauge = Gauge::new();
 
-        guage.set(10);
-        assert_eq!(10, guage.get());
+        gauge.set(8);
+        gauge.set(4);
+        gauge.set(10);
+        assert_eq!(10, gauge.get());
+        match &*gauge.inner {
+            InnerGauge::Mutable { values } => assert_eq!(3, values.lock().unwrap().len()),
+            _ => {}
+        }
 
-        guage.tick(Duration::from_secs(1));
-        assert_eq!(0, guage.get());
+        gauge.tick(Duration::from_secs(1));
+        assert_eq!(
+            10,
+            gauge.get(),
+            "expected gauge to have retained the last item"
+        );
+        match &*gauge.inner {
+            InnerGauge::Mutable { values } => assert_eq!(1, values.lock().unwrap().len()),
+            _ => {}
+        }
     }
 }

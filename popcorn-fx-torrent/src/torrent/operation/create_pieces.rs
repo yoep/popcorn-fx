@@ -113,7 +113,7 @@ impl TorrentOperation for TorrentCreatePiecesOperation {
     async fn execute(&self, torrent: &Arc<TorrentContext>) -> TorrentOperationResult {
         // check if the pieces have already been created
         // if so, continue the chain
-        if torrent.total_pieces().await > 0 {
+        if torrent.piece_pool().len().await > 0 {
             return TorrentOperationResult::Continue;
         }
 
@@ -131,7 +131,6 @@ mod tests {
     use super::*;
     use crate::create_torrent;
     use crate::init_logger;
-    use crate::torrent::{TorrentConfig, TorrentFlags};
     use tempfile::tempdir;
 
     #[tokio::test]

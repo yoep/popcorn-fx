@@ -113,11 +113,8 @@ impl InnerDhtNodesOperation {
 #[cfg(test)]
 mod tests {
     use super::*;
-
     use crate::torrent::TorrentError;
-    use crate::torrent::{TorrentConfig, TorrentFlags};
     use crate::{create_torrent, init_logger};
-
     use std::time::Duration;
     use tempfile::tempdir;
     use tokio::select;

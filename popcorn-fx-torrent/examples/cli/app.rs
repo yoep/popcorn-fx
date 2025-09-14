@@ -384,7 +384,7 @@ impl App {
 
         FxTorrentSession::builder()
             .client_name(APP_CLIENT_NAME)
-            .base_path(&settings.storage)
+            .path(&settings.storage)
             .session_cache(FxSessionCache::new(SESSION_CACHE_LIMIT))
             .operations(operations)
             .dht(settings.dht_enabled)

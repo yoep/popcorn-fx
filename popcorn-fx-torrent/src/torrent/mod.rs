@@ -5,16 +5,17 @@ pub use info_hash::*;
 pub use magnet::*;
 use peer_pool::*;
 pub use piece::*;
-use piece_pool::*;
+use piece_chunk_pool::*;
 pub use session::*;
 pub use session_cache::*;
 pub use torrent::*;
+use torrent_config::*;
 pub use torrent_flags::*;
 pub use torrent_health::*;
 pub use torrent_metadata::*;
 pub use torrent_metrics::*;
 pub use torrent_peer::*;
-pub use torrent_peer::*;
+use torrent_pools::*;
 
 use std::ops::Range;
 
@@ -24,7 +25,6 @@ pub mod dht;
 mod dns;
 mod errors;
 mod file;
-pub mod fs;
 mod info_hash;
 mod magnet;
 mod merkle;
@@ -33,15 +33,18 @@ pub mod operation;
 pub mod peer;
 mod peer_pool;
 mod piece;
-mod piece_pool;
+mod piece_chunk_pool;
 mod session;
 mod session_cache;
+pub mod storage;
 mod torrent;
+mod torrent_config;
 mod torrent_flags;
 mod torrent_health;
 mod torrent_metadata;
 mod torrent_metrics;
 mod torrent_peer;
+mod torrent_pools;
 mod tracker;
 
 use crate::torrent::operation::{
@@ -209,21 +212,18 @@ where
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use std::env;
 
-    use crate::torrent::fs::TorrentFileStorage;
     use crate::torrent::peer::tests::new_tcp_peer_discovery;
     use crate::torrent::peer::{
         BitTorrentPeer, PeerDiscovery, PeerId, PeerStream, TcpPeerDiscovery, UtpPeerDiscovery,
     };
 
-    use crate::torrent::dht::DhtTracker;
-    use crate::torrent::tracker::TrackerManager;
     use log::LevelFilter;
     use log4rs::append::console::ConsoleAppender;
     use log4rs::config::{Appender, Logger, Root};
     use log4rs::encode::pattern::PatternEncoder;
     use log4rs::Config;
+    use std::env;
     use std::net::SocketAddr;
     use std::path::PathBuf;
     use std::str::FromStr;
@@ -248,16 +248,17 @@ pub mod tests {
 
     #[macro_export]
     macro_rules! create_torrent {
-        ($uri:expr, $temp_dir:expr, $options:expr) => {
-            crate::torrent::tests::create_torrent_with_default_discoveries(
+        ($uri:expr, $temp_dir:expr, $options:expr) => {{
+            use crate::torrent::TorrentConfig;
+
+            create_torrent!(
                 $uri,
                 $temp_dir,
                 $options,
-                crate::torrent::TorrentConfig::builder().build(),
-                crate::torrent::DEFAULT_TORRENT_OPERATIONS(),
+                TorrentConfig::builder().path($temp_dir).build(),
+                crate::torrent::DEFAULT_TORRENT_OPERATIONS()
             )
-            .await
-        };
+        }};
         ($uri:expr, $temp_dir:expr, $options:expr, $config:expr) => {
             crate::torrent::tests::create_torrent_with_default_discoveries(
                 $uri,
@@ -278,43 +279,47 @@ pub mod tests {
             )
             .await
         };
-        ($uri:expr, $temp_dir:expr, $options:expr, $config:expr, $operations:expr, $discoveries:expr) => {
-            crate::torrent::tests::create_torrent_from_uri(
-                $uri,
-                $temp_dir,
-                $options,
-                $config,
-                $operations,
-                $discoveries,
-            )
-            .await
-        };
-    }
+        ($uri:expr, $temp_dir:expr, $options:expr, $config:expr, $operations:expr, $discoveries:expr) => {{
+            use crate::torrent::dht::DhtTracker;
+            use crate::torrent::storage::DiskStorage;
+            use crate::torrent::tests::create_metadata;
+            use crate::torrent::tracker::TrackerManager;
+            use crate::torrent::{Torrent, TorrentConfig, TorrentFlags, TorrentOperationFactory};
+            use std::time::Duration;
 
-    /// Create a new torrent instance from the given uri.
-    /// The uri can either be a [Magnet] uri or a filename to a torrent file within the testing resources.
-    pub async fn create_torrent_from_uri(
-        uri: &str,
-        temp_dir: &str,
-        options: TorrentFlags,
-        config: TorrentConfig,
-        operations: Vec<TorrentOperationFactory>,
-        discoveries: Vec<Box<dyn PeerDiscovery>>,
-    ) -> Torrent {
-        let torrent_info = create_metadata(uri);
-        let tracker_manager = TrackerManager::new(Duration::from_secs(2));
-        let dht = DhtTracker::builder().build().await.unwrap();
-        Torrent::request()
-            .metadata(torrent_info)
-            .peer_discoveries(discoveries)
-            .options(options)
-            .config(config)
-            .operations(operations.iter().map(|e| e()).collect())
-            .storage(TorrentFileStorage::new(temp_dir))
-            .tracker_manager(tracker_manager)
-            .dht(dht)
-            .build()
-            .unwrap()
+            let uri: &str = $uri;
+            let options: TorrentFlags = $options;
+            let config: TorrentConfig = $config;
+            let operations: Vec<TorrentOperationFactory> = $operations;
+            let torrent_info = create_metadata(uri);
+            let tracker_manager = TrackerManager::new(Duration::from_secs(2));
+            let dht = DhtTracker::builder().build().await.unwrap();
+            let config = TorrentConfig::builder()
+                .path($temp_dir)
+                .peer_connection_timeout(config.peer_connection_timeout)
+                .max_in_flight_pieces(config.max_in_flight_pieces)
+                .peers_upper_limit(config.peers_upper_limit)
+                .peers_lower_limit(config.peers_lower_limit)
+                .build();
+
+            Torrent::request()
+                .metadata(torrent_info)
+                .peer_discoveries($discoveries)
+                .options(options)
+                .config(config)
+                .operations(operations.iter().map(|e| e()).collect())
+                .storage(|params| {
+                    Box::new(DiskStorage::new(
+                        params.info_hash,
+                        params.path,
+                        params.files,
+                    ))
+                })
+                .tracker_manager(tracker_manager)
+                .dht(dht)
+                .build()
+                .unwrap()
+        }};
     }
 
     pub async fn create_torrent_with_default_discoveries(
@@ -333,7 +338,7 @@ pub mod tests {
         let discoveries: Vec<Box<dyn PeerDiscovery>> =
             vec![Box::new(tcp_discovery), Box::new(utp_discovery)];
 
-        create_torrent_from_uri(uri, temp_dir, options, config, operations, discoveries).await
+        create_torrent!(uri, temp_dir, options, config, operations, discoveries)
     }
 
     /// A macro wrapper for [`tokio::time::timeout`] that awaits a future with a timeout duration.

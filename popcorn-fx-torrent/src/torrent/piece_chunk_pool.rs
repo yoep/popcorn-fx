@@ -4,11 +4,11 @@ use tokio::sync::RwLock;
 
 /// The piece pool stores piece chunks/parts that have been received from remote peers.
 #[derive(Debug)]
-pub struct PiecePool {
+pub struct PieceChunkPool {
     pool: RwLock<BTreeMap<PieceIndex, Vec<u8>>>,
 }
 
-impl PiecePool {
+impl PieceChunkPool {
     pub fn new() -> Self {
         Self {
             pool: RwLock::new(BTreeMap::new()),

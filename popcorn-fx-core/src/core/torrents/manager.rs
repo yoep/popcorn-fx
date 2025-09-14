@@ -107,7 +107,7 @@ impl FxTorrentManager {
     pub async fn new(settings: ApplicationConfig, event_publisher: EventPublisher) -> Result<Self> {
         let mut session = FxTorrentSession::builder();
         session
-            .base_path(settings.user_settings().await.torrent_settings.directory())
+            .path(settings.user_settings().await.torrent_settings.directory())
             .client_name("PopcornFX");
         let session: Box<dyn Session> = session
             .build()

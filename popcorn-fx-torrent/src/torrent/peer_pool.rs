@@ -6,7 +6,7 @@ use log::{debug, trace, warn};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 use thiserror::Error;
 use tokio::sync::{Mutex, RwLock, RwLockWriteGuard};
@@ -77,6 +77,19 @@ impl PeerPool {
         let peers = self.peers.read().await;
 
         peers.get(&handle).map(|peer| TorrentPeer::new(peer))
+    }
+
+    /// Get all peers (_as weak references_) stored within the pool.
+    ///
+    /// These references can be dropped by the pool at any time,
+    /// even right after calling this fn.
+    pub async fn peers(&self) -> Vec<Weak<dyn Peer>> {
+        self.peers
+            .read()
+            .await
+            .values()
+            .map(|e| Arc::downgrade(e))
+            .collect()
     }
 
     /// Add the given [TcpPeer] to this peer pool.

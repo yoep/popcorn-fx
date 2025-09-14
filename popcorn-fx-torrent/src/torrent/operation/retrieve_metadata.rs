@@ -87,7 +87,6 @@ mod tests {
     use super::*;
     use crate::create_torrent;
     use crate::init_logger;
-    use crate::torrent::TorrentConfig;
     use tempfile::tempdir;
 
     #[tokio::test]

@@ -384,7 +384,7 @@ impl TorrentStreamServer for TorrentStreamServerInner {
             .find(|e| e.filename().to_lowercase() == filename.to_lowercase())
         {
             let filename = file.filename();
-            let filepath = torrent.absolute_file_path(&file);
+            let filepath = torrent.absolute_file_path(&file).await;
 
             if streams.contains_key(&filename) {
                 debug!(

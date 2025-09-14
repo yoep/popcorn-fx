@@ -336,6 +336,7 @@ mod tests {
             peer.expect_handle().return_const(PeerHandle::new());
             peer.expect_addr()
                 .return_const(SocketAddr::from(([127, 0, 0, 1], 6881)));
+            peer.expect_metrics().return_const(Metrics::default());
             let peer = Arc::from(Box::new(peer) as Box<dyn Peer>);
             let torrent_peer = TorrentPeer::new(&peer);
 
@@ -354,6 +355,7 @@ mod tests {
             peer.expect_handle().return_const(handle);
             peer.expect_addr()
                 .return_const(SocketAddr::from(([127, 0, 0, 1], 6881)));
+            peer.expect_metrics().return_const(Metrics::default());
             let peer = Arc::from(Box::new(peer) as Box<dyn Peer>);
             let torrent_peer = TorrentPeer::new(&peer);
 
@@ -372,6 +374,7 @@ mod tests {
             peer.expect_addr()
                 .return_const(SocketAddr::from(([127, 0, 0, 1], 6881)));
             peer.expect_state().returning(|| PeerState::Downloading);
+            peer.expect_metrics().return_const(Metrics::default());
             let peer = Arc::from(Box::new(peer) as Box<dyn Peer>);
             let torrent_peer = TorrentPeer::new(&peer);
 

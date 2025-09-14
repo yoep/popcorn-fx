@@ -255,7 +255,7 @@ pub mod testing {
         #[async_trait]
         impl Torrent for InnerTorrentStream {
             fn handle(&self) -> TorrentHandle;
-            fn absolute_file_path(&self, file: &torrent::File) -> PathBuf;
+            async fn absolute_file_path(&self, file: &torrent::File) -> PathBuf;
             async fn files(&self) -> Vec<torrent::File>;
             async fn file_by_name(&self, name: &str) -> Option<File>;
             async fn largest_file(&self) -> Option<torrent::File>;
@@ -293,8 +293,8 @@ pub mod testing {
         fn handle(&self) -> TorrentHandle {
             self.inner.handle()
         }
-        fn absolute_file_path(&self, file: &torrent::File) -> PathBuf {
-            self.inner.absolute_file_path(file)
+        async fn absolute_file_path(&self, file: &torrent::File) -> PathBuf {
+            self.inner.absolute_file_path(file).await
         }
         async fn files(&self) -> Vec<torrent::File> {
             self.inner.files().await

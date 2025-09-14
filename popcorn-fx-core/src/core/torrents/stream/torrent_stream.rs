@@ -82,9 +82,9 @@ impl Torrent for DefaultTorrentStream {
         self.handle
     }
 
-    fn absolute_file_path(&self, file: &torrent::File) -> PathBuf {
+    async fn absolute_file_path(&self, file: &torrent::File) -> PathBuf {
         if let Some(context) = self.instance() {
-            return context.absolute_file_path(file);
+            return context.absolute_file_path(file).await;
         }
 
         PathBuf::new()
@@ -509,8 +509,8 @@ impl Torrent for TorrentStreamContext {
         self.torrent.handle()
     }
 
-    fn absolute_file_path(&self, file: &torrent::File) -> PathBuf {
-        self.torrent.absolute_file_path(file)
+    async fn absolute_file_path(&self, file: &torrent::File) -> PathBuf {
+        self.torrent.absolute_file_path(file).await
     }
 
     async fn files(&self) -> Vec<torrent::File> {
@@ -672,7 +672,7 @@ impl FXTorrentStreamingResource {
             .into_iter()
             .find(|e| Self::normalize(e.filename()) == Self::normalize(filename))
         {
-            let absolute_filepath = torrent.absolute_file_path(&torrent_file);
+            let absolute_filepath = torrent.absolute_file_path(&torrent_file).await;
             trace!(
                 "Torrent streaming resource {} is opening file {:?}",
                 handle,

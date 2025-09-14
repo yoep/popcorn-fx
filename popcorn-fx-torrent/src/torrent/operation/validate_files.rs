@@ -3,13 +3,10 @@ use crate::torrent::{
     TorrentOperationResult, TorrentState,
 };
 use async_trait::async_trait;
-use futures::future;
-use log::{debug, error, info, trace, warn};
-use std::cmp::min;
-use std::ops::Range;
+use futures::{stream, StreamExt};
+use log::{debug, info, warn};
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::select;
 use tokio::sync::Mutex;
 
 /// The maximum number of bytes to validate at once
@@ -44,7 +41,10 @@ impl TorrentFileValidationOperation {
         torrent.tracker_manager().stop_announcing(&info_hash);
 
         tokio::spawn(async move {
-            if let Some(pieces) = context.pieces().await {
+            let pieces = context.piece_pool().pieces().await;
+            let piece_len = pieces.get(0).map(|e| e.len()).unwrap_or_default();
+
+            if pieces.len() > 0 {
                 debug!(
                     "Torrent {} is validating files {:?}",
                     context,
@@ -54,38 +54,33 @@ impl TorrentFileValidationOperation {
                         .collect::<Vec<_>>(),
                 );
 
+                let max_parallel = CHUNK_VALIDATION_MAX_BYTE_SIZE / piece_len;
+
                 let start = Instant::now();
-                let (total_chunks, pieces_per_chunk) = Self::calculate_chunks(pieces.as_slice());
-                let futures: Vec<_> = (0..total_chunks)
+                let futures: Vec<_> = pieces
                     .into_iter()
-                    .map(|chunk| {
-                        tokio::spawn(Self::validate_chunk(
-                            context.clone(),
-                            chunk,
-                            pieces_per_chunk,
-                        ))
-                    })
+                    .map(|piece| Self::validate_piece(context.clone(), piece))
                     .collect();
 
-                let valid_pieces: usize;
-                select! {
-                    _ = context.cancelled() => return,
-                    result = future::join_all(futures) => {
-                        valid_pieces = result.into_iter()
-                            .map(|e| e.unwrap_or(0))
-                            .sum();
-                    },
-                }
+                let valid_pieces = stream::iter(futures)
+                    .buffer_unordered(max_parallel)
+                    .collect::<Vec<_>>()
+                    .await
+                    .into_iter()
+                    .flat_map(|e| e)
+                    .collect::<Vec<_>>();
 
                 let time_taken = start.elapsed();
                 info!(
                     "Torrent {} completed {} file validation(s) ({} valid chunks) in {}.{:03} seconds",
                     context,
                     files.len(),
-                    valid_pieces,
+                    valid_pieces.len(),
                     time_taken.as_secs(),
                     time_taken.subsec_millis()
                 );
+
+                context.pieces_completed(valid_pieces).await;
             } else {
                 warn!(
                     "Torrent {} failed to start file validation, pieces are unknown",
@@ -104,117 +99,32 @@ impl TorrentFileValidationOperation {
         *self.state.lock().await = ValidationState::Validating;
     }
 
-    /// Validate a chunk of pieces from the torrent.
-    /// This will retrieve the underlying bytes of the pieces from the storage device and validate if the piece has been completed.
-    ///
-    /// # Returns
-    ///
-    /// It returns the total number of valid pieces within the chunk.
-    async fn validate_chunk(
-        torrent: Arc<TorrentContext>,
-        chunk: usize,
-        pieces_per_chunk: usize,
-    ) -> usize {
-        let pieces: Vec<Piece>;
-        let piece_range: Range<usize>;
-        let total_pieces: usize;
-
-        {
-            let mutex = torrent.pieces_lock().read().await;
-            total_pieces = mutex.len();
-            piece_range =
-                chunk * pieces_per_chunk..((chunk + 1) * pieces_per_chunk).min(total_pieces);
-            pieces = torrent.pieces_lock().read().await.as_slice()[piece_range]
-                .iter()
-                .map(|e| e.clone())
-                .collect()
+    /// Validate the piece data stored within the [crate::torrent::storage::Storage] of the torrent.
+    /// Returns the [PieceIndex] when the stored piece data is valid, else [None].
+    async fn validate_piece(context: Arc<TorrentContext>, piece: Piece) -> Option<PieceIndex> {
+        if let Some(hash_v1) = piece.hash.hash_v1() {
+            return context
+                .storage()
+                .hash_v1(&piece.index)
+                .await
+                .ok()
+                .and_then(|hash| Some(piece.index).filter(|_| hash == hash_v1));
         }
 
-        let mut valid_pieces = 0;
-        let range_start = pieces.first().map(|e| e.torrent_range().start).unwrap_or(0);
-        let range_end = pieces.last().map(|e| e.torrent_range().end).unwrap_or(0);
-        let torrent_range = range_start..range_end;
-
-        match torrent.read_bytes_with_padding(torrent_range.clone()).await {
-            Ok(bytes) => {
-                let start_time = Instant::now();
-                let futures: Vec<_> = pieces
-                    .into_iter()
-                    .filter_map(|piece| {
-                        let start = piece.offset - range_start;
-                        let end = start + piece.length;
-                        let piece_bytes = &bytes[start..end];
-
-                        if piece_bytes == &vec![0u8; piece.length] {
-                            return None;
-                        }
-
-                        Some((piece, piece_bytes.to_vec()))
-                    })
-                    .map(|(piece, piece_bytes)| {
-                        tokio::spawn(async move {
-                            (
-                                TorrentContext::validate_piece_data(&piece, &piece_bytes),
-                                piece,
-                            )
-                        })
-                    })
-                    .collect();
-                // cleanup the read bytes
-                drop(bytes);
-
-                let completed_pieces: Vec<PieceIndex>;
-                select! {
-                    _ = torrent.cancelled() => return valid_pieces,
-                    result = future::join_all(futures) => {
-                        completed_pieces = result.into_iter()
-                            .flat_map(|e| e
-                                .map_err(|err| error!("Torrent {} validation error, {}", torrent, err))
-                                .ok())
-                            .filter(|(e, _)| *e)
-                            .map(|(_, piece)| piece.index)
-                            .collect();
-                    },
-                }
-                let elapsed = start_time.elapsed();
-                trace!(
-                    "Torrent {} validated chunk {:?} in {}.{:03}ms",
-                    torrent,
-                    torrent_range,
-                    elapsed.as_millis(),
-                    elapsed.subsec_micros() % 1000
-                );
-                valid_pieces += completed_pieces.len();
-
-                // inform the torrent about the validated pieces of this chunk
-                if !completed_pieces.is_empty() {
-                    torrent.pieces_completed(completed_pieces).await;
-                }
-
-                valid_pieces
-            }
-            Err(e) => {
-                warn!(
-                    "Torrent {} failed to validate chunk {:?}, {}",
-                    torrent, torrent_range, e
-                );
-                0
-            }
+        if let Some(hash_v2) = piece.hash.hash_v2() {
+            return context
+                .storage()
+                .hash_v2(&piece.index)
+                .await
+                .ok()
+                .and_then(|hash| Some(piece.index).filter(|_| hash_v2 == hash));
         }
-    }
 
-    /// Calculate the validation chunk size for the given pieces.
-    /// The maximum amount of pieces per chunk, based on memory size, will be calculated together with the amount of total chunks.
-    ///
-    /// It returns the total chunks and pieces per chunk.
-    fn calculate_chunks(pieces: &[Piece]) -> (usize, usize) {
-        let piece_length = pieces.get(0).map(|e| e.length).unwrap_or(16384);
-        let max_pieces_per_chunk = CHUNK_VALIDATION_MAX_BYTE_SIZE / piece_length;
-
-        let pieces_per_chunk = min(max_pieces_per_chunk, pieces.len());
-        let total_chunks = (pieces.len() + pieces_per_chunk - 1) / pieces_per_chunk;
-
-        (total_chunks, pieces_per_chunk)
+        debug!(
+            "Torrent {} is unable to validate piece {}, piece hash is missing or invalid",
+            context, piece.index
+        );
+        None
     }
 }
 
@@ -250,11 +160,10 @@ mod tests {
     use crate::create_torrent;
     use crate::init_logger;
     use crate::torrent::operation::{TorrentCreateFilesOperation, TorrentCreatePiecesOperation};
-    use crate::torrent::{TorrentConfig, TorrentFlags};
     use popcorn_fx_core::testing::copy_test_file;
     use std::time::Duration;
     use tempfile::tempdir;
-    use tokio::time;
+    use tokio::{select, time};
 
     #[tokio::test]
     async fn test_execute_state_validating() {
@@ -340,7 +249,7 @@ mod tests {
         let result = operation.execute(&context).await;
         assert_eq!(TorrentOperationResult::Continue, result);
 
-        let pieces = context.pieces_lock().read().await;
+        let pieces = context.piece_pool().pieces().await;
         for piece in 0..30 {
             assert_eq!(
                 true,
@@ -350,7 +259,7 @@ mod tests {
             );
             assert_eq!(
                 true,
-                context.has_piece(piece).await,
+                context.piece_pool().is_piece_completed(&piece).await,
                 "expected piece bitfield {} to be completed",
                 piece
             );
@@ -367,33 +276,6 @@ mod tests {
                 "expected total completed size to be > 0"
             );
         }
-    }
-
-    #[tokio::test]
-    async fn test_calculate_chunks() {
-        init_logger!();
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let torrent = create_torrent!(
-            "debian-udp.torrent",
-            temp_path,
-            TorrentFlags::none(),
-            TorrentConfig::default(),
-            vec![],
-            vec![]
-        );
-        let context = torrent.instance().unwrap();
-
-        // create pieces & files
-        create_pieces_and_files(&context).await;
-
-        // get the pieces from the torrent and calculate the chunks
-        let pieces = context.pieces_lock().read().await;
-        let (total_chunks, pieces_per_chunk) =
-            TorrentFileValidationOperation::calculate_chunks(pieces.as_slice());
-
-        assert_eq!(81, total_chunks);
-        assert_eq!(190, pieces_per_chunk);
     }
 
     async fn create_pieces_and_files(context: &Arc<TorrentContext>) {

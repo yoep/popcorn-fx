@@ -157,10 +157,10 @@ impl Torrent for TorrentData {
         }
     }
 
-    fn absolute_file_path(&self, file: &torrent::File) -> PathBuf {
+    async fn absolute_file_path(&self, file: &torrent::File) -> PathBuf {
         match self {
-            TorrentData::Torrent(e) => e.absolute_file_path(file),
-            TorrentData::Stream(e) => e.absolute_file_path(file),
+            TorrentData::Torrent(e) => e.absolute_file_path(file).await,
+            TorrentData::Stream(e) => e.absolute_file_path(file).await,
         }
     }
 

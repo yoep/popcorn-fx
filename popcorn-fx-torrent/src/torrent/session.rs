@@ -2,16 +2,16 @@
 use crate::torrent::dht::{DhtTracker, DEFAULT_BOOTSTRAP_SERVERS};
 use crate::torrent::dns::DnsResolver;
 use crate::torrent::errors::Result;
-use crate::torrent::fs::TorrentFileStorage;
 use crate::torrent::operation::TorrentTrackersOperation;
 use crate::torrent::peer::{ProtocolExtensionFlags, TcpPeerDiscovery, UtpPeerDiscovery};
 use crate::torrent::session_cache::{FxSessionCache, SessionCache};
+use crate::torrent::storage::DiskStorage;
 use crate::torrent::torrent::Torrent;
 use crate::torrent::tracker::TrackerManager;
 use crate::torrent::{
-    ExtensionFactories, ExtensionFactory, InfoHash, Magnet, NoSessionCache, TorrentConfig,
-    TorrentError, TorrentEvent, TorrentFlags, TorrentHandle, TorrentHealth, TorrentMetadata,
-    TorrentOperation, TorrentOperationFactory, DEFAULT_TORRENT_EXTENSIONS,
+    ExtensionFactories, ExtensionFactory, InfoHash, Magnet, NoSessionCache, StorageFactory,
+    TorrentConfig, TorrentError, TorrentEvent, TorrentFlags, TorrentHandle, TorrentHealth,
+    TorrentMetadata, TorrentOperation, TorrentOperationFactory, DEFAULT_TORRENT_EXTENSIONS,
     DEFAULT_TORRENT_OPERATIONS, DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
 };
 use async_trait::async_trait;
@@ -32,6 +32,7 @@ use tokio::sync::{Mutex, RwLock};
 use tokio::{select, time};
 use tokio_util::sync::CancellationToken;
 
+use crate::torrent::torrent_config::DEFAULT_PEER_TIMEOUT;
 #[cfg(test)]
 pub use mock::*;
 
@@ -249,7 +250,7 @@ pub trait Session: Debug + Callback<SessionEvent> + Send + Sync {
 ///
 /// fn getting_started() -> Result<FxTorrentSession> {
 ///     FxTorrentSession::builder()
-///         .base_path("/torrent/location/directory")
+///         .path("/torrent/location/directory")
 ///         .client_name("MyClient")
 ///         .build()
 /// }
@@ -275,7 +276,7 @@ impl FxTorrentSession {
     ///
     /// fn new_torrent_session() -> Result<FxTorrentSession> {
     ///     FxTorrentSession::builder()
-    ///         .base_path("/torrent/location/directory")
+    ///         .path("/torrent/location/directory")
     ///         .client_name("MyClient")
     ///         .protocol_extensions(ProtocolExtensionFlags::LTEP | ProtocolExtensionFlags::Fast)
     ///         .extensions(vec![|| Box::new(MetadataExtension::new())])
@@ -305,11 +306,12 @@ impl FxTorrentSession {
     ///
     /// Returns the session when initialized successfully or an error on failure.
     pub fn new<P: AsRef<Path>, S: AsRef<str>>(
-        base_path: P,
+        path: P,
         client_name: S,
         protocol_extensions: ProtocolExtensionFlags,
         extensions: ExtensionFactories,
         operations: Vec<TorrentOperationFactory>,
+        storage: StorageFactory,
         session_cache: Box<dyn SessionCache>,
         dht_enabled: bool,
     ) -> Self {
@@ -320,7 +322,7 @@ impl FxTorrentSession {
         let inner = Arc::new(InnerSession {
             handle,
             state: Mutex::new(SessionState::Initializing),
-            base_path: RwLock::new(base_path.as_ref().to_path_buf()),
+            path: RwLock::new(path.as_ref().to_path_buf()),
             client_name: client_name.as_ref().to_string(),
             dht: Default::default(),
             tracker: TrackerManager::new(Duration::from_secs(DEFAULT_TRACKER_TIMEOUT_SECONDS)),
@@ -328,6 +330,7 @@ impl FxTorrentSession {
             protocol_extensions,
             extension_factories: extensions,
             torrent_operations: operations,
+            storage_factory: storage,
             session_cache: Mutex::new(session_cache),
             callbacks: MultiThreadedCallback::new(),
             command_sender,
@@ -394,13 +397,12 @@ impl FxTorrentSession {
         };
 
         let info_hash = torrent_info.info_hash.clone();
-        let mut config = TorrentConfig::builder().client_name(self.inner.client_name.as_str());
+        let config = TorrentConfig::builder()
+            .client_name(self.inner.client_name.as_str())
+            .path(self.inner.path.read().await.as_path())
+            .peer_connection_timeout(peer_timeout.unwrap_or(DEFAULT_PEER_TIMEOUT))
+            .build();
 
-        if let Some(peer_timeout) = peer_timeout {
-            config = config.peer_connection_timeout(peer_timeout);
-        }
-
-        let storage_path = self.inner.base_path.read().await.clone();
         trace!(
             "Session {} is creating new torrent for info hash {}",
             self,
@@ -412,7 +414,7 @@ impl FxTorrentSession {
         let torrent = Torrent::request()
             .metadata(torrent_info)
             .options(options)
-            .config(config.build())
+            .config(config)
             .peer_discoveries(vec![
                 Box::new(tcp_peer_discovery),
                 Box::new(utp_peer_discovery),
@@ -420,7 +422,7 @@ impl FxTorrentSession {
             .protocol_extensions(self.inner.protocol_extensions)
             .extensions(self.inner.extensions())
             .operations(self.inner.torrent_operations())
-            .storage(TorrentFileStorage::new(storage_path))
+            .storage(self.inner.storage_factory.clone())
             .tracker_manager(self.inner.tracker.clone())
             .dht_option(dht_tracker)
             .build()?;
@@ -458,11 +460,11 @@ impl Session for FxTorrentSession {
     }
 
     async fn base_path(&self) -> PathBuf {
-        self.inner.base_path.read().await.clone()
+        self.inner.path.read().await.clone()
     }
 
     async fn set_base_path(&self, location: PathBuf) {
-        *self.inner.base_path.write().await = location;
+        *self.inner.path.write().await = location;
     }
 
     async fn find_torrent_by_handle(&self, handle: &TorrentHandle) -> Option<Torrent> {
@@ -500,9 +502,7 @@ impl Session for FxTorrentSession {
                 .protocol_extensions(self.inner.protocol_extensions)
                 .extensions(self.inner.extensions())
                 .operations(vec![Box::new(TorrentTrackersOperation::new())])
-                .storage(TorrentFileStorage::new(
-                    &self.inner.base_path.read().await.clone(),
-                ))
+                .storage(self.inner.storage_factory.clone())
                 .tracker_manager(self.inner.tracker.clone())
                 .dht_option(self.inner.dht.lock().await.clone())
                 .build()?,
@@ -662,11 +662,12 @@ impl Drop for FxTorrentSession {
 /// All other fields make use of defaults when not set.
 #[derive(Debug, Default)]
 pub struct FxTorrentSessionBuilder {
-    base_path: Option<PathBuf>,
+    path: Option<PathBuf>,
     client_name: Option<String>,
     protocol_extensions: Option<ProtocolExtensionFlags>,
     extension_factories: Option<ExtensionFactories>,
     operation_factories: Option<Vec<TorrentOperationFactory>>,
+    storage: Option<StorageFactory>,
     session_cache: Option<Box<dyn SessionCache>>,
     dht: Option<bool>,
 }
@@ -677,9 +678,10 @@ impl FxTorrentSessionBuilder {
         Self::default()
     }
 
-    /// Set the path location for the torrent file data storage of the session.
-    pub fn base_path<P: AsRef<Path>>(&mut self, base_path: P) -> &mut Self {
-        self.base_path = Some(base_path.as_ref().to_path_buf());
+    /// Set the path of the torrent session.
+    /// This is the base path in which all torrents will be stored.
+    pub fn path<P: AsRef<Path>>(&mut self, base_path: P) -> &mut Self {
+        self.path = Some(base_path.as_ref().to_path_buf());
         self
     }
 
@@ -730,6 +732,12 @@ impl FxTorrentSessionBuilder {
         self
     }
 
+    /// Set the storage factory for the session.
+    pub fn storage(&mut self, storage: StorageFactory) -> &mut Self {
+        self.storage = Some(storage);
+        self
+    }
+
     /// Set the torrent session cache to be used within the session.
     pub fn session_cache<S: SessionCache + 'static>(&mut self, cache: S) -> &mut Self {
         self.session_cache = Some(Box::new(cache));
@@ -756,7 +764,7 @@ impl FxTorrentSessionBuilder {
     ///
     /// It returns an error when one of the required is not set.
     pub fn build(&mut self) -> Result<FxTorrentSession> {
-        let base_path = self.base_path.take().ok_or(TorrentError::InvalidSession(
+        let path = self.path.take().ok_or(TorrentError::InvalidSession(
             "base path is required".to_string(),
         ))?;
         let client_name = self.client_name.take().filter(|e| !e.is_empty()).ok_or(
@@ -773,6 +781,13 @@ impl FxTorrentSessionBuilder {
             .operation_factories
             .take()
             .unwrap_or_else(DEFAULT_TORRENT_OPERATIONS);
+        let storage = self.storage.take().unwrap_or(|params| {
+            Box::new(DiskStorage::new(
+                params.info_hash,
+                params.path,
+                params.files,
+            ))
+        });
         let session_cache = self
             .session_cache
             .take()
@@ -783,11 +798,12 @@ impl FxTorrentSessionBuilder {
         let dht_enabled = false;
 
         Ok(FxTorrentSession::new(
-            base_path,
+            path,
             client_name,
             protocol_extensions,
             extensions,
             torrent_operations,
+            storage,
             session_cache,
             dht_enabled,
         ))
@@ -809,7 +825,7 @@ struct InnerSession {
     /// The state of the session
     state: Mutex<SessionState>,
     /// The base path for the torrent storage of the session
-    base_path: RwLock<PathBuf>,
+    path: RwLock<PathBuf>,
     /// The client name of the session, exchanged with peers that support `LTEP`
     client_name: String,
     /// The DHT node server of the session
@@ -820,10 +836,12 @@ struct InnerSession {
     torrents: RwLock<HashMap<InfoHash, Torrent>>,
     /// The enabled protocol extensions of the session
     protocol_extensions: ProtocolExtensionFlags,
-    /// The factories to create new extensions for a torrent
+    /// The factories which initializes extensions for a new torrent
     extension_factories: ExtensionFactories,
-    /// The torrent operations for the session
+    /// The factories which initialize operations for a new torrent
     torrent_operations: Vec<TorrentOperationFactory>,
+    /// The factory which initialize a storage for a new torrent
+    storage_factory: StorageFactory,
     /// The torrent cache of the session
     session_cache: Mutex<Box<dyn SessionCache>>,
     /// The event callbacks of the session
@@ -1270,7 +1288,7 @@ pub mod tests {
 
     async fn create_session(temp_path: &str) -> FxTorrentSession {
         let session = FxTorrentSession::builder()
-            .base_path(temp_path)
+            .path(temp_path)
             .client_name("test")
             .extensions(DEFAULT_TORRENT_EXTENSIONS())
             .build()

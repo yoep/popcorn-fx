@@ -122,11 +122,9 @@ impl TorrentOperation for TorrentTrackersOperation {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    use crate::torrent::{TorrentConfig, TorrentEvent, TorrentFlags};
-    use crate::{create_torrent, timeout};
-
     use crate::init_logger;
+    use crate::torrent::TorrentEvent;
+    use crate::{create_torrent, timeout};
     use fx_callback::Callback;
     use std::time::Duration;
     use tempfile::tempdir;

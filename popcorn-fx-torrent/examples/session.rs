@@ -6,7 +6,7 @@ use popcorn_fx_torrent::torrent::FxTorrentSession;
 async fn main() {
     let _session = FxTorrentSession::builder()
         .client_name("My session name")
-        .base_path("torrents")
+        .path("torrents")
         .protocol_extensions(
             ProtocolExtensionFlags::Fast
                 | ProtocolExtensionFlags::LTEP

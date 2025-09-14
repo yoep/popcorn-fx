@@ -71,7 +71,6 @@ mod tests {
 
     use crate::torrent::dht::DEFAULT_BOOTSTRAP_SERVERS;
     use crate::torrent::dns::DnsResolver;
-    use crate::torrent::{TorrentConfig, TorrentFlags};
     use crate::{create_torrent, init_logger};
 
     use std::str::FromStr;

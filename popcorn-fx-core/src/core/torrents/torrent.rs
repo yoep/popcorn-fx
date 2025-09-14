@@ -25,7 +25,7 @@ pub trait Torrent: Debug + DowncastSync + Callback<TorrentEvent> + Send + Sync {
     fn handle(&self) -> TorrentHandle;
 
     /// Get the absolute filesystem path to a given file in the torrent.
-    fn absolute_file_path(&self, file: &torrent::File) -> PathBuf;
+    async fn absolute_file_path(&self, file: &torrent::File) -> PathBuf;
 
     /// Get the files of the torrent.
     /// It might return an empty array if the metadata is unknown.
@@ -91,8 +91,8 @@ impl Torrent for torrent::Torrent {
         self.handle()
     }
 
-    fn absolute_file_path(&self, file: &torrent::File) -> PathBuf {
-        self.absolute_file_path(file)
+    async fn absolute_file_path(&self, file: &torrent::File) -> PathBuf {
+        self.absolute_file_path(file).await
     }
 
     async fn files(&self) -> Vec<torrent::File> {
@@ -127,7 +127,7 @@ impl Torrent for torrent::Torrent {
     }
 
     async fn has_piece(&self, piece: usize) -> bool {
-        self.has_piece(piece as PieceIndex).await
+        self.has_piece(&(piece as PieceIndex)).await
     }
 
     async fn prioritize_bytes(&self, bytes: &std::ops::Range<usize>) {
@@ -286,7 +286,7 @@ mod mock {
         #[async_trait]
         impl Torrent for Torrent {
             fn handle(&self) -> TorrentHandle;
-            fn absolute_file_path(&self, file: &torrent::File) -> PathBuf;
+            async fn absolute_file_path(&self, file: &torrent::File) -> PathBuf;
             async fn files(&self) -> Vec<torrent::File>;
             async fn file_by_name(&self, name: &str) -> Option<torrent::File>;
             async fn largest_file(&self) -> Option<torrent::File>;

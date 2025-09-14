@@ -774,7 +774,7 @@ impl BitTorrentPeer {
 
         // check if the fast protocol is enabled
         // if so, we send the initial fast messages to the remote peer
-        let bitfield = self.inner.torrent.piece_bitfield().await;
+        let bitfield = self.inner.torrent.piece_pool().bitfield().await;
         let is_bitfield_known = bitfield.len() > 0;
         let is_fast_enabled = self
             .inner
@@ -860,7 +860,7 @@ impl BitTorrentPeer {
         let (event_sender, event_receiver) = unbounded_channel();
         let extension_registry = Self::create_extension_registry(&extensions);
         let peer_handle = PeerHandle::new();
-        let total_pieces = torrent.total_pieces().await;
+        let total_pieces = torrent.piece_pool().len().await;
 
         let client = PeerClientInfo {
             handle: peer_handle,
@@ -1289,7 +1289,7 @@ impl PeerContext {
     /// It returns true when the remote has all pieces and the metadata is known, else false.
     pub async fn remote_has_all_pieces(&self) -> bool {
         let remote_pieces = self.remote_pieces.read().await;
-        let torrent_total_pieces = self.torrent.total_pieces().await;
+        let torrent_total_pieces = self.torrent.piece_pool().len().await;
 
         // the received bitfield can be greater than the actual total pieces due to byte alignment
         remote_pieces.len() >= torrent_total_pieces && remote_pieces.all()
@@ -1362,15 +1362,17 @@ impl PeerContext {
     /// Check if the remote peer has wanted piece data that are not yet being requested.
     /// If it least one piece is available by the remote peer and wanted by the torrent, it returns `true`.
     pub async fn has_wanted_piece(&self) -> bool {
-        let mutex = self.client_pending_requests.read().await;
+        let client_pending_requests = self.client_pending_requests.read().await;
         let remote_has_all_pieces = self.remote_has_all_pieces().await;
         let remote_pieces = self.remote_pieces.read().await;
-        let wanted_pieces = self.torrent.wanted_pieces().await;
+        let wanted_pieces = self.torrent.piece_pool().wanted_pieces().await;
 
         wanted_pieces
             .into_iter()
-            .filter(|piece| remote_has_all_pieces || remote_pieces.get(*piece).unwrap_or(false))
-            .any(|e| !mutex.contains_key(&e))
+            .filter(|piece| {
+                remote_has_all_pieces || remote_pieces.get(piece.index).unwrap_or_default()
+            })
+            .any(|piece| !client_pending_requests.contains_key(&piece.index))
     }
 
     /// Get whether the remote peer is a **seed** (i.e., it has every piece).
@@ -1489,7 +1491,12 @@ impl PeerContext {
             return;
         }
 
-        if self.torrent.has_piece(request.index).await {
+        if self
+            .torrent
+            .piece_pool()
+            .is_piece_completed(&request.index)
+            .await
+        {
             if *self.state.read().await != PeerState::Uploading {
                 self.send_command_event(PeerCommandEvent::State(PeerState::Uploading));
             }
@@ -1549,7 +1556,7 @@ impl PeerContext {
             TorrentEvent::PiecesChanged(_) => {
                 trace!("Peer {} updating client piece bitfield", self);
                 // retrieve the torrent pieces bitfield and store it as the client bitfield
-                let piece_bitfield = self.torrent.piece_bitfield().await;
+                let piece_bitfield = self.torrent.piece_pool().bitfield().await;
                 let bitfield_len = piece_bitfield.len();
                 *self.client_pieces.write().await = piece_bitfield;
 
@@ -2040,14 +2047,14 @@ impl PeerContext {
     /// This updates the peer client bitfield availability and informs the remote peer about the newly available pieces.
     async fn update_client_piece_availability(&self, pieces: Vec<PieceIndex>) {
         {
-            let mut mutex = self.client_pieces.write().await;
+            let mut client_pieces = self.client_pieces.write().await;
             for piece in pieces.iter() {
                 // we might not have the bitfield stored if it was unknown when this peer was created
                 // if that's the case, copy the whole bitfield from the torrent instead
-                if mutex.len() <= *piece {
-                    *mutex = self.torrent.piece_bitfield().await;
+                if client_pieces.len() <= *piece {
+                    *client_pieces = self.torrent.piece_pool().bitfield().await;
                 } else {
-                    mutex.set(piece.clone(), true);
+                    client_pieces.set(piece.clone(), true);
                 }
             }
         }
@@ -2074,7 +2081,7 @@ impl PeerContext {
     /// The range of the piece will be checked against the known pieces of the torrent, if known.
     /// If the piece is out-of-range, the update will be ignored.
     pub(crate) async fn remote_has_piece(&self, piece: PieceIndex, has_piece: bool) {
-        let total_pieces = self.torrent.total_pieces().await;
+        let total_pieces = self.torrent.piece_pool().len().await;
         let is_metadata_known = self.torrent.is_metadata_known().await;
 
         {
@@ -2165,7 +2172,7 @@ impl PeerContext {
             return;
         }
 
-        let bitfield_len = self.torrent.total_pieces().await;
+        let bitfield_len = self.torrent.piece_pool().len().await;
         self.update_remote_pieces(BitVec::from_elem(bitfield_len, have_all))
             .await;
         self.metrics.available_pieces.set(bitfield_len as u64);
@@ -2278,7 +2285,7 @@ impl PeerContext {
 
         // check if we're allowed to download pieces and that the given piece is wanted by the torrent
         let is_download_allowed = self.torrent.is_download_allowed().await;
-        let is_piece_wanted = self.torrent.is_piece_wanted(&piece).await;
+        let is_piece_wanted = self.torrent.piece_pool().is_wanted(&piece).await;
         if is_download_allowed && is_piece_wanted {
             if let Some(permit) = self.torrent.request_download_permit(&piece).await {
                 self.send_command_event(PeerCommandEvent::RequestPieceData(RequestPieceData {
@@ -2322,7 +2329,12 @@ impl PeerContext {
     /// If the piece is allowed through the fast protocol, the request will be sent to the remote peer even if it's choked.
     /// This doesn't bypass the request permits, if no permit is available, then no request will be made to the remote peer.
     async fn request_piece_data(&self, request_data: RequestPieceData) {
-        if !self.torrent.is_piece_wanted(&request_data.piece).await {
+        if !self
+            .torrent
+            .piece_pool()
+            .is_piece_completed(&request_data.piece)
+            .await
+        {
             trace!(
                 "Piece {} is no longer wanted for {}",
                 request_data.piece,
@@ -2340,14 +2352,7 @@ impl PeerContext {
         }
 
         let permit = request_data.permit;
-        let piece = self
-            .torrent
-            .pieces_lock()
-            .read()
-            .await
-            .get(request_data.piece)
-            .cloned();
-        if let Some(piece) = piece {
+        if let Some(piece) = self.torrent.piece_pool().get(&request_data.piece).await {
             let mut sent_requests = 0;
             let requests: Vec<Request> = piece
                 .parts_to_request()
@@ -3036,7 +3041,7 @@ mod tests {
         assert_eq!(TorrentOperationResult::Continue, result);
 
         // check if both the client & remote piece bitfield have been updated
-        let torrent_bitfield = context.piece_bitfield().await;
+        let torrent_bitfield = context.piece_pool().bitfield().await;
         let peer_context = &outgoing.inner;
         assert_timeout!(
             Duration::from_secs(1),

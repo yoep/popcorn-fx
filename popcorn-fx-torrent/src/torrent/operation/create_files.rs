@@ -112,7 +112,7 @@ mod tests {
     use crate::create_torrent;
     use crate::init_logger;
     use crate::torrent::operation::TorrentCreatePiecesOperation;
-    use crate::torrent::{PieceIndex, TorrentConfig, TorrentFlags};
+    use crate::torrent::PieceIndex;
     use tempfile::tempdir;
 
     #[tokio::test]
@@ -202,10 +202,7 @@ mod tests {
             result,
             "expected the pieces operation to have succeeded"
         );
-        let pieces = context
-            .pieces()
-            .await
-            .expect("expected the pieces to have been created");
+        let pieces = context.piece_pool().pieces().await;
 
         // create the torrent files
         let files = operation

@@ -3,7 +3,9 @@ use crate::torrent::peer::{
     ConnectionDirection, ConnectionProtocol, Error, Metrics, Peer, PeerClientInfo, PeerEvent,
     PeerHandle, PeerId, PeerState, Result,
 };
-use crate::torrent::{PieceIndex, TorrentContext, TorrentFileInfo, TorrentMetadata};
+use crate::torrent::{
+    FileAttributeFlags, PieceIndex, TorrentContext, TorrentFileInfo, TorrentMetadata,
+};
 use async_trait::async_trait;
 use bit_vec::BitVec;
 use derive_more::Display;
@@ -13,6 +15,7 @@ use log::{debug, warn};
 use percent_encoding::{percent_encode, AsciiSet, NON_ALPHANUMERIC};
 use reqwest::redirect::Policy;
 use reqwest::Client;
+use std::cmp::min;
 use std::io;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -113,7 +116,7 @@ impl Peer for HttpPeer {
     }
 
     async fn remote_piece_bitfield(&self) -> BitVec {
-        let total_pieces = self.inner.torrent.total_pieces().await;
+        let total_pieces = self.inner.torrent.piece_pool().len().await;
         BitVec::from_elem(total_pieces, true)
     }
 
@@ -187,7 +190,7 @@ impl HttpPeerContext {
         for piece in wanted_pieces {
             // request a permit and release it after requesting the piece, don't release it while requesting
             if let Some(_permit) = self.torrent.request_download_permit(&piece).await {
-                if let Err(e) = self.request_piece(piece, &metadata).await {
+                if let Err(e) = self.request_piece(&piece, &metadata).await {
                     warn!(
                         "Torrent {} failed to request webseed data from {}, {}",
                         self.torrent, self, e
@@ -200,14 +203,34 @@ impl HttpPeerContext {
 
     /// Try to request the given piece.
     /// It returns an error if the piece couldn't be requested from the webseed.
-    async fn request_piece(&self, piece: PieceIndex, metadata: &TorrentMetadata) -> Result<()> {
-        if let Some(piece) = self.torrent.pieces_lock().read().await.get(piece).cloned() {
-            let file = self.torrent.find_relevant_files_for_piece(&piece).await;
+    async fn request_piece(&self, piece: &PieceIndex, metadata: &TorrentMetadata) -> Result<()> {
+        if let Some(piece) = self.torrent.piece_pool().get(&piece).await {
+            let piece_len = piece.len();
+            let file_index = self
+                .torrent
+                .file_pool()
+                .file_index_for(&piece.index)
+                .await
+                .ok_or(Error::InvalidPiece(piece.index))?;
+            let mut cursor = 0usize;
+            let mut buffer = vec![0u8; piece_len];
 
-            if let Some(file) = file.get(0) {
+            while cursor < piece_len {
+                let file = self
+                    .torrent
+                    .file_pool()
+                    .get(&file_index)
+                    .await
+                    .ok_or(Error::InvalidPiece(piece.index))?;
+                if file.attributes().contains(FileAttributeFlags::PaddingFile) {
+                    cursor += file.len();
+                    continue;
+                }
+
                 let url = self.create_request_url(metadata, &file.info)?;
-                let range_start = piece.offset;
-                let range_end = piece.offset + piece.length;
+                let request_len = min(piece.length, file.len());
+                let range_start = piece.offset.saturating_sub(file.torrent_offset);
+                let range_end = range_start.saturating_add(request_len);
 
                 let response = self
                     .client
@@ -227,24 +250,13 @@ impl HttpPeerContext {
                         .map_err(|e| Error::Io(io::Error::new(io::ErrorKind::Other, e)))?;
                     self.metrics.bytes_in_useful.inc_by(body.len() as u64);
 
-                    // loop over each part that needs to be completed and fetch it from the body
-                    for part in piece.parts_to_request() {
-                        let data_len = body.len();
-                        let part_end = part.begin + part.length;
-                        if part_end > data_len {
-                            return Err(Error::Io(io::Error::new(
-                                io::ErrorKind::InvalidData,
-                                format!(
-                                    "part end {} is out of bound for response data length {}",
-                                    part_end, data_len
-                                ),
-                            )));
-                        }
-
-                        let data = &body[part.begin..part_end];
-                        self.torrent
-                            .piece_part_completed(part.clone(), data.to_vec());
+                    if body.len() > request_len {
+                        return Err(Error::InvalidLength(request_len as u32, body.len() as u32));
                     }
+
+                    // copy the data into the buffer
+                    buffer[cursor..cursor + body.len()].copy_from_slice(&body);
+                    cursor += body.len();
                 } else {
                     return Err(Error::Io(io::Error::new(
                         io::ErrorKind::InvalidData,
@@ -254,11 +266,31 @@ impl HttpPeerContext {
                         ),
                     )));
                 }
+
+                // loop over each part that needs to be completed and fetch it from the body
+                for part in piece.parts_to_request() {
+                    let data_len = buffer.len();
+                    let part_start = part.begin;
+                    let part_end = part_start.saturating_add(part.length);
+                    if part_end > data_len {
+                        return Err(Error::Io(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            format!(
+                                "part end {} is out of bound for response data length {}",
+                                part_end, data_len
+                            ),
+                        )));
+                    }
+
+                    let data = &buffer[part_start..part_end];
+                    self.torrent
+                        .piece_part_completed(part.clone(), data.to_vec());
+                }
             }
 
             Ok(())
         } else {
-            Err(Error::InvalidPiece(piece))
+            Err(Error::InvalidPiece(*piece))
         }
     }
 
@@ -321,9 +353,8 @@ mod tests {
     use super::*;
 
     use crate::create_torrent;
-    use crate::torrent::{TorrentConfig, TorrentFlags};
-
     use crate::init_logger;
+
     use popcorn_fx_core::testing::read_test_file_to_bytes;
     use tempfile::tempdir;
 

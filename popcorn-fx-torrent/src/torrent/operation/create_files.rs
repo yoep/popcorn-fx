@@ -25,13 +25,13 @@ impl TorrentCreateFilesOperation {
                 let total_files = files.len();
                 torrent.update_files(files).await;
                 debug!(
-                    "A total of {} files have been created for {}",
-                    total_files, torrent
+                    "Torrent {} created a total of {} files",
+                    torrent, total_files
                 );
                 true
             }
             Err(e) => {
-                warn!("Failed to create torrent files of {}, {}", torrent, e);
+                warn!("Torrent {} failed to create files, {}", torrent, e);
                 false
             }
         }

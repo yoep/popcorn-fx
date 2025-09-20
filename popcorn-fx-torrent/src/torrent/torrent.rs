@@ -2,6 +2,11 @@ use crate::torrent::dht::DhtTracker;
 use crate::torrent::errors::Result;
 use crate::torrent::file::File;
 use crate::torrent::metrics::Metric;
+use crate::torrent::operation::{
+    TorrentConnectPeersOperation, TorrentCreateFilesOperation, TorrentCreatePiecesOperation,
+    TorrentDhtNodesOperation, TorrentDhtPeersOperation, TorrentFileValidationOperation,
+    TorrentMetadataOperation, TorrentTrackersOperation,
+};
 use crate::torrent::peer::extension::Extension;
 use crate::torrent::peer::{
     BitTorrentPeer, Peer, PeerClientInfo, PeerDiscovery, PeerEntry, PeerEvent, PeerHandle, PeerId,
@@ -16,7 +21,7 @@ use crate::torrent::tracker::{
 use crate::torrent::{
     FileAttributeFlags, FileIndex, FilePool, Metrics, PeerPool, Piece, PieceChunkPool, PieceIndex,
     PiecePart, PiecePool, PiecePriority, TorrentError, TorrentFlags, TorrentMetadata,
-    TorrentMetadataInfo, TorrentPeer, DEFAULT_TORRENT_EXTENSIONS, DEFAULT_TORRENT_OPERATIONS,
+    TorrentMetadataInfo, TorrentPeer, DEFAULT_TORRENT_EXTENSIONS,
     DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
 };
 use async_trait::async_trait;
@@ -64,7 +69,7 @@ pub type ExtensionFactory = fn() -> Box<dyn Extension>;
 pub type ExtensionFactories = Vec<ExtensionFactory>;
 
 /// Creates a new torrent [Storage] instance.
-pub type StorageFactory = fn(StorageParams) -> Box<dyn Storage>;
+pub type StorageFactory = dyn FnOnce(StorageParams) -> Box<dyn Storage> + Send + Sync;
 
 /// The states of the torrent
 #[derive(Debug, Display, Copy, Clone, PartialEq)]
@@ -117,14 +122,13 @@ impl Default for TorrentState {
 ///
 /// ```rust,no_run
 /// use popcorn_fx_torrent::torrent::{Torrent, TorrentFlags, TorrentMetadata, TorrentRequest, MagnetResult, ExtensionFactories, Result};
-/// use popcorn_fx_torrent::torrent::storage::TorrentFileStorage;
+/// use popcorn_fx_torrent::torrent::storage::{DiskStorage};
 /// use popcorn_fx_torrent::torrent::peer::extension::Extensions;
 /// use popcorn_fx_torrent::torrent::peer::{PeerDiscovery, TcpPeerDiscovery};
 ///
 /// fn create_new_torrent(
 ///     metadata: TorrentMetadata,
 ///     extensions: ExtensionFactories,
-///     storage: TorrentFileStorage,
 /// ) -> Result<Torrent> {
 ///     // create a tcp peer discovery for dialing and accepting tpc connections
 ///     let peer_discovery = TcpPeerDiscovery::new();
@@ -133,12 +137,14 @@ impl Default for TorrentState {
 ///         .metadata(metadata)
 ///         .options(TorrentFlags::AutoManaged)
 ///         .extensions(extensions)
-///         .storage(storage)
+///         .storage(|params| {
+///             Box::new(DiskStorage::new(params.info_hash, params.path, params.files))
+///         })
 ///         .peer_discovery(Box::new(peer_discovery))
 ///         .build()
 /// }
 /// ```
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct TorrentRequest {
     /// The torrent metadata information
     metadata: Option<TorrentMetadata>,
@@ -153,7 +159,7 @@ pub struct TorrentRequest {
     /// The factories for creating the peer extensions that should be enabled for this torrent
     extensions: Option<ExtensionFactories>,
     /// The storage strategy to use for the torrent data
-    storage: Option<StorageFactory>,
+    storage: Option<Box<StorageFactory>>,
     /// The operations used by the torrent for processing data
     operations: Option<Vec<Box<dyn TorrentOperation>>>,
     /// The DHT node server to use for discovering peers
@@ -212,8 +218,11 @@ impl TorrentRequest {
     }
 
     /// Set the underlying storage for storing the torrent file data.
-    pub fn storage(&mut self, storage: StorageFactory) -> &mut Self {
-        self.storage = Some(storage);
+    pub fn storage<F>(&mut self, storage: F) -> &mut Self
+    where
+        F: FnOnce(StorageParams) -> Box<dyn Storage> + Send + Sync + 'static,
+    {
+        self.storage = Some(Box::new(storage));
         self
     }
 
@@ -255,6 +264,21 @@ impl TorrentRequest {
     }
 }
 
+impl Debug for TorrentRequest {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TorrentRequest")
+            .field("metadata", &self.metadata)
+            .field("options", &self.options)
+            .field("config", &self.config)
+            .field("peer_discoveries", &self.peer_discoveries)
+            .field("protocol_extensions", &self.protocol_extensions)
+            .field("operations", &self.operations)
+            .field("dht", &self.dht)
+            .field("tracker_manager", &self.tracker_manager)
+            .finish()
+    }
+}
+
 impl TryFrom<&mut TorrentRequest> for Torrent {
     type Error = TorrentError;
 
@@ -288,10 +312,20 @@ impl TryFrom<&mut TorrentRequest> for Torrent {
             path: config.path().to_path_buf(),
             files: file_pool.clone(),
         };
-        let operations = request
-            .operations
-            .take()
-            .unwrap_or_else(|| DEFAULT_TORRENT_OPERATIONS().iter().map(|e| e()).collect());
+        let operations = request.operations.take().unwrap_or_else(|| {
+            vec![
+                Box::new(TorrentTrackersOperation::new()),
+                #[cfg(feature = "dht")]
+                Box::new(TorrentDhtNodesOperation::new()),
+                #[cfg(feature = "dht")]
+                Box::new(TorrentDhtPeersOperation::new()),
+                Box::new(TorrentConnectPeersOperation::new()),
+                Box::new(TorrentMetadataOperation::new()),
+                Box::new(TorrentCreatePiecesOperation::new()),
+                Box::new(TorrentCreateFilesOperation::new()),
+                Box::new(TorrentFileValidationOperation::new()),
+            ]
+        });
         let dht = request.dht.take();
         let tracker_manager =
             request
@@ -947,10 +981,12 @@ impl Torrent {
     /// Try to read the bytes from the given torrent file.
     /// This reads all available bytes of the file stored within the [Storage].
     ///
+    /// Returns the amount of bytes read and the byte buffer.
+    ///
     /// ## Remarks
     ///
     /// This doesn't verify if the bytes are valid and completed.
-    pub async fn read_file_to_end(&self, file: &File) -> Result<Vec<u8>> {
+    pub async fn read_file_to_end(&self, file: &File) -> Result<(usize, Vec<u8>)> {
         let inner = self
             .instance()
             .ok_or(TorrentError::InvalidHandle(self.handle))?;
@@ -2654,7 +2690,7 @@ impl TorrentContext {
     /// ## Remarks
     ///
     /// This doesn't verify if the bytes are valid and completed.
-    pub async fn read_file_to_end(&self, file: &File) -> Result<Vec<u8>> {
+    pub async fn read_file_to_end(&self, file: &File) -> Result<(usize, Vec<u8>)> {
         if let Some(piece) = self.pieces.get(&file.pieces.start).await {
             let len = file.len();
             let mut buffer = vec![0; len];
@@ -2664,14 +2700,8 @@ impl TorrentContext {
                 .storage
                 .read(&mut buffer, &piece.index, file_offset)
                 .await?;
-            if bytes_read != len {
-                return Err(TorrentError::Io(io::Error::new(
-                    io::ErrorKind::UnexpectedEof,
-                    format!("wanted {} bytes, but got {} instead", len, bytes_read,),
-                )));
-            }
 
-            return Ok(buffer);
+            return Ok((bytes_read, buffer[..bytes_read].to_vec()));
         }
 
         Err(TorrentError::DataUnavailable)
@@ -2940,8 +2970,7 @@ mod tests {
             "debian-udp.torrent",
             temp_path,
             TorrentFlags::none(),
-            TorrentConfig::default(),
-            DEFAULT_TORRENT_OPERATIONS()
+            TorrentConfig::default()
         );
 
         let result = torrent.announce().await.unwrap();
@@ -3049,7 +3078,7 @@ mod tests {
         assert_eq!(expected_result, result);
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_torrent_resume_internal() {
         init_logger!(LevelFilter::Debug);
         let temp_dir_source = tempdir().unwrap();
@@ -3190,11 +3219,23 @@ mod tests {
 
         // read the torrent file
         let files = target_torrent.files().await;
-        let result = target_torrent
+        match target_torrent
             .read_file_to_end(files.get(0).expect("expected file index 0 to be present"))
             .await
-            .unwrap();
-        assert_eq!(expected_file_data, result);
+        {
+            Ok((bytes_read, bytes)) => {
+                assert_eq!(
+                    expected_file_data.len(),
+                    bytes_read,
+                    "expected the available data to have been read"
+                );
+                assert_eq!(
+                    expected_file_data, bytes,
+                    "expected the available data to have been read"
+                );
+            }
+            Err(e) => assert!(false, "failed to read torrent data, {}", e),
+        }
     }
 
     #[tokio::test]

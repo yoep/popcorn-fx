@@ -1531,7 +1531,6 @@ impl PeerContext {
                     }
                 }
                 Err(e) => {
-                    // FIXME: we currently reject requests if the piece is overlapping multiple files, but only 1 file is actually written to disk, these pieces should be cached in memory
                     warn!(
                         "Peer {} failed read piece {} data, {}",
                         self, request.index, e
@@ -1562,10 +1561,10 @@ impl PeerContext {
 
                 // extend the remote pieces bitfield if needed
                 {
-                    let mut mutex = self.remote_pieces.write().await;
-                    if mutex.len() < bitfield_len {
-                        let additional_len = bitfield_len - mutex.len();
-                        mutex.extend(vec![false; additional_len]);
+                    let mut remote_pieces = self.remote_pieces.write().await;
+                    if remote_pieces.len() < bitfield_len {
+                        let additional_len = bitfield_len - remote_pieces.len();
+                        remote_pieces.extend(vec![false; additional_len]);
                     }
                 }
 
@@ -2329,24 +2328,22 @@ impl PeerContext {
     /// If the piece is allowed through the fast protocol, the request will be sent to the remote peer even if it's choked.
     /// This doesn't bypass the request permits, if no permit is available, then no request will be made to the remote peer.
     async fn request_piece_data(&self, request_data: RequestPieceData) {
+        // early return if the piece is no longer wanted by the torrent
+        // this can be due to a priority change, or another peer already downloaded the piece data
         if !self
             .torrent
             .piece_pool()
-            .is_piece_completed(&request_data.piece)
+            .is_piece_wanted(&request_data.piece)
             .await
         {
-            trace!(
-                "Piece {} is no longer wanted for {}",
-                request_data.piece,
-                self
-            );
+            trace!("Peer {} no longer wants piece {}", self, request_data.piece);
             return;
         }
         if self.is_piece_already_requested(&request_data.piece).await {
             trace!(
-                "Piece {} is already being requested for {}",
-                request_data.piece,
-                self
+                "Peer {} is already requesting piece {}",
+                self,
+                request_data.piece
             );
             return;
         }
@@ -2829,14 +2826,18 @@ mod tests {
     use crate::torrent::peer::protocol::tests::UtpPacketCaptureExtension;
     use crate::torrent::peer::tests::create_utp_peer_pair;
     use crate::torrent::{
-        TorrentConfig, TorrentFlags, TorrentOperation, TorrentOperationResult, TorrentState,
-        DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
+        TorrentOperation, TorrentOperationResult, TorrentState, DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
     };
-    use crate::{create_peer_pair, create_torrent, create_utp_socket_pair, init_logger};
+    use crate::{
+        assert_timeout, create_peer_pair, create_torrent, create_utp_socket_pair, init_logger,
+    };
 
-    use popcorn_fx_core::assert_timeout;
+    use crate::torrent::peer::TcpPeerDiscovery;
+    use crate::torrent::storage::{MemoryStorage, Storage};
+    use crate::torrent::tests::read_test_file_to_bytes;
     use tempfile::tempdir;
     use tokio::sync::mpsc::channel;
+    use tokio::sync::Semaphore;
 
     #[tokio::test]
     async fn test_peer_new_tcp() {
@@ -3021,6 +3022,73 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_peer_request_wanted_piece() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let data = read_test_file_to_bytes("piece-1_30.iso");
+        let semaphore = Arc::new(Semaphore::new(10));
+        let outgoing_torrent = create_torrent!(
+            "debian-udp.torrent",
+            temp_dir.path().join("outgoing").to_str().unwrap(),
+            TorrentFlags::none(),
+            TorrentConfig::default(),
+            vec![],
+            vec![Box::new(TcpPeerDiscovery::new().await.unwrap())],
+            |_| Box::new(MemoryStorage::new())
+        );
+        let outgoing_context = outgoing_torrent.instance().unwrap();
+        let incoming_storage = MemoryStorage::new();
+        incoming_storage.write(&data, &0, 0).await.unwrap();
+        let incoming_torrent = create_torrent!(
+            "debian-udp.torrent",
+            temp_path,
+            TorrentFlags::UploadMode,
+            TorrentConfig::default(),
+            vec![],
+            vec![Box::new(TcpPeerDiscovery::new().await.unwrap())],
+            |_| Box::new(incoming_storage)
+        );
+        let incoming_context = incoming_torrent.instance().unwrap();
+        let (outgoing, incoming) = create_peer_pair!(
+            &outgoing_torrent,
+            &incoming_torrent,
+            DEFAULT_TORRENT_PROTOCOL_EXTENSIONS()
+        );
+
+        // create the pieces for the torrent
+        create_pieces(&outgoing_context).await;
+        create_pieces(&incoming_context).await;
+
+        // unchoke the remote peer
+        incoming
+            .inner
+            .update_client_choke_state(ChokeState::UnChoked)
+            .await;
+
+        // wait for the peer to receive the unchoke state
+        assert_timeout!(
+            Duration::from_millis(750),
+            outgoing.remote_choke_state().await == ChokeState::UnChoked,
+            "expected the remote peer to be unchoked"
+        );
+
+        // request a piece
+        let request = RequestPieceData {
+            piece: 0,
+            permit: semaphore.clone().acquire_owned().await.unwrap(),
+        };
+        outgoing.inner.request_piece_data(request).await;
+
+        // wait for the torrent to have fully received piece 0
+        assert_timeout!(
+            Duration::from_millis(750),
+            outgoing_torrent.has_piece(&0).await,
+            "expected piece to have been available"
+        );
+    }
+
+    #[tokio::test]
     async fn test_peer_torrent_pieces_changed() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
@@ -3036,9 +3104,7 @@ mod tests {
         let (outgoing, _incoming) = create_peer_pair!(&torrent);
 
         // create the pieces for the torrent
-        let operation = TorrentCreatePiecesOperation::new();
-        let result = operation.execute(&context).await;
-        assert_eq!(TorrentOperationResult::Continue, result);
+        create_pieces(&context).await;
 
         // check if both the client & remote piece bitfield have been updated
         let torrent_bitfield = context.piece_pool().bitfield().await;
@@ -3204,5 +3270,11 @@ mod tests {
                 connection_protocol: ConnectionProtocol::Tcp,
             }
         }
+    }
+
+    async fn create_pieces(context: &Arc<TorrentContext>) {
+        let operation = TorrentCreatePiecesOperation::new();
+        let result = operation.execute(&context).await;
+        assert_eq!(TorrentOperationResult::Continue, result);
     }
 }

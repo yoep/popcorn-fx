@@ -7,7 +7,9 @@ use std::path::{Path, PathBuf};
 
 #[async_trait]
 pub trait Storage: Debug + Send + Sync {
-    /// Read the piece data from the storage into the given buffer.
+    /// Read the torrent data from the given piece into the buffer.
+    /// The [Storage] keeps reading piece(s) data until the buffer is filled,
+    /// or the no more data is available.
     ///
     /// # Arguments
     ///
@@ -48,7 +50,7 @@ pub trait Storage: Debug + Send + Sync {
 }
 
 /// The storage parameters for initializing a new [Storage] instance.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StorageParams {
     pub info_hash: InfoHash,
     pub path: PathBuf,

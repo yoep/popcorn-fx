@@ -311,7 +311,7 @@ impl Storage for DiskStorage {
             .map_err(|e| Error::Io(io::Error::new(io::ErrorKind::Other, e.to_string())))
     }
 
-    async fn move_storage(&self, new_path: &Path) -> Result<()> {
+    async fn move_storage(&self, _new_path: &Path) -> Result<()> {
         todo!()
     }
 

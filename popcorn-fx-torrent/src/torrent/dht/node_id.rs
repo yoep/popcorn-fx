@@ -354,23 +354,6 @@ mod tests {
             );
         }
 
-        // FIXME: check with the original libtorrent test
-        #[test]
-        #[ignore]
-        fn test_from_ip_rand_22() {
-            let ip = [21, 75, 31, 124].into();
-            let rand = 22;
-
-            let result = NodeId::from_ip_with_rand(&ip, rand);
-
-            assert_id_prefix(&[0xa5, 0xd4, 0x32], result.as_slice());
-            assert_eq!(
-                rand,
-                result.as_slice()[19],
-                "expected the last byte to match the rand"
-            );
-        }
-
         fn assert_id_prefix(expected_prefix: &[u8], node_id: &[u8]) {
             assert_eq!(
                 expected_prefix[0], node_id[0],

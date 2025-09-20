@@ -235,6 +235,7 @@ impl DhtTracker {
 
     /// Try to bind a dual stack IPv4 & IPv6 udp socket.
     async fn bind_dual_stack() -> Result<UdpSocket> {
+        // FIXME: dual binding doesn't work
         let socket = UdpSocket::bind(SocketAddr::from((Ipv6Addr::UNSPECIFIED, 0))).await?;
         let std_socket: std::net::UdpSocket = socket.into_std()?;
         let socket2 = Socket::from(std_socket);

@@ -155,6 +155,26 @@ impl PiecePool {
             .is_some()
     }
 
+    /// Check if the given piece index is wanted by the torrent.
+    /// Returns `true` if the piece has  not been completed yet and the priority is not [PiecePriority::None].
+    pub async fn is_piece_wanted(&self, piece: &PieceIndex) -> bool {
+        let is_completed = {
+            let bitfield = self.inner.completed_pieces.read().await;
+            bitfield.get(*piece).unwrap_or_default()
+        };
+
+        if !is_completed {
+            let pieces = self.inner.pieces.read().await;
+
+            return pieces
+                .get(piece)
+                .map(|piece| piece.priority != PiecePriority::None)
+                .unwrap_or_default();
+        }
+
+        false
+    }
+
     /// Get the pieces which are still wanted (need to be downloaded) by the torrent.
     /// The list is sorted based on the piece priority.
     pub async fn wanted_pieces(&self) -> Vec<Piece> {
@@ -349,4 +369,130 @@ impl FilePool {
 struct InnerFilePool {
     piece_pool: PiecePool,
     files: RwLock<BTreeMap<FileIndex, File>>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod piece_pool {
+        use super::*;
+
+        mod is_piece_wanted {
+            use super::*;
+
+            #[tokio::test]
+            async fn test_piece_completed() {
+                let piece = 0;
+                let pool = PiecePool::from(vec![
+                    Piece {
+                        hash: Default::default(),
+                        index: piece,
+                        offset: 0,
+                        length: 1024,
+                        priority: PiecePriority::Normal,
+                        parts: vec![],
+                        completed_parts: Default::default(),
+                        availability: 0,
+                    },
+                    Piece {
+                        hash: Default::default(),
+                        index: 1,
+                        offset: 1024,
+                        length: 1024,
+                        priority: PiecePriority::None,
+                        parts: vec![],
+                        completed_parts: Default::default(),
+                        availability: 0,
+                    },
+                ]);
+
+                let result = pool.is_piece_wanted(&piece).await;
+                assert_eq!(true, result, "expected the piece to have been wanted");
+
+                // set the piece as completed
+                pool.set_completed(&piece, true).await;
+
+                let result = pool.is_piece_wanted(&piece).await;
+                assert_eq!(false, result, "expected the piece to be no longer wanted");
+            }
+
+            #[tokio::test]
+            async fn test_piece_priority_none() {
+                let piece = 1;
+                let pool = PiecePool::from(vec![
+                    Piece {
+                        hash: Default::default(),
+                        index: 0,
+                        offset: 0,
+                        length: 1024,
+                        priority: PiecePriority::Normal,
+                        parts: vec![],
+                        completed_parts: Default::default(),
+                        availability: 0,
+                    },
+                    Piece {
+                        hash: Default::default(),
+                        index: piece,
+                        offset: 1024,
+                        length: 1024,
+                        priority: PiecePriority::None,
+                        parts: vec![],
+                        completed_parts: Default::default(),
+                        availability: 0,
+                    },
+                ]);
+
+                let result = pool.is_piece_wanted(&piece).await;
+                assert_eq!(false, result, "expected the piece to not have been wanted");
+
+                // set the piece as completed
+                pool.set_completed(&piece, true).await;
+
+                let result = pool.is_piece_wanted(&piece).await;
+                assert_eq!(false, result, "expected the piece to not have been wanted");
+            }
+        }
+
+        mod is_completed {
+            use super::*;
+
+            #[tokio::test]
+            async fn test_piece_set_completed() {
+                let pool = PiecePool::from(vec![
+                    Piece {
+                        hash: Default::default(),
+                        index: 0,
+                        offset: 0,
+                        length: 1024,
+                        priority: PiecePriority::Normal,
+                        parts: vec![],
+                        completed_parts: Default::default(),
+                        availability: 0,
+                    },
+                    Piece {
+                        hash: Default::default(),
+                        index: 1,
+                        offset: 1024,
+                        length: 1024,
+                        priority: PiecePriority::Normal,
+                        parts: vec![],
+                        completed_parts: Default::default(),
+                        availability: 0,
+                    },
+                ]);
+
+                pool.set_completed(&0, true).await;
+                let result = pool.is_completed().await;
+                assert_eq!(
+                    false, result,
+                    "expected the torrent to not have been completed yet"
+                );
+
+                pool.set_completed(&1, true).await;
+                let result = pool.is_completed().await;
+                assert_eq!(true, result, "expected the torrent to have been completed");
+            }
+        }
+    }
 }

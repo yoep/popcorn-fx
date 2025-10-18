@@ -6,7 +6,6 @@ use crate::menu::overview::MenuOverview;
 use crate::menu::settings::MenuSettings;
 use crate::menu::widget::MenuSectionWidget;
 use async_trait::async_trait;
-use fx_handle::Handle;
 use ratatui::layout::Constraint::{Fill, Length};
 use ratatui::layout::{Layout, Rect};
 use ratatui::text::Line;
@@ -28,7 +27,6 @@ const LOG_LIMIT: usize = 100;
 
 #[derive(Debug)]
 pub struct MenuWidget {
-    handle: Handle,
     sections: HashMap<MenuSection, Box<dyn MenuSectionWidget>>,
     active_section: MenuSection,
     logs: Vec<String>,
@@ -42,7 +40,6 @@ impl MenuWidget {
         let (menu_sender, menu_receiver) = unbounded_channel();
 
         Self {
-            handle: Default::default(),
             sections: vec![
                 (
                     MenuSection::Overview,
@@ -144,10 +141,6 @@ impl MenuWidget {
 
 #[async_trait]
 impl FXWidget for MenuWidget {
-    fn handle(&self) -> Handle {
-        self.handle
-    }
-
     fn name(&self) -> &str {
         "Menu"
     }

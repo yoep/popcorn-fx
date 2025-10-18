@@ -1,6 +1,6 @@
 use crate::torrent::tracker::{
-    AnnounceEntryResponse, Announcement, Result, ScrapeResult, TrackerConnection, TrackerError,
-    TrackerHandle,
+    AnnounceEntryResponse, Announcement, ConnectionMetrics, Result, ScrapeResult,
+    TrackerConnection, TrackerError, TrackerHandle,
 };
 use crate::torrent::{CompactIpv4Addrs, InfoHash};
 use async_trait::async_trait;
@@ -61,8 +61,8 @@ pub struct HttpConnection {
     handle: TrackerHandle,
     /// The base url of the http tracker
     url: Url,
-    /// The tracker http client
     client: Client,
+    metrics: ConnectionMetrics,
     cancellation_token: CancellationToken,
 }
 
@@ -78,6 +78,7 @@ impl HttpConnection {
             handle,
             url,
             client,
+            metrics: Default::default(),
             cancellation_token: Default::default(),
         }
     }
@@ -130,6 +131,7 @@ impl HttpConnection {
         let response = response?;
         let status_code = response.status();
         let bytes = response.bytes().await?;
+        self.metrics.bytes_in.inc_by(bytes.len() as u64);
 
         // check the response status code from the http tracker
         // if it's unsuccessful, we don't try to parse the response body
@@ -206,7 +208,10 @@ impl TrackerConnection for HttpConnection {
 
         trace!("Http tracker {} is sending request to {}", self, url);
         select! {
-            _ = self.cancellation_token.cancelled() => Err(TrackerError::Timeout(url.clone())),
+            _ = self.cancellation_token.cancelled() => {
+                self.metrics.timeouts.inc();
+                Err(TrackerError::Timeout(url.clone()))
+            },
             response = self.client.get(url.clone()).send() => self.process_announce_response(response).await,
         }
     }
@@ -216,9 +221,16 @@ impl TrackerConnection for HttpConnection {
 
         trace!("Http tracker {} is sending request to {}", self, url);
         select! {
-            _ = self.cancellation_token.cancelled() => Err(TrackerError::Timeout(url.clone())),
+            _ = self.cancellation_token.cancelled() => {
+                self.metrics.timeouts.inc();
+                Err(TrackerError::Timeout(url.clone()))
+            },
             response = self.client.get(url.clone()).send() => self.process_scrape_response(response).await,
         }
+    }
+
+    fn metrics(&self) -> &ConnectionMetrics {
+        &self.metrics
     }
 
     fn close(&mut self) {

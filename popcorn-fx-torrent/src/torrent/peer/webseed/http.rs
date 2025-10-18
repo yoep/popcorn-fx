@@ -355,7 +355,7 @@ mod tests {
     use crate::create_torrent;
     use crate::init_logger;
 
-    use popcorn_fx_core::testing::read_test_file_to_bytes;
+    use crate::torrent::tests::read_test_file_to_bytes;
     use tempfile::tempdir;
 
     #[tokio::test]

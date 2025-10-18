@@ -2,6 +2,7 @@ use crate::app_logger::AppLogger;
 use crate::dht_info::{DhtInfoWidget, DHT_INFO_WIDGET_NAME};
 use crate::menu::MenuWidget;
 use crate::torrent_info::TorrentInfoWidget;
+use crate::tracker_info::{TrackersInfoWidget, TRACKER_INFO_WIDGET_NAME};
 use async_trait::async_trait;
 use crossterm::event::{Event, EventStream, KeyCode, KeyEvent};
 use futures::StreamExt;
@@ -9,6 +10,7 @@ use futures::{future, FutureExt};
 use fx_callback::{Callback, Subscription};
 use fx_handle::Handle;
 use log::{error, warn};
+use popcorn_fx_torrent::torrent::dht::DhtTracker;
 use popcorn_fx_torrent::torrent::operation::{
     TorrentConnectPeersOperation, TorrentCreateFilesOperation, TorrentCreatePiecesOperation,
     TorrentDhtNodesOperation, TorrentDhtPeersOperation, TorrentFileValidationOperation,
@@ -34,6 +36,7 @@ use tokio_util::sync::CancellationToken;
 
 pub const APP_CLIENT_NAME: &str = "FX torrent";
 pub const APP_DEFAULT_STORAGE: &str = "torrents";
+pub const PERFORMANCE_HISTORY: usize = 150;
 const APP_QUIT_KEY: char = 'q';
 const TAB_NAME_LEN: usize = 16;
 const SESSION_CACHE_LIMIT: usize = 10;
@@ -44,9 +47,6 @@ pub type AppCommandSender = UnboundedSender<AppCommand>;
 
 #[async_trait]
 pub trait FXWidget: Debug {
-    /// Get the unique handle of the widget.
-    fn handle(&self) -> Handle;
-
     /// Get the name of the widget.
     fn name(&self) -> &str;
 
@@ -110,8 +110,7 @@ struct InnerFxKeyEvent {
 
 #[derive(Debug)]
 pub struct App {
-    tabs: Vec<Box<dyn FXWidget>>,
-    selected_tab_handle: Handle,
+    tabs: Vec<(Box<dyn FXWidget>, TabState)>,
     session_state: SessionState,
     session: FxTorrentSession,
     session_event_receiver: Subscription<SessionEvent>,
@@ -121,17 +120,15 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(logger: AppLogger) -> io::Result<Self> {
+    pub async fn new(logger: AppLogger) -> io::Result<Self> {
         let settings = AppSettings::default();
-        let session = Self::create_session(&settings)?;
+        let session = Self::create_session(&settings).await?;
         let session_event_receiver = session.subscribe();
         let (app_sender, app_receiver) = unbounded_channel();
         let menu = MenuWidget::new(app_sender, logger);
-        let menu_handle = menu.handle();
 
         Ok(Self {
-            tabs: vec![Box::new(menu)],
-            selected_tab_handle: menu_handle,
+            tabs: vec![(Box::new(menu), TabState::with(true, true))],
             session_state: SessionState::Initializing,
             session,
             session_event_receiver,
@@ -143,6 +140,7 @@ impl App {
 
     pub async fn run(&mut self, mut terminal: DefaultTerminal) -> io::Result<()> {
         let mut reader = EventStream::new();
+        self.create_session_tabs().await;
 
         loop {
             terminal.draw(|frame| self.render(frame))?;
@@ -156,7 +154,13 @@ impl App {
             }
 
             // tick all widgets, which allows them to process events
-            future::join_all(self.tabs.iter_mut().map(|e| e.tick()).collect::<Vec<_>>()).await;
+            future::join_all(
+                self.tabs
+                    .iter_mut()
+                    .map(|(widget, _)| widget.tick())
+                    .collect::<Vec<_>>(),
+            )
+            .await;
         }
     }
 
@@ -173,38 +177,66 @@ impl App {
     async fn handle_command(&mut self, command: AppCommand) {
         match command {
             AppCommand::AddTorrentUri(uri) => self.add_torrent_uri(uri.as_str()).await,
-            AppCommand::DhtEnabled(enabled) => self.update_dht(enabled),
-            AppCommand::TrackerEnabled(enabled) => self.update_trackers(enabled),
+            AppCommand::DhtEnabled(enabled) => self.update_dht(enabled).await,
+            AppCommand::TrackerEnabled(enabled) => self.update_trackers(enabled).await,
             AppCommand::Storage(location) => self.update_storage(location).await,
-            AppCommand::DhtInfo(app_sender) => self.show_dht_info(app_sender).await,
+            AppCommand::DhtInfo => self.show_session_info(DHT_INFO_WIDGET_NAME),
+            AppCommand::TrackersInfo => self.show_session_info(TRACKER_INFO_WIDGET_NAME),
             AppCommand::Quit => self.cancellation_token.cancel(),
         }
     }
 
-    fn selected_tab(&mut self) -> (usize, &mut Box<dyn FXWidget>) {
-        let selected_tab = self
-            .tabs
+    /// Get the index of the currently active tab.
+    /// If no tab is active, the first tab is returned.
+    fn selected_tab_index(&self) -> usize {
+        self.tabs
             .iter()
-            .position(|e| &e.handle() == &self.selected_tab_handle)
-            .unwrap_or(0);
+            .enumerate()
+            .find(|(_, (_, state))| state.selected)
+            .map(|(i, _)| i)
+            .unwrap_or(0)
+    }
+
+    /// Get the currently active tab index and widget.
+    fn selected_tab(&mut self) -> (usize, &mut Box<dyn FXWidget>) {
+        let tab_index = self.selected_tab_index();
+        let invisible_leading_tabs = self.tabs[0..tab_index]
+            .iter()
+            .filter(|(_, state)| !state.visible)
+            .count();
 
         (
-            selected_tab,
+            tab_index.saturating_sub(invisible_leading_tabs),
             self.tabs
                 .iter_mut()
-                .nth(selected_tab)
+                .nth(tab_index)
+                .map(|(widget, _)| widget)
                 .expect("expected the tab to exist"),
         )
     }
 
     fn select_tab(&mut self, tab_index: usize) {
-        self.selected_tab_handle = self
-            .tabs
-            .iter()
-            .nth(tab_index)
-            .or_else(|| self.tabs.iter().nth(0))
-            .map(|e| e.handle())
-            .expect("expected the tab to exist");
+        for (i, (_, state)) in self.tabs.iter_mut().enumerate() {
+            state.selected = i == tab_index;
+        }
+    }
+
+    fn select_visible_tab(&mut self, tab_change: isize) {
+        let selected_tab = self.selected_tab_index();
+        let range: Vec<_> = if tab_change < 0 {
+            (0..selected_tab).rev().collect()
+        } else {
+            (selected_tab + 1..self.tabs.len()).collect()
+        };
+
+        if let Some(select) = range.into_iter().find(|i| {
+            self.tabs
+                .get(*i)
+                .map(|(_, state)| state.visible)
+                .unwrap_or_default()
+        }) {
+            self.select_tab(select);
+        }
     }
 
     async fn handle_event(&mut self, event: Option<io::Result<Event>>) {
@@ -222,16 +254,10 @@ impl App {
                         match event.code() {
                             KeyCode::Char(APP_QUIT_KEY) => self.cancellation_token.cancel(),
                             KeyCode::Left => {
-                                let position = self.selected_tab().0.saturating_sub(1);
-                                self.select_tab(position);
+                                self.select_visible_tab(-1);
                             }
                             KeyCode::Right => {
-                                let mut position = self.selected_tab().0.saturating_add(1);
-                                if position > self.tabs.len() {
-                                    position = self.tabs.len() - 1;
-                                }
-
-                                self.select_tab(position);
+                                self.select_visible_tab(1);
                             }
                             _ => {}
                         }
@@ -265,8 +291,9 @@ impl App {
                                 .map(|e| e.to_string())
                                 .unwrap_or("<unknown>".to_string())
                         });
+                    let widget = TorrentInfoWidget::new(&name, torrent);
                     self.tabs
-                        .push(Box::new(TorrentInfoWidget::new(&name, torrent)));
+                        .push((Box::new(widget), TabState::with(true, false)));
                 }
                 Err(e) => {
                     warn!("Torrent uri {} has been dropped too early, {}", uri, e);
@@ -278,25 +305,24 @@ impl App {
         }
     }
 
-    fn update_dht(&mut self, enabled: bool) {
+    async fn update_dht(&mut self, enabled: bool) {
         self.settings.dht_enabled = enabled;
-        self.remove_dht_info();
-        match Self::create_session(&self.settings) {
-            Ok(session) => {
-                self.session = session;
-            }
-            Err(e) => error!("Failed to create session: {}", e),
-        }
+        self.recreate_session().await;
     }
 
-    fn update_trackers(&mut self, enabled: bool) {
+    async fn update_trackers(&mut self, enabled: bool) {
         self.settings.trackers_enabled = enabled;
-        self.remove_dht_info();
-        match Self::create_session(&self.settings) {
+        self.recreate_session().await;
+    }
+
+    async fn recreate_session(&mut self) {
+        self.remove_session_tabs();
+        match Self::create_session(&self.settings).await {
             Ok(session) => {
                 self.session = session;
+                self.create_session_tabs().await;
             }
-            Err(e) => error!("Failed to create session: {}", e),
+            Err(e) => error!("Failed to create new session: {}", e),
         }
     }
 
@@ -304,22 +330,40 @@ impl App {
         self.session.set_base_path(location).await;
     }
 
-    async fn show_dht_info(&mut self, app_sender: AppCommandSender) {
-        if !self.tabs.iter().any(|e| e.name() == DHT_INFO_WIDGET_NAME) {
-            if let Some(dht) = self.session.dht().await {
-                let nodes = dht.nodes().await;
-                self.tabs
-                    .insert(1, Box::new(DhtInfoWidget::new(dht, nodes, app_sender)));
-            } else {
-                return;
-            }
+    fn show_session_info(&mut self, tab_name: &str) {
+        if let Some((index, (_, state))) = self
+            .tabs
+            .iter_mut()
+            .enumerate()
+            .find(|(_, (tab, _))| tab.name() == tab_name)
+        {
+            state.visible = true;
+            self.select_tab(index);
         }
-
-        self.select_tab(1);
     }
 
-    fn remove_dht_info(&mut self) {
-        self.tabs.retain(|e| e.name() != DHT_INFO_WIDGET_NAME)
+    async fn create_session_tabs(&mut self) {
+        let mut tab_index = 1;
+
+        if let Some(dht) = self.session.dht().await {
+            let nodes = dht.nodes().await;
+            let widget = DhtInfoWidget::new(dht, nodes);
+            self.tabs
+                .insert(tab_index, (Box::new(widget), TabState::with(false, false)));
+            tab_index += 1;
+        }
+
+        let tracker_manager = self.session.tracker().await;
+        let trackers = tracker_manager.trackers().await;
+        let widget = TrackersInfoWidget::new(tracker_manager, trackers);
+        self.tabs
+            .insert(tab_index, (Box::new(widget), TabState::with(false, false)));
+    }
+
+    fn remove_session_tabs(&mut self) {
+        self.tabs.retain(|(e, _)| {
+            e.name() != DHT_INFO_WIDGET_NAME && e.name() != TRACKER_INFO_WIDGET_NAME
+        })
     }
 
     fn render(&mut self, frame: &mut Frame) {
@@ -333,7 +377,8 @@ impl App {
         let titles: Vec<String> = self
             .tabs
             .iter()
-            .map(|e| {
+            .filter(|(_, state)| state.visible)
+            .map(|(e, _)| {
                 let name = e.name();
                 let len = name.len().min(TAB_NAME_LEN);
 
@@ -364,7 +409,7 @@ impl App {
         .render(footer_area, frame.buffer_mut());
     }
 
-    fn create_session(settings: &AppSettings) -> io::Result<FxTorrentSession> {
+    async fn create_session(settings: &AppSettings) -> io::Result<FxTorrentSession> {
         let mut operations: Vec<TorrentOperationFactory> = vec![
             || Box::new(TorrentConnectPeersOperation::new()),
             || Box::new(TorrentMetadataOperation::new()),
@@ -372,11 +417,6 @@ impl App {
             || Box::new(TorrentCreateFilesOperation::new()),
             || Box::new(TorrentFileValidationOperation::new()),
         ];
-
-        if settings.dht_enabled {
-            operations.insert(0, || Box::new(TorrentDhtNodesOperation::new()));
-            operations.insert(1, || Box::new(TorrentDhtPeersOperation::new()));
-        }
 
         if settings.trackers_enabled {
             operations.insert(0, || Box::new(TorrentTrackersOperation::new()));
@@ -387,7 +427,17 @@ impl App {
             .path(&settings.storage)
             .session_cache(FxSessionCache::new(SESSION_CACHE_LIMIT))
             .operations(operations)
-            .dht(settings.dht_enabled)
+            .dht_option(if settings.dht_enabled {
+                Some(
+                    DhtTracker::builder()
+                        .default_routing_nodes()
+                        .build()
+                        .await
+                        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?,
+                )
+            } else {
+                None
+            })
             .build()
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
     }
@@ -404,7 +454,9 @@ pub enum AppCommand {
     /// Set the new storage location of the session
     Storage(PathBuf),
     /// Show the DHT info widget
-    DhtInfo(AppCommandSender),
+    DhtInfo,
+    /// Show the Tracker info widget
+    TrackersInfo,
     /// Quit the app
     Quit,
 }
@@ -423,5 +475,18 @@ impl Default for AppSettings {
             dht_enabled: true,
             trackers_enabled: true,
         }
+    }
+}
+
+#[derive(Debug, Default)]
+struct TabState {
+    visible: bool,
+    selected: bool,
+}
+
+impl TabState {
+    /// Create a new tab state instance with the given values.
+    pub fn with(visible: bool, selected: bool) -> Self {
+        Self { visible, selected }
     }
 }

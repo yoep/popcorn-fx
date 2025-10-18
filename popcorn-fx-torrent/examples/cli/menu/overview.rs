@@ -53,9 +53,10 @@ impl MenuOverview {
                     .send(MenuCommand::SelectSection(MenuSection::Logging));
             }
             MenuItem::Dht => {
-                let _ = self
-                    .app_sender
-                    .send(AppCommand::DhtInfo(self.app_sender.clone()));
+                let _ = self.app_sender.send(AppCommand::DhtInfo);
+            }
+            MenuItem::Trackers => {
+                let _ = self.app_sender.send(AppCommand::TrackersInfo);
             }
             MenuItem::Quit => {
                 let _ = self.app_sender.send(AppCommand::Quit);
@@ -154,6 +155,8 @@ enum MenuItem {
     Logging,
     #[display(fmt = "DHT info")]
     Dht,
+    #[display(fmt = "Trackers info")]
+    Trackers,
     #[display(fmt = "Quit")]
     Quit,
 }
@@ -165,6 +168,7 @@ impl MenuItem {
             Self::Settings,
             Self::Logging,
             Self::Dht,
+            Self::Trackers,
             Self::Quit,
         ]
     }

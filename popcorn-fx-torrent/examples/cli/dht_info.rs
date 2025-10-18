@@ -1,4 +1,4 @@
-use crate::app::{AppCommandSender, FXKeyEvent, FXWidget};
+use crate::app::{FXKeyEvent, FXWidget, PERFORMANCE_HISTORY};
 use async_trait::async_trait;
 use crossterm::event::KeyCode;
 use fx_callback::{Callback, Subscription};
@@ -17,31 +17,26 @@ use ratatui::Frame;
 use std::sync::Mutex;
 
 pub(crate) const DHT_INFO_WIDGET_NAME: &str = "DHT";
-const PERFORMANCE_HISTORY: usize = 150;
 const CHECKMARK_CHAR: &str = "\u{2713}";
 
 #[derive(Debug)]
 pub struct DhtInfoWidget {
-    handle: Handle,
     data: DhtData,
     dht: DhtTracker,
     node_info_widget: DhtNodeInfoWidget,
     event_receiver: Subscription<DhtEvent>,
-    app_sender: AppCommandSender,
 }
 
 impl DhtInfoWidget {
-    pub fn new(dht: DhtTracker, nodes: Vec<Node>, app_sender: AppCommandSender) -> Self {
+    pub fn new(dht: DhtTracker, nodes: Vec<Node>) -> Self {
         let event_receiver = dht.subscribe();
         let node_info_widget = DhtNodeInfoWidget::new(nodes);
 
         Self {
-            handle: Default::default(),
             data: Default::default(),
             dht,
             node_info_widget,
             event_receiver,
-            app_sender,
         }
     }
 
@@ -57,14 +52,14 @@ impl DhtInfoWidget {
                 self.data.errors = metrics.errors.total();
                 self.data.discovered_peers = metrics.discovered_peers.total();
 
-                self.data.bytes_down.push(metrics.bytes_in.get());
-                if self.data.bytes_down.len() >= PERFORMANCE_HISTORY {
-                    let _ = self.data.bytes_down.remove(0);
+                self.data.bytes_in.push(metrics.bytes_in.get());
+                if self.data.bytes_in.len() >= PERFORMANCE_HISTORY {
+                    let _ = self.data.bytes_in.remove(0);
                 }
 
-                self.data.bytes_up.push(metrics.bytes_out.get());
-                if self.data.bytes_up.len() >= PERFORMANCE_HISTORY {
-                    let _ = self.data.bytes_up.remove(0);
+                self.data.bytes_out.push(metrics.bytes_out.get());
+                if self.data.bytes_out.len() >= PERFORMANCE_HISTORY {
+                    let _ = self.data.bytes_out.remove(0);
                 }
             }
         }
@@ -73,10 +68,6 @@ impl DhtInfoWidget {
 
 #[async_trait]
 impl FXWidget for DhtInfoWidget {
-    fn handle(&self) -> Handle {
-        self.handle
-    }
-
     fn name(&self) -> &str {
         DHT_INFO_WIDGET_NAME
     }
@@ -137,17 +128,17 @@ impl FXWidget for DhtInfoWidget {
         Sparkline::default()
             .block(Block::bordered().title(format!(
                 "Down: {}/s",
-                format_bytes(self.data.bytes_down.last().map(|e| *e as usize).unwrap_or(0))
+                format_bytes(self.data.bytes_in.last().map(|e| *e as usize).unwrap_or(0))
             )))
-            .data(&self.data.bytes_down)
+            .data(&self.data.bytes_in)
             .style(Style::default().fg(Color::Yellow))
             .render(down_performance, frame.buffer_mut());
         Sparkline::default()
             .block(Block::bordered().title(format!(
                 "Up: {}/s",
-                format_bytes(self.data.bytes_up.last().map(|e| *e as usize).unwrap_or(0))
+                format_bytes(self.data.bytes_out.last().map(|e| *e as usize).unwrap_or(0))
             )))
-            .data(&self.data.bytes_up)
+            .data(&self.data.bytes_out)
             .style(Style::default().fg(Color::Yellow))
             .render(up_performance, frame.buffer_mut());
 
@@ -163,8 +154,8 @@ struct DhtData {
     pending_queries: u64,
     errors: u64,
     discovered_peers: u64,
-    bytes_down: Vec<u64>,
-    bytes_up: Vec<u64>,
+    bytes_in: Vec<u64>,
+    bytes_out: Vec<u64>,
 }
 
 #[derive(Debug)]
@@ -185,15 +176,17 @@ impl DhtNodeInfoWidget {
         self.nodes.push(node);
     }
 
-    fn on_key_event(&mut self, key: FXKeyEvent) {
+    fn on_key_event(&mut self, mut key: FXKeyEvent) {
         match key.code() {
             KeyCode::Up => {
+                key.consume();
                 if let Ok(mut state) = self.state.lock() {
                     let offset = state.selected().unwrap_or(0).saturating_sub(1);
                     state.select(Some(offset));
                 }
             }
             KeyCode::Down => {
+                key.consume();
                 if let Ok(mut state) = self.state.lock() {
                     let offset = state
                         .selected()

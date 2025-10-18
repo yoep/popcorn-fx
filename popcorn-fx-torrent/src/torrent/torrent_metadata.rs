@@ -1305,7 +1305,6 @@ mod tests {
     use super::*;
 
     use crate::init_logger;
-    use popcorn_fx_core::testing::read_test_file_to_bytes;
     use std::str::FromStr;
 
     #[test]
@@ -1338,6 +1337,7 @@ mod tests {
 
     mod torrent_metadata {
         use super::*;
+        use crate::torrent::tests::read_test_file_to_bytes;
 
         #[test]
         fn test_tiered_trackers() {

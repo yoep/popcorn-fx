@@ -22,7 +22,6 @@ use std::ops::Range;
 mod compact;
 #[cfg(feature = "dht")]
 pub mod dht;
-mod dns;
 mod errors;
 mod file;
 mod info_hash;
@@ -45,7 +44,7 @@ mod torrent_metadata;
 mod torrent_metrics;
 mod torrent_peer;
 mod torrent_pools;
-mod tracker;
+pub mod tracker;
 
 #[cfg(feature = "extension-donthave")]
 use crate::torrent::peer::extension::donthave::DontHaveExtension;
@@ -195,17 +194,17 @@ pub mod tests {
     use crate::torrent::peer::tests::new_tcp_peer_discovery;
     use crate::torrent::peer::{BitTorrentPeer, PeerDiscovery, PeerId, PeerStream};
 
-    use log::LevelFilter;
+    use log::{trace, LevelFilter};
     use log4rs::append::console::ConsoleAppender;
     use log4rs::config::{Appender, Logger, Root};
     use log4rs::encode::pattern::PatternEncoder;
     use log4rs::Config;
-    use std::env;
     use std::net::SocketAddr;
     use std::path::PathBuf;
     use std::str::FromStr;
     use std::sync::Once;
     use std::time::Duration;
+    use std::{env, fs};
     use tokio::net::TcpStream;
     use tokio::sync::mpsc::unbounded_channel;
 
@@ -294,6 +293,26 @@ pub mod tests {
         }};
         ($uri:expr, $temp_dir:expr, $options:expr, $config:expr, $operations:expr, $discoveries:expr, $storage:expr) => {{
             use crate::torrent::dht::DhtTracker;
+            use crate::torrent::storage::DiskStorage;
+
+            create_torrent!(
+                $uri,
+                $temp_dir,
+                $options,
+                $config,
+                $operations,
+                $discoveries,
+                |params| {
+                    Box::new(DiskStorage::new(
+                        params.info_hash,
+                        params.path,
+                        params.files,
+                    ))
+                },
+                DhtTracker::builder().build().await.unwrap()
+            )
+        }};
+        ($uri:expr, $temp_dir:expr, $options:expr, $config:expr, $operations:expr, $discoveries:expr, $storage:expr, $dht:expr) => {{
             use crate::torrent::peer::PeerDiscovery;
             use crate::torrent::tests::create_metadata;
             use crate::torrent::tracker::TrackerManager;
@@ -305,9 +324,9 @@ pub mod tests {
             let config: TorrentConfig = $config;
             let operations: Vec<TorrentOperationFactory> = $operations;
             let discoveries: Vec<Box<dyn PeerDiscovery>> = $discoveries;
+            let dht: DhtTracker = $dht;
             let torrent_info = create_metadata(uri);
             let tracker_manager = TrackerManager::new(Duration::from_secs(2));
-            let dht = DhtTracker::builder().build().await.unwrap();
             let config = TorrentConfig::builder()
                 .path($temp_dir)
                 .peer_connection_timeout(config.peer_connection_timeout)
@@ -504,7 +523,21 @@ pub mod tests {
     pub fn read_test_file_to_bytes(filename: &str) -> Vec<u8> {
         let source = test_resource_filepath(filename);
 
-        std::fs::read(&source).unwrap()
+        fs::read(&source).unwrap()
+    }
+
+    pub fn copy_test_file(temp_dir: &str, filename: &str, output_filename: Option<&str>) -> String {
+        let root_dir = &env::var("CARGO_MANIFEST_DIR").expect("$CARGO_MANIFEST_DIR");
+        let source = PathBuf::from(root_dir).join("test").join(filename);
+        let destination = PathBuf::from(temp_dir).join(output_filename.unwrap_or(filename));
+
+        // make sure the parent dir exists
+        fs::create_dir_all(destination.parent().unwrap()).unwrap();
+
+        trace!("Copying test file {} to {:?}", filename, destination);
+        fs::copy(&source, &destination).unwrap();
+
+        destination.to_str().unwrap().to_string()
     }
 
     /// Initializes the logger with the specified log level.

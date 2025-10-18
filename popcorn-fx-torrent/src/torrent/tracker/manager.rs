@@ -4,10 +4,11 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use crate::torrent::metrics::Metric;
 use crate::torrent::peer::PeerId;
 use crate::torrent::tracker::{
     AnnounceEntryResponse, Announcement, Result, ScrapeFileMetrics, ScrapeResult, Tracker,
-    TrackerError, TrackerHandle, TrackerState,
+    TrackerError, TrackerHandle, TrackerManagerMetrics, TrackerState,
 };
 use crate::torrent::{InfoHash, Metrics};
 use derive_more::Display;
@@ -20,7 +21,8 @@ use tokio::{select, time};
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
-const DEFAULT_ANNOUNCEMENT_INTERVAL_SECONDS: u64 = 30;
+const DEFAULT_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(30);
+const STATS_INTERVAL: Duration = Duration::from_secs(1);
 
 /// Kinds of tracker announces. This is typically indicated as the ``&event=``
 /// HTTP query string parameter to HTTP trackers.
@@ -76,12 +78,28 @@ pub struct TrackerEntry {
 }
 
 /// The event that can be emitted by the tracker manager.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum TrackerManagerEvent {
     /// Invoked when new peers have been discovered for a torrent
     PeersDiscovered(InfoHash, Vec<SocketAddr>),
     /// Invoked when a new tracker has been added
     TrackerAdded(TrackerHandle),
+    /// Invoked when the metric stats are updated of the tracker manager.
+    Stats(TrackerManagerMetrics),
+}
+
+impl PartialEq for TrackerManagerEvent {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (
+                TrackerManagerEvent::PeersDiscovered(a, _),
+                TrackerManagerEvent::PeersDiscovered(b, _),
+            ) => a == b,
+            (TrackerManagerEvent::TrackerAdded(a), TrackerManagerEvent::TrackerAdded(b)) => a == b,
+            (TrackerManagerEvent::Stats(_), TrackerManagerEvent::Stats(_)) => true,
+            _ => false,
+        }
+    }
 }
 
 /// Manages torrent trackers and handles periodic announcements.
@@ -112,6 +130,7 @@ impl TrackerManager {
             connection_timeout,
             command_sender,
             callbacks: MultiThreadedCallback::new(),
+            metrics: Default::default(),
             cancellation_token: Default::default(),
         });
 
@@ -123,22 +142,50 @@ impl TrackerManager {
         Self { inner }
     }
 
+    /// Get the metric stats of this tracker manager.
+    pub fn metrics(&self) -> &TrackerManagerMetrics {
+        &self.inner.metrics
+    }
+
+    /// Get the tracker by the given handle.
+    pub async fn get(&self, handle: &TrackerHandle) -> Option<Tracker> {
+        self.inner
+            .trackers
+            .read()
+            .await
+            .iter()
+            .find(|e| &e.handle() == handle)
+            .cloned()
+    }
+
     /// Checks if a given tracker URL is known within this manager.
     pub async fn is_tracker_url_known(&self, url: &Url) -> bool {
         self.inner.is_tracker_url_known(url).await
     }
 
-    /// Get the currently active trackers.
+    /// Get the urls of all trackers being managed by this manager.
     /// This might return an empty list if no trackers have been added yet.
-    pub async fn trackers(&self) -> Vec<Url> {
+    pub async fn tracker_urls(&self) -> Vec<Url> {
         let trackers = self.inner.trackers.read().await;
         trackers.iter().map(|e| e.url().clone()).collect()
     }
 
-    /// Get the total number of active trackers.
+    /// Get the trackers of the manager.
+    /// This might return an empty list if no trackers have been added yet.
+    pub async fn trackers(&self) -> Vec<Tracker> {
+        self.inner.trackers.read().await.clone()
+    }
+
+    /// The amount of trackers managed by this manager.
     /// This might return 0 if no trackers have been added yet.
-    pub async fn total_trackers(&self) -> usize {
+    pub async fn trackers_len(&self) -> usize {
         self.inner.trackers.read().await.len()
+    }
+
+    /// The amount of tracked torrents by this manager.
+    /// This might return 0 if no torrents have been added yet.
+    pub async fn torrents_len(&self) -> usize {
+        self.inner.torrents.lock().await.len()
     }
 
     /// Register a new torrent to the tracker to discover new peers.
@@ -373,20 +420,22 @@ struct InnerTrackerManager {
     command_sender: UnboundedSender<TrackerManagerCommand>,
     /// The callbacks of the tracker
     callbacks: MultiThreadedCallback<TrackerManagerEvent>,
+    metrics: TrackerManagerMetrics,
     cancellation_token: CancellationToken,
 }
 
 impl InnerTrackerManager {
     /// Start the main loop of the tracker manager.
     async fn start(&self, mut command_receiver: UnboundedReceiver<TrackerManagerCommand>) {
-        let mut announcement_tick =
-            time::interval(Duration::from_secs(DEFAULT_ANNOUNCEMENT_INTERVAL_SECONDS));
+        let mut announcement_tick = time::interval(DEFAULT_ANNOUNCEMENT_INTERVAL);
+        let mut stats_interval = time::interval(STATS_INTERVAL);
 
         loop {
             select! {
                 _ = self.cancellation_token.cancelled() => break,
                 Some(command) = command_receiver.recv() => self.handle_command(command).await,
                 _ = announcement_tick.tick() => self.do_automatic_announcements().await,
+                _ = stats_interval.tick() => self.update_stats().await,
             }
         }
 
@@ -514,8 +563,7 @@ impl InnerTrackerManager {
             debug!("Tracker {} has been added to {}", tracker_info, self);
         }
 
-        self.send_event(TrackerManagerEvent::TrackerAdded(handle))
-            .await;
+        self.send_event(TrackerManagerEvent::TrackerAdded(handle));
         Ok(handle)
     }
 
@@ -548,8 +596,7 @@ impl InnerTrackerManager {
             self.send_event(TrackerManagerEvent::PeersDiscovered(
                 info_hash.clone(),
                 unique_new_peer_addrs,
-            ))
-            .await;
+            ));
         }
 
         total_peers
@@ -717,7 +764,7 @@ impl InnerTrackerManager {
         }
     }
 
-    async fn send_event(&self, event: TrackerManagerEvent) {
+    fn send_event(&self, event: TrackerManagerEvent) {
         self.callbacks.invoke(event);
     }
 
@@ -757,6 +804,22 @@ impl InnerTrackerManager {
                 }
             }
         }
+    }
+
+    async fn update_stats(&self) {
+        for tracker in self.trackers.read().await.iter() {
+            let tracker_metrics = tracker.metrics();
+
+            self.metrics.bytes_in.inc_by(tracker_metrics.bytes_in.get());
+            self.metrics
+                .bytes_out
+                .inc_by(tracker_metrics.bytes_out.get());
+
+            tracker.tick(STATS_INTERVAL);
+        }
+
+        self.send_event(TrackerManagerEvent::Stats(self.metrics.snapshot()));
+        self.metrics.tick(STATS_INTERVAL);
     }
 }
 

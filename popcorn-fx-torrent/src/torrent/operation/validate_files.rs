@@ -79,8 +79,6 @@ impl TorrentFileValidationOperation {
                     time_taken.as_secs(),
                     time_taken.subsec_millis()
                 );
-
-                context.pieces_completed(valid_pieces).await;
             } else {
                 warn!(
                     "Torrent {} failed to start file validation, pieces are unknown",
@@ -102,29 +100,39 @@ impl TorrentFileValidationOperation {
     /// Validate the piece data stored within the [crate::torrent::storage::Storage] of the torrent.
     /// Returns the [PieceIndex] when the stored piece data is valid, else [None].
     async fn validate_piece(context: Arc<TorrentContext>, piece: Piece) -> Option<PieceIndex> {
-        if let Some(hash_v1) = piece.hash.hash_v1() {
-            return context
-                .storage()
-                .hash_v1(&piece.index)
-                .await
-                .ok()
-                .and_then(|hash| Some(piece.index).filter(|_| hash == hash_v1));
+        let expected_v1 = piece.hash.hash_v1();
+        let expected_v2 = piece.hash.hash_v2();
+
+        // early fail if the piece hash is missing
+        if expected_v1.is_none() && expected_v2.is_none() {
+            debug!(
+                "Torrent {} is unable to validate piece {}, piece hash is missing or invalid",
+                context, piece.index
+            );
+            return None;
         }
 
-        if let Some(hash_v2) = piece.hash.hash_v2() {
-            return context
+        let validation_result = match (expected_v1, expected_v2) {
+            (Some(_), Some(hash_v2)) | (None, Some(hash_v2)) => context
                 .storage()
                 .hash_v2(&piece.index)
                 .await
                 .ok()
-                .and_then(|hash| Some(piece.index).filter(|_| hash_v2 == hash));
+                .and_then(|hash| Some(piece.index).filter(|_| hash_v2 == hash)),
+            (Some(hash_v1), None) => context
+                .storage()
+                .hash_v1(&piece.index)
+                .await
+                .ok()
+                .and_then(|hash| Some(piece.index).filter(|_| hash == hash_v1)),
+            _ => None,
+        };
+
+        if let Some(piece_index) = &validation_result {
+            context.piece_completed(*piece_index).await;
         }
 
-        debug!(
-            "Torrent {} is unable to validate piece {}, piece hash is missing or invalid",
-            context, piece.index
-        );
-        None
+        validation_result
     }
 }
 
@@ -160,7 +168,7 @@ mod tests {
     use crate::create_torrent;
     use crate::init_logger;
     use crate::torrent::operation::{TorrentCreateFilesOperation, TorrentCreatePiecesOperation};
-    use popcorn_fx_core::testing::copy_test_file;
+    use crate::torrent::tests::copy_test_file;
     use std::time::Duration;
     use tempfile::tempdir;
     use tokio::{select, time};
@@ -263,19 +271,19 @@ mod tests {
                 "expected piece bitfield {} to be completed",
                 piece
             );
-
-            let result = context.metrics().await;
-            assert_eq!(
-                30,
-                result.completed_pieces.get(),
-                "expected completed pieces to be 30"
-            );
-            assert_ne!(
-                0,
-                result.completed_size.get(),
-                "expected total completed size to be > 0"
-            );
         }
+
+        let result = context.metrics().await;
+        assert_eq!(
+            30,
+            result.completed_pieces.total(),
+            "expected completed pieces to be 30"
+        );
+        assert_ne!(
+            0,
+            result.completed_size.total(),
+            "expected total completed size to be > 0"
+        );
     }
 
     async fn create_pieces_and_files(context: &Arc<TorrentContext>) {

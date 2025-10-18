@@ -3,6 +3,7 @@ mod app_logger;
 mod dht_info;
 mod menu;
 mod torrent_info;
+mod tracker_info;
 mod widget;
 
 use crate::app::App;
@@ -14,7 +15,7 @@ use tokio::select;
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> io::Result<()> {
     let app_logger = AppLogger::new();
-    let mut app = App::new(app_logger.clone())?;
+    let mut app = App::new(app_logger.clone()).await?;
     let terminal = ratatui::init();
 
     log::set_boxed_logger(Box::new(app_logger))

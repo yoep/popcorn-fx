@@ -1,4 +1,4 @@
-use crate::app::{FXKeyEvent, FXWidget};
+use crate::app::{FXKeyEvent, FXWidget, PERFORMANCE_HISTORY};
 use crate::widget::{print_optional_string, print_string_len};
 use async_trait::async_trait;
 use crossterm::event::KeyCode;
@@ -27,7 +27,6 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-const PERFORMANCE_HISTORY: usize = 150;
 const REMOVE_CLOSED_PEER_AFTER: Duration = Duration::from_secs(3);
 
 #[derive(Debug)]
@@ -118,10 +117,6 @@ impl TorrentInfoWidget {
 
 #[async_trait]
 impl FXWidget for TorrentInfoWidget {
-    fn handle(&self) -> Handle {
-        self.torrent.handle()
-    }
-
     fn name(&self) -> &str {
         &self.name
     }

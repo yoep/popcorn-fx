@@ -54,6 +54,11 @@ impl AppLogger {
                         level: Level::Info,
                     },
                     Logger {
+                        name: "Torrent".to_string(),
+                        target: "popcorn_fx_torrent::torrent::torrent".to_string(),
+                        level: Level::Info,
+                    },
+                    Logger {
                         name: "Trackers".to_string(),
                         target: "popcorn_fx_torrent::torrent::tracker".to_string(),
                         level: Level::Info,

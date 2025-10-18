@@ -1438,7 +1438,7 @@ impl TorrentContext {
 
     /// Get the currently active trackers of the torrent.
     pub async fn active_trackers(&self) -> Vec<Url> {
-        self.tracker_manager.trackers().await
+        self.tracker_manager.tracker_urls().await
     }
 
     /// Get an owned instance of the metadata from the torrent.
@@ -1474,7 +1474,7 @@ impl TorrentContext {
     /// Get the total amount of active tracker connections.
     /// This only counts trackers which have at least made one successful announcement.
     pub async fn active_tracker_connections(&self) -> usize {
-        self.tracker_manager.total_trackers().await
+        self.tracker_manager.trackers_len().await
     }
 
     /// Get the DHT tracker of the torrent.
@@ -1655,10 +1655,18 @@ impl TorrentContext {
         }
 
         let state = *self.state.read().await;
+        // if the torrent is validating files, then don't open any new peer connections during the process
+        // if the torrent is finished, then don't actively reach out to new peers
+        if matches!(
+            state,
+            TorrentState::CheckingFiles | TorrentState::Finished | TorrentState::Seeding
+        ) {
+            return 0;
+        }
+
         let currently_active_peers = self.active_peer_connections().await;
         let config = self.config.read().await;
 
-        let is_finished = matches!(state, TorrentState::Finished | TorrentState::Seeding);
         let is_retrieving_data = options.contains(TorrentFlags::DownloadMode);
         let is_retrieving_metadata =
             options.contains(TorrentFlags::Metadata) && state == TorrentState::RetrievingMetadata;
@@ -1667,16 +1675,12 @@ impl TorrentContext {
         let peer_upper_bound = config.peers_upper_limit;
 
         // if we're downloading or retrieving metadata, aim for the upper bound
-        if is_retrieving_metadata || (is_retrieving_data && !is_finished) {
+        if is_retrieving_metadata || is_retrieving_data {
             return peer_upper_bound.saturating_sub(currently_active_peers);
         }
 
-        // if not downloading, maintain at least the lower bound
-        if !is_retrieving_data {
-            return peer_lower_bound.saturating_sub(currently_active_peers);
-        }
-
-        0
+        // if we're not actively requesting any data, aim for the lower bound
+        peer_lower_bound.saturating_sub(currently_active_peers)
     }
 
     /// Get all relevant pieces for the given torrent byte range.
@@ -2028,7 +2032,7 @@ impl TorrentContext {
     pub async fn update_piece_availabilities(&self, pieces: Vec<PieceIndex>, available: bool) {
         // check if the metadata is known and the pieces have been created
         if !self.is_metadata_known().await || self.piece_pool().len().await == 0 {
-            debug!(
+            trace!(
                 "Torrent {} is unable to update piece availabilities, metadata or pieces are unknown",
                 self
             );
@@ -2116,6 +2120,7 @@ impl TorrentContext {
         trace!("Torrent {} marking pieces {:?} as completed", self, pieces);
         let mut total_wanted_completed_size = 0;
         let mut total_completed_pieces_size = 0;
+        let mut total_wanted_completed_pieces = 0;
         let mut total_completed_pieces = 0;
 
         {
@@ -2128,6 +2133,7 @@ impl TorrentContext {
 
                     if piece.priority != PiecePriority::None {
                         total_wanted_completed_size += piece.length;
+                        total_wanted_completed_pieces += 1;
                     }
                 } else {
                     warn!(
@@ -2142,6 +2148,9 @@ impl TorrentContext {
         }
 
         self.metrics.completed_pieces.inc_by(total_completed_pieces);
+        self.metrics
+            .wanted_completed_pieces
+            .inc_by(total_wanted_completed_pieces);
         self.metrics
             .completed_size
             .inc_by(total_completed_pieces_size as u64);
@@ -2212,9 +2221,7 @@ impl TorrentContext {
     /// Cancel all currently queued pending requests of the torrent.
     /// This will clear all pending requests from the buffer.
     pub async fn cancel_all_pending_requests(&self) {
-        for _peer in self.peer_pool.peers.read().await.iter() {
-            // TODO: cancel pending requests in the peer
-        }
+        // TODO: cancel pending requests in the peer
     }
 
     /// Resume the torrent.
@@ -2307,6 +2314,7 @@ impl TorrentContext {
 
                 self.invoke_event(TorrentEvent::TrackersChanged);
             }
+            _ => {}
         }
     }
 
@@ -2955,8 +2963,8 @@ mod tests {
     use crate::torrent::InfoHash;
     use crate::{create_torrent, timeout};
 
+    use crate::torrent::tests::{copy_test_file, read_test_file_to_bytes};
     use log::LevelFilter;
-    use popcorn_fx_core::testing::{copy_test_file, read_test_file_to_bytes};
     use std::ops::Sub;
     use std::str::FromStr;
     use tempfile::tempdir;

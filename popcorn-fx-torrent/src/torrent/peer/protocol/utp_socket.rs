@@ -587,8 +587,8 @@ mod tests {
     use super::*;
     use crate::torrent::peer::protocol::UtpStreamState;
     use crate::torrent::peer::tests::create_utp_socket;
-    use crate::{create_utp_socket_pair, init_logger};
-    use popcorn_fx_core::{assert_timeout, available_port};
+    use crate::{assert_timeout, create_utp_socket_pair, init_logger};
+    use std::net::Ipv4Addr;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
@@ -664,8 +664,7 @@ mod tests {
     #[tokio::test]
     async fn test_udp_socket_new() {
         init_logger!();
-        let port = available_port!(23000, 24000).unwrap();
-        let addr = SocketAddr::from(([0, 0, 0, 0], port));
+        let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
 
         let result = UtpSocket::new(addr, Duration::from_secs(1), vec![])
             .await

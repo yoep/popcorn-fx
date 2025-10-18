@@ -3,6 +3,7 @@ use crate::torrent::{
 };
 use bit_vec::BitVec;
 use itertools::Itertools;
+use log::warn;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -13,6 +14,7 @@ pub struct PiecePool {
     inner: Arc<InnerPiecePool>,
 }
 
+// RULE-OF-THUMB: Always acquire locks in the order of piece -> completed_pieces.
 impl PiecePool {
     /// Create a new empty piece pool instance.
     pub fn new() -> Self {
@@ -21,23 +23,26 @@ impl PiecePool {
 
     /// Returns the number of pieces within the pool.
     pub async fn len(&self) -> usize {
-        self.inner.pieces.read().await.len()
+        let pieces = self.inner.pieces.read().await;
+        pieces.len()
     }
 
     /// Get the piece for the given index.
     pub async fn get(&self, piece: &PieceIndex) -> Option<Piece> {
-        self.inner.pieces.read().await.get(piece).cloned()
+        let pieces = self.inner.pieces.read().await;
+        pieces.get(piece).cloned()
     }
 
     /// Check if the given piece is present within the pool.
     pub async fn contains(&self, piece: &PieceIndex) -> bool {
         let pieces = self.inner.pieces.read().await;
-        pieces.get(piece).is_some()
+        pieces.contains_key(piece)
     }
 
     /// Get all pieces present within the pool.
     pub async fn pieces(&self) -> Vec<Piece> {
-        self.inner.pieces.read().await.values().cloned().collect()
+        let pieces = self.inner.pieces.read().await;
+        pieces.values().cloned().collect()
     }
 
     /// Set the pieces of the pool.
@@ -55,8 +60,8 @@ impl PiecePool {
         }
 
         {
-            let mut bitfield = self.inner.completed_pieces.write().await;
-            *bitfield = BitVec::from_elem(pieces_len, false);
+            let mut completed_pieces = self.inner.completed_pieces.write().await;
+            *completed_pieces = BitVec::from_elem(pieces_len, false);
         }
     }
 
@@ -69,25 +74,27 @@ impl PiecePool {
     /// This means that every piece with anything but a [PiecePriority::None] have
     /// downloaded and validated their data.
     pub async fn is_completed(&self) -> bool {
+        let interested_pieces = {
+            let pieces = self.inner.pieces.read().await;
+            pieces
+                .iter()
+                .filter(|(_, piece)| piece.priority != PiecePriority::None)
+                .map(|(index, _)| *index)
+                .collect::<Vec<_>>()
+        };
         let bitfield = self.inner.completed_pieces.read().await;
-        let pieces = self.inner.pieces.read().await;
 
-        pieces
-            .iter()
-            .filter(|(_, piece)| piece.priority != PiecePriority::None)
-            .all(|(index, _)| bitfield.get(*index).unwrap_or(false))
+        interested_pieces
+            .into_iter()
+            .all(|piece| bitfield.get(piece).unwrap_or(false))
     }
 
     /// Check if the given piece has completed downloading the data.
     ///
     /// Returns `true` when the data is downloaded & validated for the given piece, else `false`.
     pub async fn is_piece_completed(&self, piece: &PieceIndex) -> bool {
-        self.inner
-            .completed_pieces
-            .read()
-            .await
-            .get(*piece)
-            .unwrap_or_default()
+        let completed_pieces = self.inner.completed_pieces.read().await;
+        completed_pieces.get(*piece).unwrap_or_default()
     }
 
     /// Set the completion state of the given piece index.
@@ -105,13 +112,14 @@ impl PiecePool {
 
         {
             let mut bitfield = self.inner.completed_pieces.write().await;
-            bitfield.set(*piece, completed)
+            bitfield.set(*piece, completed);
         }
     }
 
-    /// Get the amount of completed pieces within the pool.
+    /// Get the number of completed pieces within the pool.
     pub async fn num_completed(&self) -> usize {
-        self.inner.completed_pieces.read().await.count_ones() as usize
+        let completed_pieces = self.inner.completed_pieces.read().await;
+        completed_pieces.count_ones() as usize
     }
 
     /// Get the priorities of the pieces for the torrent.
@@ -140,23 +148,25 @@ impl PiecePool {
         pieces
             .iter()
             .filter(|(_, piece)| piece.priority != PiecePriority::None)
-            .map(|(piece, _)| *piece)
+            .map(|(index, _)| *index)
             .collect()
     }
 
     /// Check if the given piece is wanted by the torrent.
-    pub async fn is_wanted(&self, piece: &PieceIndex) -> bool {
+    pub async fn is_wanted(&self, piece_index: &PieceIndex) -> bool {
+        let piece = {
+            let pieces = self.inner.pieces.read().await;
+            pieces.get(piece_index).cloned()
+        };
         let bitfield = self.inner.completed_pieces.read().await;
-        let pieces = self.inner.pieces.read().await;
 
-        pieces
-            .get(piece)
+        piece
             .filter(|piece| Self::is_wanted_piece(&*bitfield, piece))
             .is_some()
     }
 
     /// Check if the given piece index is wanted by the torrent.
-    /// Returns `true` if the piece has  not been completed yet and the priority is not [PiecePriority::None].
+    /// Returns `true` if the piece has not been completed yet and the priority is not [PiecePriority::None].
     pub async fn is_piece_wanted(&self, piece: &PieceIndex) -> bool {
         let is_completed = {
             let bitfield = self.inner.completed_pieces.read().await;
@@ -178,12 +188,20 @@ impl PiecePool {
     /// Get the pieces which are still wanted (need to be downloaded) by the torrent.
     /// The list is sorted based on the piece priority.
     pub async fn wanted_pieces(&self) -> Vec<Piece> {
+        let interested_pieces = {
+            let pieces = self.inner.pieces.read().await;
+            pieces
+                .iter()
+                .filter(|(_, piece)| piece.priority != PiecePriority::None)
+                .map(|(_, piece)| piece)
+                .cloned()
+                .collect::<Vec<_>>()
+        };
         let bitfield = self.inner.completed_pieces.read().await;
-        let pieces = self.inner.pieces.read().await;
-        pieces
-            .iter()
-            .filter(|(_, piece)| Self::is_wanted_piece(&*bitfield, piece))
-            .map(|(_, piece)| piece.clone())
+
+        interested_pieces
+            .into_iter()
+            .filter(|piece| Self::is_wanted_piece(&*bitfield, piece))
             .sorted_by(|a, b| b.priority.cmp(&a.priority))
             .collect()
     }
@@ -193,7 +211,7 @@ impl PiecePool {
         let pieces = self.inner.pieces.read().await;
         pieces
             .iter()
-            .filter(|(_, piece)| piece.priority == PiecePriority::None)
+            .filter(|(_, piece)| piece.priority != PiecePriority::None)
             .map(|(_, piece)| piece.len())
             .sum()
     }
@@ -212,13 +230,28 @@ impl PiecePool {
 
     /// Set the given piece part as completed.
     pub async fn set_part_completed(&self, piece: &PieceIndex, part: &PartIndex) {
-        let mut pieces = self.inner.pieces.write().await;
-        if let Some(piece) = pieces.get_mut(piece) {
-            piece.part_completed(part);
+        let mut completed_pieces = vec![];
 
-            if piece.is_completed() {
-                let mut bitfield = self.inner.completed_pieces.write().await;
-                bitfield.set(piece.index.clone(), true);
+        {
+            let mut pieces = self.inner.pieces.write().await;
+            if let Some(piece) = pieces.get_mut(piece) {
+                piece.part_completed(part);
+
+                if piece.is_completed() {
+                    completed_pieces.push(piece.index);
+                }
+            } else {
+                warn!(
+                    "Piece pool got piece part completed for unknown piece {}",
+                    piece
+                );
+            }
+        }
+
+        {
+            let mut bitfield = self.inner.completed_pieces.write().await;
+            for piece in completed_pieces {
+                bitfield.set(piece, true);
             }
         }
     }
@@ -323,8 +356,8 @@ impl FilePool {
     ///
     /// Returns the file containing the start byte for the piece.
     pub async fn file_index_for(&self, piece: &PieceIndex) -> Option<FileIndex> {
-        let files = self.inner.files.read().await;
         let piece = self.inner.piece_pool.get(piece).await?;
+        let files = self.inner.files.read().await;
 
         files
             .iter()
@@ -337,21 +370,25 @@ impl FilePool {
 
     /// Set the priorities of for the given file indexes.
     pub async fn set_priorities(&self, priorities: &[(FileIndex, FilePriority)]) {
-        let mut files = self.inner.files.write().await;
-        let mut piece_priorities = BTreeMap::new();
+        let piece_priorities = {
+            let mut files = self.inner.files.write().await;
+            let mut piece_priorities = BTreeMap::new();
 
-        for (index, file_priority) in priorities {
-            if let Some(file) = files.get_mut(index) {
-                file.priority = *file_priority;
+            for (index, file_priority) in priorities {
+                if let Some(file) = files.get_mut(index) {
+                    file.priority = *file_priority;
 
-                for piece in file.pieces.clone() {
-                    let piece_priority = piece_priorities
-                        .entry(piece)
-                        .or_insert(*file_priority as PiecePriority);
-                    *piece_priority = (*piece_priority).max(*file_priority);
+                    for piece in file.pieces.clone() {
+                        let piece_priority = piece_priorities
+                            .entry(piece)
+                            .or_insert(*file_priority as PiecePriority);
+                        *piece_priority = (*piece_priority).max(*file_priority);
+                    }
                 }
             }
-        }
+
+            piece_priorities
+        };
 
         self.inner
             .piece_pool

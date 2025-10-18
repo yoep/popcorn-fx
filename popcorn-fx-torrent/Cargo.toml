@@ -52,8 +52,6 @@ extension-metadata = []
 extension-pex = []
 
 [dev-dependencies]
-popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
-
 chrono = "0.4.41"
 crossterm = { version = "0.29.0", features = ["event-stream"] }
 hex-literal = "0.4.1"

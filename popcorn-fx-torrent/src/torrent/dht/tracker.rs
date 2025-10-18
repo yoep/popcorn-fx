@@ -19,13 +19,14 @@ use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::net::UdpSocket;
+use tokio::net::{lookup_host, UdpSocket};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::oneshot::Sender;
 use tokio::sync::{oneshot, Mutex};
 use tokio::time::{interval, timeout};
 use tokio::{select, time};
 use tokio_util::sync::CancellationToken;
+use url::Url;
 
 /// The maximum size of a single UDP packet.
 const MAX_PACKET_SIZE: usize = 65_535;
@@ -35,8 +36,7 @@ const REFRESH_INTERVAL: Duration = Duration::from_secs(60 * 15);
 const CLEANUP_INTERVAL: Duration = Duration::from_secs(3);
 const STATS_INTERVAL: Duration = Duration::from_secs(1);
 const DEFAULT_BUCKET_SIZE: usize = 8;
-
-pub const DEFAULT_BOOTSTRAP_SERVERS: fn() -> Vec<&'static str> = || {
+const DEFAULT_ROUTING_NODE_SERVERS: fn() -> Vec<&'static str> = || {
     vec![
         "router.utorrent.com:6881",
         "router.bittorrent.com:6881",
@@ -268,7 +268,8 @@ impl Drop for DhtTracker {
 pub struct DhtTrackerBuilder {
     node_id: Option<NodeId>,
     public_ip: Option<IpAddr>,
-    routing_nodes: Option<Vec<SocketAddr>>,
+    routing_nodes: Vec<SocketAddr>,
+    routing_node_urls: Vec<String>,
 }
 
 impl DhtTrackerBuilder {
@@ -284,16 +285,32 @@ impl DhtTrackerBuilder {
         self
     }
 
+    /// Add the default routing nodes used for searching new nodes.
+    pub fn default_routing_nodes(&mut self) -> &mut Self {
+        self.routing_node_urls.extend(
+            DEFAULT_ROUTING_NODE_SERVERS()
+                .into_iter()
+                .map(|e| e.to_string()),
+        );
+        self
+    }
+
     /// Add the given address to the routing nodes used for searching new nodes.
     pub fn routing_node(&mut self, addr: SocketAddr) -> &mut Self {
-        self.routing_nodes.get_or_insert_default().push(addr);
+        self.routing_nodes.push(addr);
         self
     }
 
     /// Set the routing nodes to use for searching new nodes.
     /// This replaces any already existing configured routing nodes.
     pub fn routing_nodes(&mut self, nodes: Vec<SocketAddr>) -> &mut Self {
-        self.routing_nodes = Some(nodes);
+        self.routing_nodes = nodes;
+        self
+    }
+
+    /// Add the given node url to use for searching new nodes.
+    pub fn routing_node_url<S: AsRef<str>>(&mut self, url: S) -> &mut Self {
+        self.routing_node_urls.push(url.as_ref().to_string());
         self
     }
 
@@ -305,15 +322,34 @@ impl DhtTrackerBuilder {
                 .map(|e| NodeId::from_ip(&e))
                 .unwrap_or(NodeId::new())
         });
-        let bootstrap_server = self
+        let mut routing_nodes: Vec<Node> = self
             .routing_nodes
-            .take()
-            .unwrap_or_default()
+            .drain(..)
             .into_iter()
             .map(|addr| Node::new(NodeId::from(&addr), addr))
             .collect();
 
-        DhtTracker::new(node_id, bootstrap_server).await
+        for node_url in self.routing_node_urls.drain(..).filter_map(Self::host) {
+            routing_nodes.extend(
+                lookup_host(node_url)
+                    .await
+                    .into_iter()
+                    .flat_map(|e| e)
+                    .map(|addr| Node::new(NodeId::from(&addr), addr)),
+            );
+        }
+
+        DhtTracker::new(node_id, routing_nodes).await
+    }
+
+    fn host<S: AsRef<str>>(url: S) -> Option<String> {
+        let url = Url::parse(url.as_ref()).ok()?;
+        if let Some(host) = url.host_str() {
+            let port = url.port().unwrap_or(80);
+            return Some(format!("{}:{}", host, port));
+        }
+
+        Some(url.as_ref().to_string())
     }
 }
 

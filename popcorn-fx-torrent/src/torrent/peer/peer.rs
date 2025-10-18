@@ -2496,6 +2496,7 @@ impl PeerContext {
         {
             Ok(_) => Ok(()),
             Err(e) => {
+                debug!("Peer {} failed to send handshake, {}", self, e);
                 self.update_state(PeerState::Error).await;
                 Err(e)
             }

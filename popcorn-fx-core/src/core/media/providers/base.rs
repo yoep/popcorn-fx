@@ -235,9 +235,16 @@ impl BaseProvider {
         let status_code = &response.status();
 
         if status_code.is_success() {
-            match response.json::<T>().await {
+            let txt = response
+                .text()
+                .await
+                .map_err(|e| MediaError::ProviderParsingFailed(e.to_string()))?;
+            match serde_json::from_str::<T>(&txt) {
                 Ok(e) => Ok(e),
-                Err(e) => Err(MediaError::ProviderParsingFailed(e.to_string())),
+                Err(e) => Err(MediaError::ProviderParsingFailed(format!(
+                    "{}, for {}",
+                    e, txt
+                ))),
             }
         } else {
             warn!(

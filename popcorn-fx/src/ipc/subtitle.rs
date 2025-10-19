@@ -299,6 +299,7 @@ mod tests {
     use popcorn_fx_core::core::media::{Images, Rating, TorrentInfo};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::init_logger;
+    use protobuf::EnumOrUnknown;
     use std::time::Duration;
     use tempfile::tempdir;
 
@@ -496,7 +497,12 @@ mod tests {
         let result =
             GetMediaAvailableSubtitlesResponse::parse_from_bytes(&response.payload).unwrap();
 
-        assert_eq!(response::Result::OK, result.result.unwrap());
+        assert_eq!(
+            Into::<EnumOrUnknown<response::Result>>::into(response::Result::OK),
+            result.result,
+            "expected response result OK, got {:?} instead",
+            result
+        );
         assert_ne!(Vec::<subtitle::Info>::new(), result.subtitles);
     }
 

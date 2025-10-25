@@ -684,7 +684,7 @@ mod tests {
                 .path("/AVTransport/control")
                 .header("content-type", "text/xml; charset=\"utf-8\"")
                 .header("soapaction", "\"urn:schemas-upnp-org:service:AVTransport:1#Play\"")
-                .body_contains(UPNP_PLAYER_PLAY_PAYLOAD);
+                .body_includes(UPNP_PLAYER_PLAY_PAYLOAD);
             then.status(200)
                 .body(r#"<s:Envelope s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
                     <s:Body>
@@ -943,7 +943,7 @@ mod tests {
                 .path("/AVTransport/control")
                 .header("content-type", "text/xml; charset=\"utf-8\"")
                 .header("soapaction", "\"urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI\"")
-                .body_contains(r#"<InstanceID xmlns:dt="urn:schemas-microsoft-com:datatypes" dt:dt="ui4">0</InstanceID>"#);
+                .body_includes(r#"<InstanceID xmlns:dt="urn:schemas-microsoft-com:datatypes" dt:dt="ui4">0</InstanceID>"#);
             then.status(200)
                 .body(r#"<s:Envelope s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
                     <s:Body>

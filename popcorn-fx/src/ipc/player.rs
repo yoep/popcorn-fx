@@ -693,10 +693,7 @@ mod tests {
             .expect("expected to have received a reply");
         let result = RegisterPlayerResponse::parse_from_bytes(&response.payload).unwrap();
 
-        assert_eq!(
-            Into::<EnumOrUnknown<response::Result>>::into(response::Result::OK),
-            result.result
-        );
+        assert_eq!(EnumOrUnknown::from(response::Result::OK), result.result);
         let result = instance
             .player_manager()
             .players()

@@ -666,20 +666,26 @@ mod tests {
         init_logger!();
         let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
 
-        let result = UtpSocket::new(addr, Duration::from_secs(1), vec![])
+        // bind to an ephemeral port on localhost
+        let socket = UtpSocket::new(addr, Duration::from_secs(1), vec![])
             .await
             .expect("expected an uTP socket");
 
-        assert_eq!(addr, result.addr());
+        // check the bound port on the socket
+        let port = socket.addr().port();
+        assert_ne!(
+            0, port,
+            "expected the actual bound port to have been returned"
+        );
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_utp_socket_connect() {
         init_logger!();
         let expected_result = UtpStreamState::Connected;
         let (incoming, outgoing) = create_utp_socket_pair!();
 
-        let target_addr = incoming.addr();
+        let target_addr = (Ipv4Addr::LOCALHOST, incoming.addr().port()).into();
         let outgoing_stream = outgoing
             .connect(target_addr)
             .await

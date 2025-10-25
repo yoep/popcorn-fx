@@ -39,8 +39,8 @@ protobuf = "3.7.1"
 popcorn-fx = { path = "." }
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
 
+httpmock.workspace = true
 mockall.workspace = true
-rand.workspace = true
 reqwest.workspace = true
 tempfile.workspace = true
 

@@ -180,7 +180,7 @@ impl TorrentStreamServerInner {
                 Ok(Response::builder()
                     .status(StatusCode::NOT_FOUND)
                     .body(Body::empty())
-                    .unwrap())
+                    .expect("expected a valid response body"))
             }
             Some(torrent_stream) => {
                 let range = Self::extract_range(&headers);
@@ -241,7 +241,7 @@ impl TorrentStreamServerInner {
                         Ok(Response::builder()
                             .status(StatusCode::NOT_FOUND)
                             .body(Body::empty())
-                            .unwrap())
+                            .expect("expected a valid response body"))
                     }
                 }
             }
@@ -260,7 +260,7 @@ impl TorrentStreamServerInner {
                 Ok(Response::builder()
                     .status(StatusCode::NOT_FOUND)
                     .body(Body::empty())
-                    .unwrap())
+                    .expect("expected a valid response body"))
             }
             Some(torrent_stream) => match torrent_stream.stream().await {
                 Ok(stream) => {
@@ -287,7 +287,7 @@ impl TorrentStreamServerInner {
                     Ok(Response::builder()
                         .status(StatusCode::NOT_FOUND)
                         .body(Body::empty())
-                        .unwrap())
+                        .expect("expected a valid response body"))
                 }
             },
         }
@@ -311,15 +311,13 @@ impl TorrentStreamServerInner {
     fn extract_range(headers: &HeaderMap) -> Option<Range> {
         match headers.get(RANGE) {
             None => None,
-            Some(value) => {
-                return match Range::parse(value.to_str().expect("Expected a value string")) {
-                    Ok(e) => Some(e.first().unwrap().clone()),
-                    Err(e) => {
-                        error!("Range header is invalid, {}", e);
-                        None
-                    }
-                };
-            }
+            Some(value) => match Range::parse(value.to_str().expect("Expected a value string")) {
+                Ok(e) => Some(e.first().unwrap().clone()),
+                Err(e) => {
+                    error!("Range header is invalid, {}", e);
+                    None
+                }
+            },
         }
     }
 

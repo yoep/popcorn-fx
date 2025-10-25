@@ -11,7 +11,6 @@ use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, error, trace, warn};
 #[cfg(any(test, feature = "testing"))]
 pub use mock::*;
-use popcorn_fx_torrent::torrent;
 use popcorn_fx_torrent::torrent::dht::DhtTracker;
 use popcorn_fx_torrent::torrent::{
     FileIndex, FilePriority, FxTorrentSession, Magnet, Session, SessionEvent, SessionState,
@@ -107,7 +106,7 @@ pub struct FxTorrentManager {
 
 impl FxTorrentManager {
     pub async fn new(settings: ApplicationConfig, event_publisher: EventPublisher) -> Result<Self> {
-        let mut session = FxTorrentSession::builder()
+        let session = FxTorrentSession::builder()
             .path(settings.user_settings().await.torrent_settings.directory())
             .client_name("PopcornFX")
             .dht(

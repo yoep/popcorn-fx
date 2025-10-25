@@ -446,10 +446,7 @@ mod tests {
             .expect("expected to have received a reply");
         let result = GetTorrentCollectionResponse::parse_from_bytes(&response.payload).unwrap();
 
-        assert_eq!(
-            Into::<EnumOrUnknown<response::Result>>::into(response::Result::OK),
-            result.result
-        );
+        assert_eq!(EnumOrUnknown::from(response::Result::OK), result.result);
         assert_eq!(vec![magnet_info], result.torrents);
     }
 

@@ -231,7 +231,7 @@ mod tests {
         let result = GetUpdateInfoResponse::parse_from_bytes(&response.payload).unwrap();
 
         assert_eq!(
-            Into::<EnumOrUnknown<response::Result>>::into(response::Result::OK),
+            EnumOrUnknown::from(response::Result::OK),
             result.result,
             "expected the info to have been returned"
         );

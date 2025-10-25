@@ -2964,7 +2964,6 @@ mod tests {
     use crate::{create_torrent, timeout};
 
     use crate::torrent::tests::{copy_test_file, read_test_file_to_bytes};
-    use log::LevelFilter;
     use std::ops::Sub;
     use std::str::FromStr;
     use tempfile::tempdir;

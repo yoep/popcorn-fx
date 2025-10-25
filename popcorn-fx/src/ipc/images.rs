@@ -305,10 +305,7 @@ mod tests {
         let message = timeout!(response, Duration::from_millis(250))
             .expect("expected to have received a reply");
         let response = GetFanartResponse::parse_from_bytes(&message.payload).unwrap();
-        assert_eq!(
-            Into::<EnumOrUnknown<response::Result>>::into(response::Result::OK),
-            response.result
-        );
+        assert_eq!(EnumOrUnknown::from(response::Result::OK), response.result);
         assert_ne!(
             MessageField::none(),
             response.image,
@@ -362,10 +359,7 @@ mod tests {
         let message = timeout!(response, Duration::from_millis(250))
             .expect("expected to have received a reply");
         let response = GetPosterResponse::parse_from_bytes(&message.payload).unwrap();
-        assert_eq!(
-            Into::<EnumOrUnknown<response::Result>>::into(response::Result::OK),
-            response.result
-        );
+        assert_eq!(EnumOrUnknown::from(response::Result::OK), response.result);
         assert_ne!(
             MessageField::none(),
             response.image,
@@ -405,10 +399,7 @@ mod tests {
         let message = timeout!(response, Duration::from_millis(250))
             .expect("expected to have received a reply");
         let response = GetImageResponse::parse_from_bytes(&message.payload).unwrap();
-        assert_eq!(
-            Into::<EnumOrUnknown<response::Result>>::into(response::Result::OK),
-            response.result
-        );
+        assert_eq!(EnumOrUnknown::from(response::Result::OK), response.result);
         assert_ne!(
             MessageField::none(),
             response.image,

@@ -223,6 +223,7 @@ impl PopcornProperties {
         self.update_channel.as_str()
     }
 
+    /// Get the subtitle properties of the application.
     pub fn subtitle(&self) -> &SubtitleProperties {
         &self.subtitle
     }

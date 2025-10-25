@@ -171,12 +171,12 @@ class ContentSectionControllerTest {
     }
 
     @Test
-    void testOnCloseUpdate() {
+    void testOnCloseUpdate() throws TimeoutException {
         controller.initialize(url, resourceBundle);
 
         eventPublisher.publish(new ShowAboutEvent(this));
         WaitForAsyncUtils.waitForFxEvents();
-        assertEquals(ContentSectionController.ContentType.ABOUT, controller.activeType);
+        WaitForAsyncUtils.waitFor(750, TimeUnit.MILLISECONDS, () -> Objects.equals(ContentSectionController.ContentType.ABOUT, controller.activeType));
 
         eventPublisher.publish(new CloseUpdateEvent(this));
         WaitForAsyncUtils.waitForFxEvents();

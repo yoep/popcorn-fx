@@ -194,11 +194,7 @@ pub mod tests {
     use crate::torrent::peer::tests::new_tcp_peer_discovery;
     use crate::torrent::peer::{BitTorrentPeer, PeerDiscovery, PeerId, PeerStream};
 
-    use log::{trace, LevelFilter};
-    use log4rs::append::console::ConsoleAppender;
-    use log4rs::config::{Appender, Logger, Root};
-    use log4rs::encode::pattern::PatternEncoder;
-    use log4rs::Config;
+    use log::trace;
     use std::net::SocketAddr;
     use std::path::PathBuf;
     use std::str::FromStr;
@@ -208,7 +204,7 @@ pub mod tests {
     use tokio::net::TcpStream;
     use tokio::sync::mpsc::unbounded_channel;
 
-    static INIT: Once = Once::new();
+    pub static INIT: Once = Once::new();
 
     /// Create the torrent metadata from the given uri.
     /// The uri can either point to a `.torrent` file or a magnet link.
@@ -225,13 +221,13 @@ pub mod tests {
     #[macro_export]
     macro_rules! create_torrent {
         ($uri:expr, $temp_dir:expr, $options:expr) => {{
-            use crate::torrent::TorrentConfig;
-
             create_torrent!(
                 $uri,
                 $temp_dir,
                 $options,
-                TorrentConfig::builder().path($temp_dir).build()
+                crate::torrent::TorrentConfig::builder()
+                    .path($temp_dir)
+                    .build()
             )
         }};
         ($uri:expr, $temp_dir:expr, $options:expr, $config:expr) => {{
@@ -273,8 +269,6 @@ pub mod tests {
             create_torrent!($uri, $temp_dir, $options, $config, $operations, discoveries)
         }};
         ($uri:expr, $temp_dir:expr, $options:expr, $config:expr, $operations:expr, $discoveries:expr) => {{
-            use crate::torrent::storage::DiskStorage;
-
             create_torrent!(
                 $uri,
                 $temp_dir,
@@ -283,7 +277,7 @@ pub mod tests {
                 $operations,
                 $discoveries,
                 |params| {
-                    Box::new(DiskStorage::new(
+                    Box::new(crate::torrent::storage::DiskStorage::new(
                         params.info_hash,
                         params.path,
                         params.files,
@@ -543,27 +537,29 @@ pub mod tests {
     /// Initializes the logger with the specified log level.
     #[macro_export]
     macro_rules! init_logger {
-        ($level:expr) => {
-            crate::torrent::tests::init_logger_level($level)
-        };
-        () => {
-            crate::torrent::tests::init_logger_level(log::LevelFilter::Trace)
-        };
-    }
+        () => {{
+            init_logger!(log::LevelFilter::Trace)
+        }};
+        ($level:expr) => {{
+            use log4rs::config::runtime::{Appender, Config, Logger, Root};
+            use log4rs::append::console::ConsoleAppender;
+            use log4rs::encode::pattern::PatternEncoder;
+            use log::LevelFilter;
 
-    /// Initializes the logger with the specified log level.
-    pub(crate) fn init_logger_level(level: LevelFilter) {
-        INIT.call_once(|| {
-            log4rs::init_config(Config::builder()
-                .appender(Appender::builder().build("stdout", Box::new(ConsoleAppender::builder()
-                    .encoder(Box::new(PatternEncoder::new("\x1B[37m{d(%Y-%m-%d %H:%M:%S%.3f)}\x1B[0m {h({l:>5.5})} \x1B[35m{I:>6.6}\x1B[0m \x1B[37m---\x1B[0m \x1B[37m[{T:>15.15}]\x1B[0m \x1B[36m{t:<60.60}\x1B[0m \x1B[37m:\x1B[0m {m}{n}")))
-                    .build())))
-                .logger(Logger::builder().build("fx_callback", LevelFilter::Info))
-                .logger(Logger::builder().build("mio", LevelFilter::Info))
-                .build(Root::builder().appender("stdout").build(level))
-                .unwrap())
-                .unwrap();
-        })
+            let level: LevelFilter = $level;
+
+            crate::torrent::tests::INIT.call_once(|| {
+                log4rs::init_config(Config::builder()
+                    .appender(Appender::builder().build("stdout", Box::new(ConsoleAppender::builder()
+                        .encoder(Box::new(PatternEncoder::new("\x1B[37m{d(%Y-%m-%d %H:%M:%S%.3f)}\x1B[0m {h({l:>5.5})} \x1B[35m{I:>6.6}\x1B[0m \x1B[37m---\x1B[0m \x1B[37m[{T:>15.15}]\x1B[0m \x1B[36m{t:<60.60}\x1B[0m \x1B[37m:\x1B[0m {m}{n}")))
+                        .build())))
+                    .logger(Logger::builder().build("fx_callback", LevelFilter::Info))
+                    .logger(Logger::builder().build("mio", LevelFilter::Info))
+                    .build(Root::builder().appender("stdout").build(level))
+                    .unwrap())
+                    .unwrap();
+            })
+        }};
     }
 
     #[macro_export]

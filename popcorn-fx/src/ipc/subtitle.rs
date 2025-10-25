@@ -296,9 +296,11 @@ mod tests {
     use crate::tests::default_args;
     use crate::timeout;
 
+    use httpmock::{Method, MockServer};
     use popcorn_fx_core::core::media::{Images, Rating, TorrentInfo};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::init_logger;
+    use popcorn_fx_core::testing::read_test_file_to_string;
     use protobuf::EnumOrUnknown;
     use std::time::Duration;
     use tempfile::tempdir;
@@ -498,7 +500,7 @@ mod tests {
             GetMediaAvailableSubtitlesResponse::parse_from_bytes(&response.payload).unwrap();
 
         assert_eq!(
-            Into::<EnumOrUnknown<response::Result>>::into(response::Result::OK),
+            EnumOrUnknown::from(response::Result::OK),
             result.result,
             "expected response result OK, got {:?} instead",
             result
@@ -509,9 +511,18 @@ mod tests {
     #[tokio::test]
     async fn test_process_get_media_movie_available_subtitles_request() {
         init_logger!();
+        let imdb_id = "tt1156398";
+        let response = read_test_file_to_string("subtitles-movie.json");
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(Method::GET)
+                .path("/api/v1/subtitles")
+                .query_param("imdb_id", imdb_id.replace("tt", ""));
+            then.status(200).body(response);
+        });
         let media = Box::new(MovieDetails {
             title: "MyShow".to_string(),
-            imdb_id: "tt1156398".to_string(),
+            imdb_id: imdb_id.to_string(),
             year: "2009".to_string(),
             images: Images {
                 poster: "http://localhost/poster.png".to_string(),
@@ -554,7 +565,9 @@ mod tests {
         }) as Box<dyn MediaIdentifier>;
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let mut args = default_args(temp_path);
+        args.properties.subtitle.url = server.url("/api/v1");
+        let instance = Arc::new(PopcornFX::new(args).await.unwrap());
         let (incoming, outgoing) = create_channel_pair().await;
         let handler = SubtitleMessageHandler::new(instance.clone());
 
@@ -584,7 +597,12 @@ mod tests {
         let result =
             GetMediaAvailableSubtitlesResponse::parse_from_bytes(&response.payload).unwrap();
 
-        assert_eq!(response::Result::OK, result.result.unwrap());
+        assert_eq!(
+            EnumOrUnknown::from(response::Result::OK),
+            result.result,
+            "expected response Ok, but got {:?} instead",
+            result
+        );
         assert_ne!(Vec::<subtitle::Info>::new(), result.subtitles);
     }
 

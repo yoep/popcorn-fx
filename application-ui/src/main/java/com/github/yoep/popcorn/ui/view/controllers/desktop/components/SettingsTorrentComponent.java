@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 
@@ -128,7 +129,9 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
         getSettings().thenAccept(settings -> Platform.runLater(() -> {
             cleaningMode.setCellFactory(item -> createCleaningModeCell());
             cleaningMode.setButtonCell(createCleaningModeCell());
-            cleaningMode.getItems().addAll(ApplicationSettings.TorrentSettings.CleaningMode.values());
+            cleaningMode.getItems().addAll(Arrays.stream(ApplicationSettings.TorrentSettings.CleaningMode.values())
+                    .filter(e -> e != ApplicationSettings.TorrentSettings.CleaningMode.UNRECOGNIZED)
+                    .toList());
             cleaningMode.getSelectionModel().select(settings.getCleaningMode());
             cleaningMode.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue)
                     -> onCleaningModeChanged(newValue));

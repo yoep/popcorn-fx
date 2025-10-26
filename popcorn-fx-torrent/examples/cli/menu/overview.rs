@@ -1,7 +1,9 @@
-use crate::app::{AppCommand, FXKeyEvent};
+use crate::app::{AppCommand, AppCommandSender, FXKeyEvent};
 use crate::menu::widget::MenuSectionWidget;
-use crate::menu::{MenuCommand, MenuItem, MenuSection};
+use crate::menu::{MenuCommand, MenuSection};
+use async_trait::async_trait;
 use crossterm::event::KeyCode;
+use derive_more::Display;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::prelude::Widget;
@@ -16,14 +18,11 @@ pub struct MenuOverview {
     items: Vec<MenuItem>,
     state: Mutex<ListState>,
     menu_sender: UnboundedSender<MenuCommand>,
-    app_sender: UnboundedSender<AppCommand>,
+    app_sender: AppCommandSender,
 }
 
 impl MenuOverview {
-    pub fn new(
-        app_sender: UnboundedSender<AppCommand>,
-        menu_sender: UnboundedSender<MenuCommand>,
-    ) -> Self {
+    pub fn new(app_sender: AppCommandSender, menu_sender: UnboundedSender<MenuCommand>) -> Self {
         Self {
             items: MenuItem::all(),
             state: Mutex::new(ListState::default().with_selected(Some(0))),
@@ -48,6 +47,17 @@ impl MenuOverview {
                     .menu_sender
                     .send(MenuCommand::SelectSection(MenuSection::Settings));
             }
+            MenuItem::Logging => {
+                let _ = self
+                    .menu_sender
+                    .send(MenuCommand::SelectSection(MenuSection::Logging));
+            }
+            MenuItem::Dht => {
+                let _ = self.app_sender.send(AppCommand::DhtInfo);
+            }
+            MenuItem::Trackers => {
+                let _ = self.app_sender.send(AppCommand::TrackersInfo);
+            }
             MenuItem::Quit => {
                 let _ = self.app_sender.send(AppCommand::Quit);
             }
@@ -55,6 +65,7 @@ impl MenuOverview {
     }
 }
 
+#[async_trait]
 impl MenuSectionWidget for MenuOverview {
     fn preferred_width(&self) -> u16 {
         20
@@ -89,6 +100,7 @@ impl MenuSectionWidget for MenuOverview {
             }
             KeyCode::Char(char) => {
                 if let Some(menu_index) = char.to_digit(10).map(|e| e as usize) {
+                    let menu_index = menu_index - 1;
                     if menu_index < self.items.len() {
                         key.consume();
                         self.select_menu_item(menu_index);
@@ -105,6 +117,10 @@ impl MenuSectionWidget for MenuOverview {
 
     fn render(&self, frame: &mut Frame, area: Rect) {
         Widget::render(self, area, frame.buffer_mut());
+    }
+
+    async fn tick(&mut self) {
+        // no-op
     }
 }
 
@@ -123,7 +139,37 @@ impl Widget for &MenuOverview {
             .block(Block::new().title("Options").borders(Borders::ALL))
             .highlight_style(Style::new().bg(Color::DarkGray));
 
-        let mut state = self.state.lock().expect("Mutex poisoned");
-        StatefulWidget::render(menu_list, area, buf, &mut state);
+        if let Ok(mut state) = self.state.lock() {
+            StatefulWidget::render(menu_list, area, buf, &mut state);
+        }
+    }
+}
+
+#[derive(Debug, Display, Clone, PartialEq)]
+enum MenuItem {
+    #[display(fmt = "Add torrent")]
+    AddTorrent,
+    #[display(fmt = "Settings")]
+    Settings,
+    #[display(fmt = "Logging")]
+    Logging,
+    #[display(fmt = "DHT info")]
+    Dht,
+    #[display(fmt = "Trackers info")]
+    Trackers,
+    #[display(fmt = "Quit")]
+    Quit,
+}
+
+impl MenuItem {
+    pub fn all() -> Vec<MenuItem> {
+        vec![
+            Self::AddTorrent,
+            Self::Settings,
+            Self::Logging,
+            Self::Dht,
+            Self::Trackers,
+            Self::Quit,
+        ]
     }
 }

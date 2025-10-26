@@ -28,6 +28,7 @@ use tokio_util::sync::CancellationToken;
 const MAX_UNACKED_PACKETS: usize = 128;
 /// The maximum amount of bytes allowed within the read buffer.
 const MAX_READ_BUFFER: usize = 1 * 1024 * 1024; // 1MB
+const RETRY_INTERVAL: Duration = Duration::from_millis(500);
 
 /// The state of an uTP stream connection.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -443,7 +444,7 @@ pub struct UtpStreamContext {
 impl UtpStreamContext {
     /// Starts the main loop of the utp stream for processing messages.
     async fn start(&self, mut message_receiver: UnboundedReceiver<Packet>) {
-        let mut resend_interval = interval(Duration::from_millis(500));
+        let mut resend_interval = interval(RETRY_INTERVAL);
         loop {
             select! {
                 _ = self.cancellation_token.cancelled() => break,
@@ -1066,9 +1067,8 @@ mod tests {
 
     use crate::torrent::peer::protocol::tests::UtpPacketCaptureExtension;
     use crate::torrent::peer::tests::{create_utp_socket, create_utp_stream_pair};
-    use crate::{create_utp_socket_pair, init_logger, timeout};
+    use crate::{assert_timeout, create_utp_socket_pair, init_logger, timeout};
 
-    use popcorn_fx_core::assert_timeout;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::sync::mpsc::unbounded_channel;
 

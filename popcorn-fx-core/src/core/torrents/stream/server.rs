@@ -180,7 +180,7 @@ impl TorrentStreamServerInner {
                 Ok(Response::builder()
                     .status(StatusCode::NOT_FOUND)
                     .body(Body::empty())
-                    .unwrap())
+                    .expect("expected a valid response body"))
             }
             Some(torrent_stream) => {
                 let range = Self::extract_range(&headers);
@@ -241,7 +241,7 @@ impl TorrentStreamServerInner {
                         Ok(Response::builder()
                             .status(StatusCode::NOT_FOUND)
                             .body(Body::empty())
-                            .unwrap())
+                            .expect("expected a valid response body"))
                     }
                 }
             }
@@ -260,7 +260,7 @@ impl TorrentStreamServerInner {
                 Ok(Response::builder()
                     .status(StatusCode::NOT_FOUND)
                     .body(Body::empty())
-                    .unwrap())
+                    .expect("expected a valid response body"))
             }
             Some(torrent_stream) => match torrent_stream.stream().await {
                 Ok(stream) => {
@@ -287,7 +287,7 @@ impl TorrentStreamServerInner {
                     Ok(Response::builder()
                         .status(StatusCode::NOT_FOUND)
                         .body(Body::empty())
-                        .unwrap())
+                        .expect("expected a valid response body"))
                 }
             },
         }
@@ -311,15 +311,13 @@ impl TorrentStreamServerInner {
     fn extract_range(headers: &HeaderMap) -> Option<Range> {
         match headers.get(RANGE) {
             None => None,
-            Some(value) => {
-                return match Range::parse(value.to_str().expect("Expected a value string")) {
-                    Ok(e) => Some(e.first().unwrap().clone()),
-                    Err(e) => {
-                        error!("Range header is invalid, {}", e);
-                        None
-                    }
-                };
-            }
+            Some(value) => match Range::parse(value.to_str().expect("Expected a value string")) {
+                Ok(e) => Some(e.first().unwrap().clone()),
+                Err(e) => {
+                    error!("Range header is invalid, {}", e);
+                    None
+                }
+            },
         }
     }
 
@@ -384,7 +382,7 @@ impl TorrentStreamServer for TorrentStreamServerInner {
             .find(|e| e.filename().to_lowercase() == filename.to_lowercase())
         {
             let filename = file.filename();
-            let filepath = torrent.absolute_file_path(&file);
+            let filepath = torrent.absolute_file_path(&file).await;
 
             if streams.contains_key(&filename) {
                 debug!(
@@ -469,7 +467,7 @@ mod test {
 
     use fx_callback::MultiThreadedCallback;
     use popcorn_fx_torrent::torrent;
-    use popcorn_fx_torrent::torrent::{PieceIndex, TorrentEvent, TorrentFileInfo, TorrentStats};
+    use popcorn_fx_torrent::torrent::{Metrics, PieceIndex, TorrentEvent, TorrentFileInfo};
     use reqwest::Client;
     use std::path::PathBuf;
     use std::time::Duration;
@@ -509,7 +507,7 @@ mod test {
             .return_const(TorrentState::Downloading);
         torrent
             .expect_stats()
-            .returning(|| create_incomplete_stats());
+            .return_const(create_incomplete_stats());
         torrent
             .expect_subscribe()
             .return_once(move || callback_receiver);
@@ -635,7 +633,7 @@ mod test {
             .return_const(TorrentState::Downloading);
         torrent
             .expect_stats()
-            .returning(|| create_incomplete_stats());
+            .return_const(create_incomplete_stats());
         let torrent = Box::new(torrent) as Box<dyn Torrent>;
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
         let expected_result = read_test_file_to_string(filename).replace("\r\n", "\n");
@@ -715,6 +713,7 @@ mod test {
             .expect_subscribe()
             .times(1)
             .return_once(move || callback_receiver);
+        torrent.expect_stats().return_const(Metrics::default());
         let torrent = Box::new(torrent) as Box<dyn Torrent>;
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
 
@@ -799,25 +798,13 @@ mod test {
         }]
     }
 
-    fn create_incomplete_stats() -> TorrentStats {
-        TorrentStats {
-            upload: 0,
-            upload_rate: 0,
-            upload_useful: 0,
-            upload_useful_rate: 0,
-            download: 0,
-            download_rate: 0,
-            download_useful: 0,
-            download_useful_rate: 0,
-            total_uploaded: 0,
-            total_downloaded: 0,
-            total_downloaded_useful: 0,
-            wanted_pieces: 10,
-            completed_pieces: 2,
-            total_size: 10000,
-            total_completed_size: 2000,
-            total_wasted: 0,
-            total_peers: 10,
-        }
+    fn create_incomplete_stats() -> Metrics {
+        let metrics = Metrics::default();
+        metrics.wanted_pieces.inc_by(10);
+        metrics.wanted_completed_pieces.inc_by(2);
+        metrics.wanted_size.inc_by(10000);
+        metrics.wanted_completed_size.inc_by(2000);
+        metrics.peers.inc_by(10);
+        metrics
     }
 }

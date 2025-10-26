@@ -1,8 +1,10 @@
-use crate::torrent::dns::DnsResolver;
+use crate::torrent::metrics::Metric;
 use crate::torrent::peer::PeerId;
 use crate::torrent::tracker::http::HttpConnection;
 use crate::torrent::tracker::udp::UdpConnection;
-use crate::torrent::tracker::{AnnounceEvent, Result, TrackerError};
+use crate::torrent::tracker::{
+    AnnounceEvent, ConnectionMetrics, Result, TrackerError, TrackerMetrics,
+};
 use crate::torrent::InfoHash;
 use async_trait::async_trait;
 use derive_more::Display;
@@ -13,7 +15,9 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::net::SocketAddr;
 use std::ops::Sub;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
+use tokio::net::lookup_host;
 use tokio::sync::{Mutex, RwLock};
 use tokio::{select, time};
 use url::Url;
@@ -82,7 +86,7 @@ pub struct ScrapeFileMetrics {
 ///
 /// Implementations of this trait will provide specific logic for different tracker connection protocols or types.
 #[async_trait]
-pub trait TrackerConnection: Debug + Send + Sync {
+pub(crate) trait TrackerConnection: Debug + Send + Sync {
     /// Asynchronously start the tracker connection.
     ///
     /// This method should connect to one of the addresses provided by the tracker.
@@ -116,6 +120,9 @@ pub trait TrackerConnection: Debug + Send + Sync {
     /// It returns the scrape result from the tracker for the given hashes.  
     async fn scrape(&self, hashes: &[InfoHash]) -> Result<ScrapeResult>;
 
+    /// Get the metric stats of the tracker connection.
+    fn metrics(&self) -> &ConnectionMetrics;
+
     /// Close the tracker connection and cancel any pending tasks.
     ///
     /// This method should gracefully shut down the connection to the tracker and cancel any ongoing operations.
@@ -145,29 +152,10 @@ impl TrackerState {
     }
 }
 
-#[derive(Debug, Display)]
-#[display(fmt = "[{}] ({}){}", handle, tier, url)]
+#[derive(Debug, Display, Clone)]
+#[display(fmt = "{}", inner)]
 pub struct Tracker {
-    /// The unique tracker handle
-    handle: TrackerHandle,
-    /// The tracker url
-    url: Url,
-    /// The tier of the tracker
-    tier: u8,
-    /// The known addresses of the tracker
-    endpoints: Vec<SocketAddr>,
-    /// The underlying communication connection
-    connection: Box<dyn TrackerConnection>,
-    /// The timeout for tracker connections before failing
-    timeout: Duration,
-    /// The interval in seconds to do another announcement to the tracker
-    announcement_interval_seconds: RwLock<u64>,
-    /// The last time an announcement was made by this tracker
-    last_announcement: RwLock<Instant>,
-    /// The state of the tracker.
-    state: Mutex<TrackerState>,
-    /// The number of times the tracker returned an error or timed out to a query in a row.
-    fail_count: Mutex<usize>,
+    inner: Arc<InnerTracker>,
 }
 
 impl Tracker {
@@ -184,42 +172,54 @@ impl Tracker {
     ) -> Result<Self> {
         trace!("Trying to create new tracker for {}", url);
         let handle = TrackerHandle::new();
-        let endpoints = DnsResolver::new(url.to_string())
-            .resolve()
-            .await
-            .map_err(|e| TrackerError::Io(e.to_string()))?;
+        let port = if url.scheme() == "https" { 443 } else { 80 };
+        let endpoints = lookup_host(format!(
+            "{}:{}",
+            url.host_str().unwrap_or_default(),
+            url.port().unwrap_or(port)
+        ))
+        .await
+        .map_err(|e| TrackerError::Io(e.to_string()))?
+        .collect::<Vec<_>>();
         let connection = Self::create_connection(handle, &url, &endpoints, timeout.clone()).await?;
 
         trace!("Resolved tracker {} to {:?}", url, endpoints);
         Ok(Self {
-            handle,
-            url,
-            tier,
-            endpoints,
-            connection,
-            timeout,
-            announcement_interval_seconds: RwLock::new(announcement_interval_seconds),
-            last_announcement: RwLock::new(
-                Instant::now().sub(Duration::from_secs(DEFAULT_ANNOUNCEMENT_INTERVAL_SECONDS)),
-            ),
-            state: Mutex::new(TrackerState::Active),
-            fail_count: Default::default(),
+            inner: Arc::new(InnerTracker {
+                handle,
+                url,
+                tier,
+                endpoints,
+                connection,
+                timeout,
+                announcement_interval_seconds: RwLock::new(announcement_interval_seconds),
+                last_announcement: RwLock::new(
+                    Instant::now().sub(Duration::from_secs(DEFAULT_ANNOUNCEMENT_INTERVAL_SECONDS)),
+                ),
+                state: Mutex::new(TrackerState::Active),
+                metrics: Default::default(),
+            }),
         })
     }
 
     /// Get the unique handle of the tracker.
     pub fn handle(&self) -> TrackerHandle {
-        self.handle
+        self.inner.handle
     }
 
     /// Get the url of the tracker.
     pub fn url(&self) -> &Url {
-        &self.url
+        &self.inner.url
+    }
+
+    /// Get the metrics of the tracker.
+    pub fn metrics(&self) -> &TrackerMetrics {
+        &self.inner.metrics
     }
 
     /// Get the current state of the tracker.
     pub async fn state(&self) -> TrackerState {
-        *self.state.lock().await
+        *self.inner.state.lock().await
     }
 
     /// Get the expected announcement interval in seconds.
@@ -228,7 +228,11 @@ impl Tracker {
     ///
     /// Returns the interval in seconds for the announcements.
     pub async fn announcement_interval(&self) -> u64 {
-        self.announcement_interval_seconds.read().await.clone()
+        self.inner
+            .announcement_interval_seconds
+            .read()
+            .await
+            .clone()
     }
 
     /// Retrieve the last time this tracker made an announcement.
@@ -237,7 +241,7 @@ impl Tracker {
     ///
     /// Returns the last time this tracker made an announcement.
     pub async fn last_announcement(&self) -> Instant {
-        self.last_announcement.read().await.clone()
+        self.inner.last_announcement.read().await.clone()
     }
 
     /// Announce the given event to this tracker for the given torrent info hash.
@@ -252,14 +256,14 @@ impl Tracker {
     /// It returns the announcement response from the tracker.
     pub async fn announce(&self, announce: Announcement) -> Result<AnnounceEntryResponse> {
         trace!("Tracker {} is announcing {:?}", self, announce);
-        match self.connection.announce(announce).await {
+        match self.inner.connection.announce(announce).await {
             Ok(e) => {
                 {
-                    let mut mutex = self.last_announcement.write().await;
+                    let mut mutex = self.inner.last_announcement.write().await;
                     *mutex = Instant::now();
                 }
                 {
-                    let mut mutex = self.announcement_interval_seconds.write().await;
+                    let mut mutex = self.inner.announcement_interval_seconds.write().await;
                     *mutex = e.interval_seconds;
                 }
 
@@ -284,7 +288,7 @@ impl Tracker {
     /// It returns the scrape metrics result from the tracker for the given info hashes.
     pub async fn scrape(&self, hashes: &[InfoHash]) -> Result<ScrapeResult> {
         trace!("Tracker {} is scraping {:?}", self, hashes);
-        match self.connection.scrape(hashes).await {
+        match self.inner.connection.scrape(hashes).await {
             Ok(e) => {
                 self.confirm().await;
                 Ok(e)
@@ -296,20 +300,29 @@ impl Tracker {
         }
     }
 
+    pub(crate) fn tick(&self, interval: Duration) {
+        let metrics = self.metrics();
+        let connection_metrics = self.inner.connection.metrics();
+
+        metrics.bytes_in.inc_by(connection_metrics.bytes_in.get());
+        metrics.bytes_out.inc_by(connection_metrics.bytes_out.get());
+
+        metrics.tick(interval);
+        connection_metrics.tick(interval);
+    }
+
     /// Confirm the last query made by the tracker.
     async fn confirm(&self) {
-        *self.fail_count.lock().await = 0
+        self.inner.metrics.confirmed.inc()
     }
 
     /// Increase the failure count of the tracker.
     async fn fail(&self) {
-        let mut fail_count = self.fail_count.lock().await;
-
-        *fail_count += 1;
+        self.inner.metrics.errors.inc();
 
         {
-            let new_state = TrackerState::calculate(*fail_count);
-            let mut state = self.state.lock().await;
+            let new_state = TrackerState::calculate(self.inner.metrics.errors.total() as usize);
+            let mut state = self.inner.state.lock().await;
             if *state != new_state {
                 *state = new_state;
                 debug!("Tracker {} state changed to {:?}", self, new_state);
@@ -344,12 +357,6 @@ impl Tracker {
 
         debug!("Tracker {} connection established", url);
         Ok(connection)
-    }
-}
-
-impl Drop for Tracker {
-    fn drop(&mut self) {
-        self.connection.close();
     }
 }
 
@@ -403,11 +410,35 @@ impl TrackerBuilder {
     }
 }
 
+#[derive(Debug, Display)]
+#[display(fmt = "[{}] ({}){}", handle, tier, url)]
+struct InnerTracker {
+    /// The unique tracker handle
+    handle: TrackerHandle,
+    /// The tracker url
+    url: Url,
+    /// The tier of the tracker
+    tier: u8,
+    /// The known addresses of the tracker
+    endpoints: Vec<SocketAddr>,
+    /// The underlying communication connection
+    connection: Box<dyn TrackerConnection>,
+    /// The timeout for tracker connections before failing
+    timeout: Duration,
+    /// The interval in seconds to do another announcement to the tracker
+    announcement_interval_seconds: RwLock<u64>,
+    /// The last time an announcement was made by this tracker
+    last_announcement: RwLock<Instant>,
+    /// The state of the tracker.
+    state: Mutex<TrackerState>,
+    /// The metric stats of this tracker.
+    metrics: TrackerMetrics,
+}
+
 #[cfg(test)]
 mod tests {
     use crate::init_logger;
-    use popcorn_fx_core::testing::read_test_file_to_bytes;
-
+    use crate::torrent::tests::read_test_file_to_bytes;
     use crate::torrent::TorrentMetadata;
 
     use super::*;
@@ -423,7 +454,7 @@ mod tests {
             .await
             .expect("expected the tracker to be created");
 
-        assert_eq!(1, result.endpoints.len());
+        assert_eq!(1, result.inner.endpoints.len());
     }
 
     #[tokio::test]

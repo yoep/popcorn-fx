@@ -1,4 +1,5 @@
 use crate::torrent::merkle::LEAF_BLOCK_SIZE;
+use crate::torrent::metrics::Metric;
 use crate::torrent::peer::extension::{
     Extension, ExtensionName, ExtensionNumber, ExtensionRegistry, Extensions,
 };
@@ -7,10 +8,10 @@ use crate::torrent::peer::protocol::UtpStream;
 use crate::torrent::peer::protocol::{
     ExtendedHandshake, Handshake, HashRequest, Message, Piece, Request,
 };
-use crate::torrent::peer::{Error, PeerId, Result};
+use crate::torrent::peer::{Error, Metrics, PeerId, Result};
 use crate::torrent::{
-    calculate_byte_rate, CompactIp, InfoHash, PeerPriority, PieceIndex, TorrentContext,
-    TorrentEvent, TorrentMetadata, TorrentMetadataInfo, MAX_PIECE_PART_SIZE,
+    CompactIp, InfoHash, PeerPriority, PieceIndex, TorrentContext, TorrentEvent, TorrentMetadata,
+    TorrentMetadataInfo, MAX_PIECE_PART_SIZE,
 };
 use async_trait::async_trait;
 use bit_vec::BitVec;
@@ -39,6 +40,7 @@ use tokio_util::sync::CancellationToken;
 const KEEP_ALIVE_SECONDS: u64 = 90;
 /// The maximum amount of in-flight pieces a peer can request
 const MAX_PENDING_PIECES: usize = 3;
+const PEER_TICK_INTERVAL: Duration = Duration::from_secs(1);
 
 /// The peer's unique identifier handle.
 pub type PeerHandle = Handle;
@@ -81,19 +83,19 @@ pub trait Peer: Debug + Display + Send + Sync + Callback<PeerEvent> {
     /// It returns the socket address of the remote peer as reference.
     fn addr_as_ref(&self) -> &SocketAddr;
 
+    /// Get the metrics of the peer.
+    ///
+    /// # Returns
+    ///
+    /// It returns a reference to the metrics of the peer connection.
+    fn metrics(&self) -> &Metrics;
+
     /// Get the current state of the peer.
     ///
     /// # Returns
     ///
     /// It returns the current state if the peer.
     async fn state(&self) -> PeerState;
-
-    /// Get the connection stats with the remote peer.
-    ///
-    /// # Returns
-    ///
-    /// It returns the metrics of the connection transfer data.
-    async fn stats(&self) -> PeerStats;
 
     /// Get whether the remote peer is a **seed** (i.e., it has every piece).
     ///
@@ -158,7 +160,7 @@ pub(crate) enum PeerResponse {
     /// The remote peer sent a handshake.
     Handshake(Handshake),
     /// The remote peer sent a message.
-    Message(Message, DataTransferStats),
+    Message(Message),
     /// The remote peer connection encountered an error.
     Error(Error),
     /// The remote peer has closed the connection.
@@ -356,7 +358,7 @@ pub struct RemotePeer {
     pub is_v2: bool,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub enum PeerEvent {
     /// Indicates that the handshake with the remote has been completed
     HandshakeCompleted,
@@ -372,6 +374,8 @@ pub enum PeerEvent {
     PeersDiscovered(Vec<SocketAddr>),
     /// Indicates that one or more peers are dropped from the swarm
     PeersDropped(Vec<SocketAddr>),
+    /// Indicates that the peer metrics have been updated
+    Stats(Metrics),
 }
 
 impl Debug for PeerEvent {
@@ -392,6 +396,25 @@ impl Debug for PeerEvent {
             PeerEvent::PeersDropped(peers) => {
                 write!(f, "PeersDropped(len {})", peers.len())
             }
+            PeerEvent::Stats(stats) => write!(f, "Stats({:?})", stats),
+        }
+    }
+}
+
+impl PartialEq for PeerEvent {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (PeerEvent::HandshakeCompleted, PeerEvent::HandshakeCompleted) => true,
+            (PeerEvent::ExtendedHandshakeCompleted, PeerEvent::ExtendedHandshakeCompleted) => true,
+            (PeerEvent::StateChanged(state), PeerEvent::StateChanged(other_state)) => {
+                state == other_state
+            }
+            (PeerEvent::RemoteAvailablePieces(_), PeerEvent::RemoteAvailablePieces(_)) => true,
+            (PeerEvent::RemoteUnavailablePieces(_), PeerEvent::RemoteUnavailablePieces(_)) => true,
+            (PeerEvent::PeersDiscovered(_), PeerEvent::PeersDiscovered(_)) => true,
+            (PeerEvent::PeersDropped(_), PeerEvent::PeersDropped(_)) => true,
+            (PeerEvent::Stats(_), PeerEvent::Stats(_)) => true,
+            _ => false,
         }
     }
 }
@@ -413,6 +436,9 @@ impl Display for PeerEvent {
             }
             PeerEvent::PeersDropped(peers) => {
                 write!(f, "swarm dropped {} peers", peers.len())
+            }
+            PeerEvent::Stats(metrics) => {
+                write!(f, "stats: {}", metrics.to_string())
             }
         }
     }
@@ -511,13 +537,20 @@ impl BitTorrentPeer {
         timeout: Duration,
     ) -> Result<Self> {
         trace!("Trying to create outgoing peer connection to {}", addr);
+        let metrics = Metrics::new();
         let connection: Box<dyn PeerConn> = match stream {
-            PeerStream::Tcp(stream) => {
-                Box::new(PeerConnection::<TcpStream>::new_tcp(peer_id, addr, stream))
-            }
-            PeerStream::Utp(stream) => {
-                Box::new(PeerConnection::<UtpStream>::new_utp(peer_id, addr, stream))
-            }
+            PeerStream::Tcp(stream) => Box::new(PeerConnection::<TcpStream>::new_tcp(
+                peer_id,
+                addr,
+                stream,
+                metrics.clone(),
+            )),
+            PeerStream::Utp(stream) => Box::new(PeerConnection::<UtpStream>::new_utp(
+                peer_id,
+                addr,
+                stream,
+                metrics.clone(),
+            )),
         };
         let connection_protocol = connection.protocol();
 
@@ -530,6 +563,7 @@ impl BitTorrentPeer {
             torrent,
             protocol_extensions,
             extensions,
+            metrics,
             timeout,
         )
         .await
@@ -545,13 +579,20 @@ impl BitTorrentPeer {
         extensions: Extensions,
         timeout: Duration,
     ) -> Result<Self> {
+        let metrics = Metrics::new();
         let connection: Box<dyn PeerConn> = match stream {
-            PeerStream::Tcp(stream) => {
-                Box::new(PeerConnection::<TcpStream>::new_tcp(peer_id, addr, stream))
-            }
-            PeerStream::Utp(stream) => {
-                Box::new(PeerConnection::<UtpStream>::new_utp(peer_id, addr, stream))
-            }
+            PeerStream::Tcp(stream) => Box::new(PeerConnection::<TcpStream>::new_tcp(
+                peer_id,
+                addr,
+                stream,
+                metrics.clone(),
+            )),
+            PeerStream::Utp(stream) => Box::new(PeerConnection::<UtpStream>::new_utp(
+                peer_id,
+                addr,
+                stream,
+                metrics.clone(),
+            )),
         };
         let connection_protocol = connection.protocol();
 
@@ -569,6 +610,7 @@ impl BitTorrentPeer {
                 torrent,
                 protocol_extensions,
                 extensions,
+                metrics,
                 timeout,
             ) => result
         }
@@ -732,7 +774,7 @@ impl BitTorrentPeer {
 
         // check if the fast protocol is enabled
         // if so, we send the initial fast messages to the remote peer
-        let bitfield = self.inner.torrent.piece_bitfield().await;
+        let bitfield = self.inner.torrent.piece_pool().bitfield().await;
         let is_bitfield_known = bitfield.len() > 0;
         let is_fast_enabled = self
             .inner
@@ -812,12 +854,14 @@ impl BitTorrentPeer {
         torrent: Arc<TorrentContext>,
         protocol_extensions: ProtocolExtensionFlags,
         extensions: Extensions,
+        metrics: Metrics,
         timeout: Duration,
     ) -> Result<Self> {
         let (event_sender, event_receiver) = unbounded_channel();
         let extension_registry = Self::create_extension_registry(&extensions);
         let peer_handle = PeerHandle::new();
-        let total_pieces = torrent.total_pieces().await;
+        let total_pieces = torrent.piece_pool().len().await;
+
         let client = PeerClientInfo {
             handle: peer_handle,
             id: peer_id,
@@ -825,6 +869,9 @@ impl BitTorrentPeer {
             connection_type,
             connection_protocol,
         };
+        metrics.client_choked.set(true);
+        metrics.remote_choked.set(true);
+
         let inner = Arc::new(PeerContext {
             client,
             // the remote information is unknown until the handshake has been completed
@@ -832,6 +879,7 @@ impl BitTorrentPeer {
             torrent,
             state: RwLock::new(PeerState::Handshake),
             protocol_extensions,
+            metrics,
             // connections should always start in the choked state
             client_choke_state: RwLock::new(ChokeState::Choked),
             remote_choke_state: RwLock::new(ChokeState::Choked),
@@ -849,8 +897,6 @@ impl BitTorrentPeer {
             remote_pending_requests: RwLock::new(Vec::with_capacity(0)),
             remote_pending_request_permit: Mutex::new(None),
             connection,
-            incoming_data_stats: RwLock::new(PeerTransferStats::default()),
-            outgoing_data_stats: RwLock::new(PeerTransferStats::default()),
             event_sender,
             callbacks: MultiThreadedCallback::new(),
             cancellation_token: CancellationToken::new(),
@@ -955,12 +1001,12 @@ impl Peer for BitTorrentPeer {
         self.inner.addr_as_ref()
     }
 
-    async fn state(&self) -> PeerState {
-        self.inner.state().await
+    fn metrics(&self) -> &Metrics {
+        &self.inner.metrics
     }
 
-    async fn stats(&self) -> PeerStats {
-        self.inner.stats().await
+    async fn state(&self) -> PeerState {
+        self.inner.state().await
     }
 
     async fn is_seed(&self) -> bool {
@@ -1003,22 +1049,6 @@ impl PartialEq for BitTorrentPeer {
     }
 }
 
-/// Information about transferred data over the peer connection.
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) struct DataTransferStats {
-    /// The total amount of bytes that have been transferred
-    pub transferred_bytes: usize,
-    /// The time it took in micro seconds to transfer the bytes
-    pub elapsed_micro: u128,
-}
-
-impl DataTransferStats {
-    /// Get the rate of bytes transferred per second.
-    pub fn rate(&self) -> u64 {
-        calculate_byte_rate(self.transferred_bytes, self.elapsed_micro)
-    }
-}
-
 /// The reason a peer connection is being closed
 #[derive(Debug, Display, PartialEq)]
 pub(crate) enum CloseReason {
@@ -1031,31 +1061,6 @@ pub(crate) enum CloseReason {
     /// The client has closed the connection due to an invalid received fast protocol message
     #[display(fmt = "invalid fast protocol message received")]
     FastProtocol,
-}
-
-#[derive(Debug, Clone)]
-struct PeerTransferStats {
-    /// The amount of bytes that have been transferred.
-    transferred_bytes: usize,
-    /// The actual useful bytes that have been transferred.
-    /// This only counts the actual piece payload data that has been transferred and excludes everything of the Bittorrent message protocol.
-    transferred_bytes_useful: usize,
-    /// The total amount of bytes that have been transferred during the lifetime of the connection.
-    total_transferred_bytes: u64,
-    /// The actual useful total bytes that have been transferred during the lifetime of the connection.
-    /// This only counts the actual piece payload data that has been transferred and excludes everything of the Bittorrent message protocol.
-    total_transferred_bytes_useful: u64,
-}
-
-impl Default for PeerTransferStats {
-    fn default() -> Self {
-        Self {
-            transferred_bytes: 0,
-            transferred_bytes_useful: 0,
-            total_transferred_bytes: 0,
-            total_transferred_bytes_useful: 0,
-        }
-    }
 }
 
 /// The piece that should be requested from the remote peer.
@@ -1118,6 +1123,8 @@ pub struct PeerContext {
     state: RwLock<PeerState>,
     /// The peer client supported/enabled protocol extensions
     protocol_extensions: ProtocolExtensionFlags,
+    /// The metrics of the peer
+    metrics: Metrics,
 
     /// The client choke state
     client_choke_state: RwLock<ChokeState>,
@@ -1156,11 +1163,6 @@ pub struct PeerContext {
     /// The underlying peer connection
     connection: Box<dyn PeerConn>,
 
-    /// The data transfer info of the incoming channel (from the remote peer)
-    incoming_data_stats: RwLock<PeerTransferStats>,
-    /// The data transfer info of the outgoing channel (to the remote peer)
-    outgoing_data_stats: RwLock<PeerTransferStats>,
-
     /// The sender for internal events
     event_sender: UnboundedSender<PeerCommandEvent>,
     /// The callbacks which are triggered by this peer when an event is raised
@@ -1179,7 +1181,7 @@ impl PeerContext {
         mut event_receiver: UnboundedReceiver<PeerCommandEvent>,
         mut torrent_receiver: Subscription<TorrentEvent>,
     ) {
-        let mut interval = time::interval(Duration::from_secs(2));
+        let mut interval = time::interval(PEER_TICK_INTERVAL);
 
         loop {
             select! {
@@ -1189,6 +1191,8 @@ impl PeerContext {
                 Some(event) = event_receiver.recv() => self.handle_command_event(event).await,
                 Some(event) = torrent_receiver.recv() => self.handle_torrent_event(&*event).await,
                 _ = interval.tick() => {
+                    self.callbacks.invoke(PeerEvent::Stats(self.metrics.snapshot()));
+                    self.metrics.tick(PEER_TICK_INTERVAL);
                     self.check_for_wanted_pieces().await;
                     self.request_upload_permit_if_needed(false).await;
                 },
@@ -1223,24 +1227,6 @@ impl PeerContext {
     /// Get the state of the peer.
     pub async fn state(&self) -> PeerState {
         self.state.read().await.clone()
-    }
-
-    /// Get the connection transfer metrics of the peer.
-    pub async fn stats(&self) -> PeerStats {
-        let mut stats = PeerStats::default();
-
-        {
-            let mutex = self.outgoing_data_stats.read().await;
-            stats.upload = mutex.transferred_bytes;
-            stats.upload_useful = mutex.transferred_bytes_useful;
-        }
-        {
-            let mutex = self.incoming_data_stats.read().await;
-            stats.download = mutex.transferred_bytes;
-            stats.download_useful = mutex.transferred_bytes_useful;
-        }
-
-        stats
     }
 
     /// Get the client choke state of the peer.
@@ -1303,7 +1289,7 @@ impl PeerContext {
     /// It returns true when the remote has all pieces and the metadata is known, else false.
     pub async fn remote_has_all_pieces(&self) -> bool {
         let remote_pieces = self.remote_pieces.read().await;
-        let torrent_total_pieces = self.torrent.total_pieces().await;
+        let torrent_total_pieces = self.torrent.piece_pool().len().await;
 
         // the received bitfield can be greater than the actual total pieces due to byte alignment
         remote_pieces.len() >= torrent_total_pieces && remote_pieces.all()
@@ -1376,15 +1362,17 @@ impl PeerContext {
     /// Check if the remote peer has wanted piece data that are not yet being requested.
     /// If it least one piece is available by the remote peer and wanted by the torrent, it returns `true`.
     pub async fn has_wanted_piece(&self) -> bool {
-        let mutex = self.client_pending_requests.read().await;
+        let client_pending_requests = self.client_pending_requests.read().await;
         let remote_has_all_pieces = self.remote_has_all_pieces().await;
         let remote_pieces = self.remote_pieces.read().await;
-        let wanted_pieces = self.torrent.wanted_pieces().await;
+        let wanted_pieces = self.torrent.piece_pool().wanted_pieces().await;
 
         wanted_pieces
             .into_iter()
-            .filter(|piece| remote_has_all_pieces || remote_pieces.get(*piece).unwrap_or(false))
-            .any(|e| !mutex.contains_key(&e))
+            .filter(|piece| {
+                remote_has_all_pieces || remote_pieces.get(piece.index).unwrap_or_default()
+            })
+            .any(|piece| !client_pending_requests.contains_key(&piece.index))
     }
 
     /// Get whether the remote peer is a **seed** (i.e., it has every piece).
@@ -1401,10 +1389,7 @@ impl PeerContext {
     async fn handle_reader_event(&self, event: PeerResponse) {
         match event {
             PeerResponse::Closed => self.close(CloseReason::Remote).await,
-            PeerResponse::Message(message, data_transfer) => {
-                self.update_read_data_transfer_stats(&message, data_transfer)
-                    .await;
-
+            PeerResponse::Message(message) => {
                 if let Message::ExtendedPayload(extension_number, payload) = message {
                     trace!(
                         "Trying to find extension for extended payload number {}",
@@ -1485,7 +1470,7 @@ impl PeerContext {
     /// This tries to retrieve the requested data from the torrent.
     async fn handle_remote_pending_request(&self, request: Request) {
         // check if the request is still queued
-        // if not, it has been cancelled in the meantime
+        // if not, it has been canceled in the meantime
         let mut mutex = self.remote_pending_requests.write().await;
         if let Some(position) = mutex.iter().position(|e| e == &request) {
             let _ = mutex.remove(position);
@@ -1506,54 +1491,54 @@ impl PeerContext {
             return;
         }
 
-        if self.torrent.has_piece(request.index).await {
-            if *self.state.read().await != PeerState::Uploading {
-                self.send_command_event(PeerCommandEvent::State(PeerState::Uploading));
-            }
+        // check if the piece request is valid
+        // if not, reject the request
+        if !self.validate_piece_request(&request).await {
+            debug!("Peer {} received invalid piece request {:?}", self, request);
+            self.send_reject_request(request).await;
+            return;
+        }
 
-            let request_end = request.begin + request.length;
-            match self
-                .torrent
-                .read_piece_bytes(request.index, request.begin..request_end)
-                .await
-            {
-                Ok(data) => {
-                    let data_len = data.len();
-                    match self
-                        .send(Message::Piece(Piece {
-                            index: request.index,
-                            begin: request.begin,
-                            data,
-                        }))
-                        .await
-                    {
-                        Ok(_) => debug!(
+        if *self.state.read().await != PeerState::Uploading {
+            self.send_command_event(PeerCommandEvent::State(PeerState::Uploading));
+        }
+
+        let request_end = request.begin + request.length;
+        match self
+            .torrent
+            .read_piece_bytes(request.index, request.begin..request_end)
+            .await
+        {
+            Ok(data) => {
+                let data_len = data.len();
+                match self
+                    .send(Message::Piece(Piece {
+                        index: request.index,
+                        begin: request.begin,
+                        data,
+                    }))
+                    .await
+                {
+                    Ok(_) => {
+                        debug!(
                             "Peer {} sent piece {} data part (size {}) to remote peer",
                             self, request.index, data_len
-                        ),
-                        Err(e) => warn!(
-                            "Peer {} failed to sent piece {} data part (size {}) to remote peer, {}",
-                            self, request.index, data_len, e
-                        ),
+                        );
+                        self.metrics.bytes_out_useful.inc_by(data_len as u64);
                     }
-                }
-                Err(e) => {
-                    // FIXME: we currently reject requests if the piece is overlapping multiple files, but only 1 file is actually written to disk, these pieces should be cached in memory
-                    warn!(
-                        "Peer {} failed read piece {} data, {}",
-                        self, request.index, e
-                    );
-                    self.send_reject_request(request).await;
+                    Err(e) => warn!(
+                        "Peer {} failed to sent piece {} data part (size {}) to remote peer, {}",
+                        self, request.index, data_len, e
+                    ),
                 }
             }
-        } else {
-            let piece = request.index;
-            debug!(
-                "Peer {} is unable to provide piece {} data, torrent doesn't have the piece data available",
-                self, piece
-            );
-
-            self.send_reject_request(request).await;
+            Err(e) => {
+                warn!(
+                    "Peer {} failed read piece {} data, {}",
+                    self, request.index, e
+                );
+                self.send_reject_request(request).await;
+            }
         }
     }
 
@@ -1563,16 +1548,16 @@ impl PeerContext {
             TorrentEvent::PiecesChanged(_) => {
                 trace!("Peer {} updating client piece bitfield", self);
                 // retrieve the torrent pieces bitfield and store it as the client bitfield
-                let piece_bitfield = self.torrent.piece_bitfield().await;
+                let piece_bitfield = self.torrent.piece_pool().bitfield().await;
                 let bitfield_len = piece_bitfield.len();
                 *self.client_pieces.write().await = piece_bitfield;
 
                 // extend the remote pieces bitfield if needed
                 {
-                    let mut mutex = self.remote_pieces.write().await;
-                    if mutex.len() < bitfield_len {
-                        let additional_len = bitfield_len - mutex.len();
-                        mutex.extend(vec![false; additional_len]);
+                    let mut remote_pieces = self.remote_pieces.write().await;
+                    if remote_pieces.len() < bitfield_len {
+                        let additional_len = bitfield_len - remote_pieces.len();
+                        remote_pieces.extend(vec![false; additional_len]);
                     }
                 }
 
@@ -1930,8 +1915,9 @@ impl PeerContext {
         }
 
         {
-            let mut mutex = self.client_choke_state.write().await;
-            *mutex = state;
+            let mut client_choke_state = self.client_choke_state.write().await;
+            *client_choke_state = state;
+            self.metrics.client_choked.set(state == ChokeState::Choked);
         }
 
         let send_result: Result<()>;
@@ -1962,8 +1948,9 @@ impl PeerContext {
     async fn update_remote_peer_choke_state(&self, state: ChokeState) {
         // update the choke state of the remote peer
         {
-            let mut mutex = self.remote_choke_state.write().await;
-            *mutex = state;
+            let mut remote_choke_state = self.remote_choke_state.write().await;
+            *remote_choke_state = state;
+            self.metrics.remote_choked.set(state == ChokeState::Choked);
         }
 
         if state == ChokeState::Choked {
@@ -1988,8 +1975,11 @@ impl PeerContext {
         }
 
         {
-            let mut mutex = self.client_interest_state.write().await;
-            *mutex = state;
+            let mut client_interest_state = self.client_interest_state.write().await;
+            *client_interest_state = state;
+            self.metrics
+                .client_interested
+                .set(state == InterestState::Interested);
         }
 
         let send_result: Result<()>;
@@ -2011,14 +2001,17 @@ impl PeerContext {
 
     /// Updates the interest state of the remote peer.
     async fn update_remote_peer_interest_state(&self, state: InterestState) {
-        let mut mutex = self.remote_interest_state.write().await;
-        if state == *mutex {
+        if *self.remote_interest_state.read().await == state {
             return;
         }
 
-        *mutex = state;
-        drop(mutex);
-        debug!("Peer {} remote entered {} state", self, state);
+        {
+            let mut remote_interest_state = self.remote_interest_state.write().await;
+            *remote_interest_state = state;
+            self.metrics
+                .remote_interested
+                .set(state == InterestState::Interested);
+        }
 
         // if the remote peer is no longer interested
         // choke the client so that another peer can obtain the permit
@@ -2046,14 +2039,14 @@ impl PeerContext {
     /// This updates the peer client bitfield availability and informs the remote peer about the newly available pieces.
     async fn update_client_piece_availability(&self, pieces: Vec<PieceIndex>) {
         {
-            let mut mutex = self.client_pieces.write().await;
+            let mut client_pieces = self.client_pieces.write().await;
             for piece in pieces.iter() {
                 // we might not have the bitfield stored if it was unknown when this peer was created
                 // if that's the case, copy the whole bitfield from the torrent instead
-                if mutex.len() <= *piece {
-                    *mutex = self.torrent.piece_bitfield().await;
+                if client_pieces.len() <= *piece {
+                    *client_pieces = self.torrent.piece_pool().bitfield().await;
                 } else {
-                    mutex.set(piece.clone(), true);
+                    client_pieces.set(piece.clone(), true);
                 }
             }
         }
@@ -2080,13 +2073,13 @@ impl PeerContext {
     /// The range of the piece will be checked against the known pieces of the torrent, if known.
     /// If the piece is out-of-range, the update will be ignored.
     pub(crate) async fn remote_has_piece(&self, piece: PieceIndex, has_piece: bool) {
-        let total_pieces = self.torrent.total_pieces().await;
+        let total_pieces = self.torrent.piece_pool().len().await;
         let is_metadata_known = self.torrent.is_metadata_known().await;
 
         {
-            let mut mutex = self.remote_pieces.write().await;
+            let mut remote_pieces = self.remote_pieces.write().await;
             // ensure the BitVec is large enough to accommodate the piece index
-            if piece >= mutex.len() {
+            if piece >= remote_pieces.len() {
                 let is_piece_bounds_known = is_metadata_known && total_pieces != 0;
                 // check if the given piece index is out of bounds
                 if is_piece_bounds_known && total_pieces < piece {
@@ -2094,17 +2087,21 @@ impl PeerContext {
                         "Peer {} received remote has piece index {} out of bounds ({})",
                         self,
                         piece,
-                        mutex.len()
+                        remote_pieces.len()
                     );
                     return;
                 }
 
                 // increase the size of the BitVec if metadata is still being retrieved
-                let additional_len = piece as usize + 1 - mutex.len();
-                mutex.extend(vec![false; additional_len]);
+                let additional_len = piece as usize + 1 - remote_pieces.len();
+                remote_pieces.extend(vec![false; additional_len]);
             }
 
-            mutex.set(piece, has_piece);
+            remote_pieces.set(piece, has_piece);
+
+            self.metrics
+                .available_pieces
+                .set(remote_pieces.count_ones());
         }
 
         if has_piece {
@@ -2167,9 +2164,10 @@ impl PeerContext {
             return;
         }
 
-        let bitfield_len = self.torrent.total_pieces().await;
+        let bitfield_len = self.torrent.piece_pool().len().await;
         self.update_remote_pieces(BitVec::from_elem(bitfield_len, have_all))
             .await;
+        self.metrics.available_pieces.set(bitfield_len as u64);
         self.send_command_event(PeerCommandEvent::DetermineClientInterestState);
     }
 
@@ -2279,7 +2277,7 @@ impl PeerContext {
 
         // check if we're allowed to download pieces and that the given piece is wanted by the torrent
         let is_download_allowed = self.torrent.is_download_allowed().await;
-        let is_piece_wanted = self.torrent.is_piece_wanted(&piece).await;
+        let is_piece_wanted = self.torrent.piece_pool().is_wanted(&piece).await;
         if is_download_allowed && is_piece_wanted {
             if let Some(permit) = self.torrent.request_download_permit(&piece).await {
                 self.send_command_event(PeerCommandEvent::RequestPieceData(RequestPieceData {
@@ -2311,37 +2309,6 @@ impl PeerContext {
         }
     }
 
-    async fn update_read_data_transfer_stats(
-        &self,
-        message: &Message,
-        data_transfer: DataTransferStats,
-    ) {
-        let mut mutex = self.incoming_data_stats.write().await;
-        mutex.transferred_bytes += data_transfer.transferred_bytes;
-        mutex.total_transferred_bytes += data_transfer.transferred_bytes as u64;
-
-        if let Message::Piece(piece) = message {
-            let data_size = piece.data.len();
-            mutex.transferred_bytes_useful += data_size;
-            mutex.total_transferred_bytes_useful += data_size as u64;
-        }
-    }
-
-    async fn update_write_data_transfer_stats(
-        &self,
-        data_transfer: DataTransferStats,
-        piece_data_size: Option<usize>,
-    ) {
-        let mut mutex = self.outgoing_data_stats.write().await;
-        mutex.transferred_bytes += data_transfer.transferred_bytes;
-        mutex.total_transferred_bytes += data_transfer.transferred_bytes as u64;
-
-        if let Some(piece_data_size) = piece_data_size {
-            mutex.transferred_bytes_useful += piece_data_size;
-            mutex.total_transferred_bytes_useful += piece_data_size as u64;
-        }
-    }
-
     /// Try to request the piece data from the remote peer.
     ///
     /// ## Request permits
@@ -2354,32 +2321,28 @@ impl PeerContext {
     /// If the piece is allowed through the fast protocol, the request will be sent to the remote peer even if it's choked.
     /// This doesn't bypass the request permits, if no permit is available, then no request will be made to the remote peer.
     async fn request_piece_data(&self, request_data: RequestPieceData) {
-        if !self.torrent.is_piece_wanted(&request_data.piece).await {
-            trace!(
-                "Piece {} is no longer wanted for {}",
-                request_data.piece,
-                self
-            );
+        // early return if the piece is no longer wanted by the torrent
+        // this can be due to a priority change, or another peer already downloaded the piece data
+        if !self
+            .torrent
+            .piece_pool()
+            .is_piece_wanted(&request_data.piece)
+            .await
+        {
+            trace!("Peer {} no longer wants piece {}", self, request_data.piece);
             return;
         }
         if self.is_piece_already_requested(&request_data.piece).await {
             trace!(
-                "Piece {} is already being requested for {}",
-                request_data.piece,
-                self
+                "Peer {} is already requesting piece {}",
+                self,
+                request_data.piece
             );
             return;
         }
 
         let permit = request_data.permit;
-        let piece = self
-            .torrent
-            .pieces_lock()
-            .read()
-            .await
-            .get(request_data.piece)
-            .cloned();
-        if let Some(piece) = piece {
+        if let Some(piece) = self.torrent.piece_pool().get(&request_data.piece).await {
             let mut sent_requests = 0;
             let requests: Vec<Request> = piece
                 .parts_to_request()
@@ -2521,11 +2484,12 @@ impl PeerContext {
         let handshake = Handshake::new(info_hash, self.client.id, protocol_extensions);
         debug!("Peer {} is sending handshake {:?}", self, handshake);
         match self
-            .send_raw_bytes(TryInto::<Vec<u8>>::try_into(handshake)?, None)
+            .send_raw_bytes(TryInto::<Vec<u8>>::try_into(handshake)?)
             .await
         {
             Ok(_) => Ok(()),
             Err(e) => {
+                debug!("Peer {} failed to send handshake, {}", self, e);
                 self.update_state(PeerState::Error).await;
                 Err(e)
             }
@@ -2557,6 +2521,8 @@ impl PeerContext {
     /// Send the reject request to the remote peer.
     /// This is only executed if the fast protocol is enabled.
     async fn send_reject_request(&self, request: Request) {
+        self.metrics.rejects.inc();
+
         // if the fast protocol is disabled, then we don't send a reject
         if !self.is_protocol_enabled(ProtocolExtensionFlags::Fast).await {
             return;
@@ -2564,7 +2530,7 @@ impl PeerContext {
 
         let piece = request.index;
         match self.send(Message::RejectRequest(request)).await {
-            Ok(_) => debug!("Peer {} rejected remote request {}", self, piece),
+            Ok(_) => trace!("Peer {} rejected remote request {}", self, piece),
             Err(e) => warn!(
                 "Peer {} failed to reject remote request {}, {}",
                 self, piece, e
@@ -2575,22 +2541,13 @@ impl PeerContext {
     /// Try to send the given message to the remote peer.
     pub async fn send(&self, message: Message) -> Result<()> {
         trace!("Peer {} trying to send message {:?}", self, message);
-        let mut piece_data_size: Option<usize> = None;
-        if let Message::Piece(piece) = &message {
-            piece_data_size = Some(piece.data.len());
-        }
-
         let message_bytes = TryInto::<Vec<u8>>::try_into(message)?;
-        self.send_bytes(message_bytes, piece_data_size).await
+        self.send_bytes(message_bytes).await
     }
 
     /// Send the given message to the remote peer.
     /// This method will prefix the message bytes with the BigEndian length bytes of the given message.
-    pub async fn send_bytes<T: AsRef<[u8]>>(
-        &self,
-        message: T,
-        piece_data_size: Option<usize>,
-    ) -> Result<()> {
+    pub async fn send_bytes<T: AsRef<[u8]>>(&self, message: T) -> Result<()> {
         let msg_length = message.as_ref().len();
         let mut buffer = vec![0u8; 4];
 
@@ -2599,32 +2556,17 @@ impl PeerContext {
         // append the given message bytes to the buffer
         buffer.extend_from_slice(message.as_ref());
 
-        self.send_raw_bytes(buffer, piece_data_size).await
+        self.send_raw_bytes(buffer).await
     }
 
     /// Send the given message bytes AS-IS to the remote peer.
     /// The given bytes should be a valid BitTorrent protocol message.
-    async fn send_raw_bytes<T: AsRef<[u8]>>(
-        &self,
-        bytes: T,
-        piece_data_size: Option<usize>,
-    ) -> Result<()> {
+    async fn send_raw_bytes<T: AsRef<[u8]>>(&self, bytes: T) -> Result<()> {
         let msg_length = bytes.as_ref().len();
 
-        let start_time = Instant::now();
         timeout(self.timeout, self.connection.write(bytes.as_ref())).await??;
-        let elapsed = start_time.elapsed();
 
-        // update the connection stats
-        self.update_write_data_transfer_stats(
-            DataTransferStats {
-                transferred_bytes: msg_length,
-                elapsed_micro: elapsed.as_micros(),
-            },
-            piece_data_size,
-        )
-        .await;
-
+        self.metrics.bytes_out.inc_by(msg_length as u64);
         Ok(())
     }
 
@@ -2689,7 +2631,7 @@ impl PeerContext {
 
         match TryInto::<Vec<u8>>::try_into(message) {
             Ok(bytes) => {
-                if let Err(e) = self.send_bytes(bytes, None).await {
+                if let Err(e) = self.send_bytes(bytes).await {
                     warn!("Failed to send keep alive to peer {}, {}", self, e);
                 }
             }
@@ -2742,6 +2684,33 @@ impl PeerContext {
             trace!("Peer {} has more wanted pieces from the remote peer", self);
             self.check_for_wanted_pieces().await;
         }
+    }
+
+    /// Verify that the given piece request is valid to be processed.
+    /// This will check that the requested range is within the piece range and that the piece is completed.
+    async fn validate_piece_request(&self, request: &Request) -> bool {
+        let piece_pool = self.torrent.piece_pool();
+
+        if piece_pool.is_piece_completed(&request.index).await {
+            if let Some(piece) = piece_pool.get(&request.index).await {
+                let piece_len = piece.length;
+                let request_end = request.begin + request.length;
+
+                return request.begin < piece_len && request_end <= piece_len;
+            } else {
+                warn!(
+                    "Peer {} failed to retrieve piece data of {}",
+                    self, request.index
+                );
+            }
+        } else {
+            debug!(
+                "Peer {} received piece request for incomplete piece {}",
+                self, request.index
+            );
+        }
+
+        false
     }
 
     /// Find the supported extension from our own client extensions through the extensions number.
@@ -2878,14 +2847,18 @@ mod tests {
     use crate::torrent::peer::protocol::tests::UtpPacketCaptureExtension;
     use crate::torrent::peer::tests::create_utp_peer_pair;
     use crate::torrent::{
-        TorrentConfig, TorrentFlags, TorrentOperation, TorrentOperationResult, TorrentState,
-        DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
+        TorrentOperation, TorrentOperationResult, TorrentState, DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
     };
-    use crate::{create_peer_pair, create_torrent, create_utp_socket_pair, init_logger};
+    use crate::{
+        assert_timeout, create_peer_pair, create_torrent, create_utp_socket_pair, init_logger,
+    };
 
-    use popcorn_fx_core::assert_timeout;
+    use crate::torrent::peer::TcpPeerDiscovery;
+    use crate::torrent::storage::{MemoryStorage, Storage};
+    use crate::torrent::tests::read_test_file_to_bytes;
     use tempfile::tempdir;
     use tokio::sync::mpsc::channel;
+    use tokio::sync::Semaphore;
 
     #[tokio::test]
     async fn test_peer_new_tcp() {
@@ -3070,6 +3043,73 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_peer_request_wanted_piece() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let data = read_test_file_to_bytes("piece-1_30.iso");
+        let semaphore = Arc::new(Semaphore::new(10));
+        let outgoing_torrent = create_torrent!(
+            "debian-udp.torrent",
+            temp_dir.path().join("outgoing").to_str().unwrap(),
+            TorrentFlags::none(),
+            TorrentConfig::default(),
+            vec![],
+            vec![Box::new(TcpPeerDiscovery::new().await.unwrap())],
+            |_| Box::new(MemoryStorage::new())
+        );
+        let outgoing_context = outgoing_torrent.instance().unwrap();
+        let incoming_storage = MemoryStorage::new();
+        incoming_storage.write(&data, &0, 0).await.unwrap();
+        let incoming_torrent = create_torrent!(
+            "debian-udp.torrent",
+            temp_path,
+            TorrentFlags::UploadMode,
+            TorrentConfig::default(),
+            vec![],
+            vec![Box::new(TcpPeerDiscovery::new().await.unwrap())],
+            |_| Box::new(incoming_storage)
+        );
+        let incoming_context = incoming_torrent.instance().unwrap();
+        let (outgoing, incoming) = create_peer_pair!(
+            &outgoing_torrent,
+            &incoming_torrent,
+            DEFAULT_TORRENT_PROTOCOL_EXTENSIONS()
+        );
+
+        // create the pieces for the torrent
+        create_pieces(&outgoing_context).await;
+        create_pieces(&incoming_context).await;
+
+        // unchoke the remote peer
+        incoming
+            .inner
+            .update_client_choke_state(ChokeState::UnChoked)
+            .await;
+
+        // wait for the peer to receive the unchoke state
+        assert_timeout!(
+            Duration::from_millis(750),
+            outgoing.remote_choke_state().await == ChokeState::UnChoked,
+            "expected the remote peer to be unchoked"
+        );
+
+        // request a piece
+        let request = RequestPieceData {
+            piece: 0,
+            permit: semaphore.clone().acquire_owned().await.unwrap(),
+        };
+        outgoing.inner.request_piece_data(request).await;
+
+        // wait for the torrent to have fully received piece 0
+        assert_timeout!(
+            Duration::from_millis(750),
+            outgoing_torrent.has_piece(&0).await,
+            "expected piece to have been available"
+        );
+    }
+
+    #[tokio::test]
     async fn test_peer_torrent_pieces_changed() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
@@ -3085,12 +3125,10 @@ mod tests {
         let (outgoing, _incoming) = create_peer_pair!(&torrent);
 
         // create the pieces for the torrent
-        let operation = TorrentCreatePiecesOperation::new();
-        let result = operation.execute(&context).await;
-        assert_eq!(TorrentOperationResult::Continue, result);
+        create_pieces(&context).await;
 
         // check if both the client & remote piece bitfield have been updated
-        let torrent_bitfield = context.piece_bitfield().await;
+        let torrent_bitfield = context.piece_pool().bitfield().await;
         let peer_context = &outgoing.inner;
         assert_timeout!(
             Duration::from_secs(1),
@@ -3218,37 +3256,6 @@ mod tests {
     }
 
     #[test]
-    fn test_data_transfer_stats_rate() {
-        let stats = DataTransferStats {
-            transferred_bytes: 1024,
-            elapsed_micro: 1_000_000,
-        };
-        let result = stats.rate();
-        assert_eq!(1024, result);
-
-        let stats = DataTransferStats {
-            transferred_bytes: 1024,
-            elapsed_micro: 500_000,
-        };
-        let result = stats.rate();
-        assert_eq!(1024, result);
-
-        let stats = DataTransferStats {
-            transferred_bytes: 16384,
-            elapsed_micro: 500_000,
-        };
-        let result = stats.rate();
-        assert_eq!(16384, result);
-
-        let stats = DataTransferStats {
-            transferred_bytes: 1024,
-            elapsed_micro: 1_250_000,
-        };
-        let result = stats.rate();
-        assert_eq!(819, result);
-    }
-
-    #[test]
     fn test_interest_state_ordering() {
         let result = InterestState::NotInterested.cmp(&InterestState::NotInterested);
         assert_eq!(Ordering::Equal, result);
@@ -3284,5 +3291,11 @@ mod tests {
                 connection_protocol: ConnectionProtocol::Tcp,
             }
         }
+    }
+
+    async fn create_pieces(context: &Arc<TorrentContext>) {
+        let operation = TorrentCreatePiecesOperation::new();
+        let result = operation.execute(&context).await;
+        assert_eq!(TorrentOperationResult::Continue, result);
     }
 }

@@ -395,7 +395,7 @@ mod tests {
         init_logger!();
         let media = Box::new(MovieOverview {
             title: "MyMovie".to_string(),
-            imdb_id: "tt1156398".to_string(),
+            imdb_id: "tt0325980".to_string(),
             year: "2013".to_string(),
             images: Images {
                 poster: "http://localhost/poster.png".to_string(),

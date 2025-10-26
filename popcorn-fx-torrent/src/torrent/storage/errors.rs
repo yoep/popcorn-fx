@@ -8,8 +8,10 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// The file system specific errors.
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("the requested torrent piece data is unavailable")]
+    #[error("piece data is unavailable")]
     Unavailable,
+    #[error("the requested range is out-of-bounds")]
+    OutOfBounds,
     #[error("the torrent filepath {0} is invalid")]
     InvalidFilepath(PathBuf),
     #[error("an io error occurred, {0}")]
@@ -20,6 +22,7 @@ impl PartialEq for Error {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Error::Unavailable, Error::Unavailable) => true,
+            (Error::OutOfBounds, Error::OutOfBounds) => true,
             (Error::InvalidFilepath(_), Error::InvalidFilepath(_)) => true,
             (Error::Io(_), Error::Io(_)) => true,
             _ => false,

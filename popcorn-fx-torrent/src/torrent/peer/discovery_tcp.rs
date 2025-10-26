@@ -236,13 +236,10 @@ impl InnerTcpPeerDiscovery {
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    use crate::init_logger;
     use crate::torrent::peer::tests::new_tcp_peer_discovery;
     use crate::torrent::peer::PeerState;
-    use crate::torrent::{TorrentConfig, TorrentFlags};
     use crate::{create_torrent, timeout};
-
-    use crate::init_logger;
     use tempfile::tempdir;
 
     #[tokio::test]

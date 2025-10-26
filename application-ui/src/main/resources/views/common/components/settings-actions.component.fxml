@@ -32,5 +32,12 @@
                 </Icon>
             </graphic>
         </Button>
+        <Button text="%settings_reset_api" onMouseClicked="#onResetApiClicked" onKeyPressed="#onResetApiPressed">
+            <graphic>
+                <Icon>
+                    <Icon fx:constant="LINK_UNICODE"/>
+                </Icon>
+            </graphic>
+        </Button>
     </HBox>
 </GridPane>

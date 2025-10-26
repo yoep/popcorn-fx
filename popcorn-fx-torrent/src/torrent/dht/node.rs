@@ -1,4 +1,4 @@
-use crate::torrent::dht::{Error, NodeId, Result};
+use crate::torrent::dht::{Error, NodeId, NodeMetrics, Result};
 use rand::{rng, Rng};
 use sha1::{Digest, Sha1};
 use std::net::{IpAddr, SocketAddr};
@@ -7,7 +7,8 @@ use std::time::{Duration, Instant};
 const TOKEN_SECRET_SIZE: usize = 20;
 const TOKEN_SIZE: usize = 4;
 const QUESTIONABLE_NODE_AFTER: Duration = Duration::from_secs(15 * 60); // 15 mins.
-const QUESTIONABLE_NODE_AFTER_TIMEOUTS: usize = 5;
+const BAD_NODE_AFTER_TIMEOUTS: usize = 5;
+const BAD_NODE_ERROR_RATE_THRESHOLD: usize = 2;
 
 /// A node token type alias.
 pub type Token = [u8; TOKEN_SIZE];
@@ -27,8 +28,8 @@ pub struct Node {
     pub state: NodeState,
     /// The last time we received a message from the node
     pub last_seen: Instant,
-    /// The number of times the node failed to respond to a query in a row
-    pub timeout_count: usize,
+    /// The metrics of the node
+    pub metrics: NodeMetrics,
 }
 
 impl Node {
@@ -41,7 +42,7 @@ impl Node {
             announce_token: None,
             state: NodeState::Good,
             last_seen: Instant::now(),
-            timeout_count: 0,
+            metrics: NodeMetrics::new(),
         }
     }
 
@@ -63,20 +64,26 @@ impl Node {
     /// The node has successfully responded to a query.
     pub fn confirmed(&mut self) {
         self.last_seen = Instant::now();
-        self.timeout_count = 0;
+        self.metrics.confirmed_queries.inc();
         self.state = NodeState::Good;
     }
 
     /// Increase the number of times the node failed to respond to a query.
     pub fn timed_out(&mut self) {
-        self.timeout_count += 1;
-        self.state = NodeState::calculate(Instant::now() - self.last_seen, self.timeout_count);
+        self.metrics.timeouts.inc();
+        self.state = NodeState::calculate(Instant::now() - self.last_seen, self.metrics.clone());
     }
 
     /// Get the distance between this node and the target node.
     /// See [NodeId::distance] for more information.
     pub fn distance(&self, node: &Node) -> u8 {
         self.id.distance(&node.id)
+    }
+
+    /// Check if the [NodeId] is valid for its own ip address.
+    /// See BEP42 for more info.
+    pub fn is_secure(&self) -> bool {
+        self.id.verify_id(&self.addr.ip())
     }
 }
 
@@ -100,16 +107,31 @@ impl NodeState {
     /// A good node is a node has responded to one of our queries within the last 15 minutes.
     /// After 15 minutes of inactivity, a node becomes questionable.
     /// Nodes become bad when they fail to respond to multiple queries in a row.
-    pub fn calculate(last_seen_since: Duration, timeout_count: usize) -> Self {
-        if timeout_count > QUESTIONABLE_NODE_AFTER_TIMEOUTS {
-            return Self::Questionable;
+    pub fn calculate(last_seen_since: Duration, metrics: NodeMetrics) -> Self {
+        let total_queries = metrics.confirmed_queries.total();
+        let total_timeouts = metrics.timeouts.total();
+
+        // if we've never had successful query response and X timeouts,
+        // the node is considered bad
+        if total_queries == 0 && total_timeouts as usize > BAD_NODE_AFTER_TIMEOUTS {
+            return Self::Bad;
+        }
+
+        // if the error rate (5s avg success rate - 5s avg timeout rate) also exceeds the threshold,
+        // the node is considered bad
+        let error_rate = metrics
+            .confirmed_queries
+            .rate()
+            .saturating_sub(metrics.timeouts.rate());
+        if error_rate as usize > BAD_NODE_ERROR_RATE_THRESHOLD {
+            return Self::Bad;
         }
 
         if last_seen_since < QUESTIONABLE_NODE_AFTER {
             return Self::Good;
         }
 
-        Self::Bad
+        Self::Questionable
     }
 }
 
@@ -205,25 +227,40 @@ mod tests {
 
     mod node_state {
         use super::*;
+        use crate::torrent::metrics::Metric;
 
         #[test]
         fn test_calculate_good_state() {
-            let result = NodeState::calculate(Duration::from_secs(3 * 60), 0);
+            let metrics = NodeMetrics::new();
+            metrics.confirmed_queries.inc();
+            metrics.tick(Duration::from_secs(1));
+            let result = NodeState::calculate(Duration::from_secs(3 * 60), metrics);
             assert_eq!(NodeState::Good, result);
 
-            let result = NodeState::calculate(Duration::from_secs(10 * 60), 2);
+            let metrics = NodeMetrics::new();
+            metrics.timeouts.inc_by(2);
+            metrics.tick(Duration::from_secs(1));
+            let result = NodeState::calculate(Duration::from_secs(10 * 60), metrics);
             assert_eq!(NodeState::Good, result);
         }
 
         #[test]
         fn test_calculate_questionable_state() {
-            let result = NodeState::calculate(Duration::from_secs(10 * 60), 6);
+            let metrics = NodeMetrics::new();
+            let result = NodeState::calculate(Duration::from_secs(15 * 60), metrics);
+            assert_eq!(NodeState::Questionable, result);
+
+            let metrics = NodeMetrics::new();
+            let result = NodeState::calculate(Duration::from_secs(16 * 60), metrics);
             assert_eq!(NodeState::Questionable, result);
         }
 
         #[test]
         fn test_calculate_bad_state() {
-            let result = NodeState::calculate(Duration::from_secs(16 * 60), 0);
+            let metrics = NodeMetrics::new();
+            metrics.timeouts.inc_by(6);
+            metrics.tick(Duration::from_secs(1));
+            let result = NodeState::calculate(Duration::from_secs(5 * 60), metrics);
             assert_eq!(NodeState::Bad, result);
         }
     }

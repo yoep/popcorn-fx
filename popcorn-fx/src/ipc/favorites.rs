@@ -226,10 +226,7 @@ mod tests {
         let response = timeout!(response, Duration::from_millis(250))
             .expect("expected to have received a reply");
         let result = AddFavoriteResponse::parse_from_bytes(&response.payload).unwrap();
-        assert_eq!(
-            Into::<EnumOrUnknown<response::Result>>::into(response::Result::OK),
-            result.result
-        );
+        assert_eq!(EnumOrUnknown::from(response::Result::OK), result.result);
     }
 
     #[tokio::test]

@@ -47,9 +47,8 @@ pub(crate) mod test {
     use async_trait::async_trait;
     use mockall::mock;
     use std::fmt::{Display, Formatter};
-    use std::net::SocketAddr;
     use std::time::Duration;
-    use tokio::net::{TcpListener, TcpStream};
+    use tokio::net::TcpStream;
     use tokio::sync::oneshot;
 
     mock! {

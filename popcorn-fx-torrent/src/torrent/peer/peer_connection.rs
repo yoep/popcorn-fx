@@ -1,6 +1,6 @@
 use crate::torrent::peer::protocol::{Handshake, Message, UtpStream};
 use crate::torrent::peer::{
-    ConnectionProtocol, DataTransferStats, Error, PeerConn, PeerId, PeerResponse, Result,
+    ConnectionProtocol, Error, Metrics, PeerConn, PeerId, PeerResponse, Result,
 };
 use async_trait::async_trait;
 use byteorder::BigEndian;
@@ -10,7 +10,6 @@ use log::{debug, trace, warn};
 use std::fmt::Debug;
 use std::io;
 use std::net::SocketAddr;
-use std::time::Instant;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader, WriteHalf};
 use tokio::net::TcpStream;
 use tokio::select;
@@ -44,7 +43,12 @@ impl<W> PeerConnection<W>
 where
     W: AsyncWrite + Debug + Send,
 {
-    pub fn new_tcp(id: PeerId, addr: SocketAddr, stream: TcpStream) -> PeerConnection<TcpStream> {
+    pub fn new_tcp(
+        id: PeerId,
+        addr: SocketAddr,
+        stream: TcpStream,
+        metrics: Metrics,
+    ) -> PeerConnection<TcpStream> {
         let protocol = ConnectionProtocol::Tcp;
         let cancellation_token = CancellationToken::new();
         let (sender, receiver) = unbounded_channel();
@@ -56,6 +60,7 @@ where
             protocol,
             reader,
             sender,
+            metrics,
             cancellation_token.clone(),
         );
         tokio::spawn(async move { reader.start_read_loop().await });
@@ -70,7 +75,12 @@ where
         }
     }
 
-    pub fn new_utp(id: PeerId, addr: SocketAddr, stream: UtpStream) -> PeerConnection<UtpStream> {
+    pub fn new_utp(
+        id: PeerId,
+        addr: SocketAddr,
+        stream: UtpStream,
+        metrics: Metrics,
+    ) -> PeerConnection<UtpStream> {
         let protocol = ConnectionProtocol::Utp;
         let cancellation_token = CancellationToken::new();
         let (sender, receiver) = unbounded_channel();
@@ -82,6 +92,7 @@ where
             protocol,
             reader,
             sender,
+            metrics,
             cancellation_token.clone(),
         );
         tokio::spawn(async move { reader.start_read_loop().await });
@@ -116,7 +127,7 @@ where
                     }
                 }
                 PeerReaderEvent::HandshakeFailed(e) => PeerResponse::Error(e),
-                PeerReaderEvent::Message(message, stats) => PeerResponse::Message(message, stats),
+                PeerReaderEvent::Message(message) => PeerResponse::Message(message),
                 PeerReaderEvent::Closed => {
                     let _ = self.close().await;
                     PeerResponse::Closed
@@ -197,7 +208,7 @@ enum PeerReaderEvent {
     /// Handshake failed to be read from the remote peer.
     HandshakeFailed(Error),
     /// Received a message from the remote peer.
-    Message(Message, DataTransferStats),
+    Message(Message),
     /// The connection was closed by the remote peer.
     Closed,
 }
@@ -214,6 +225,7 @@ where
     protocol: ConnectionProtocol,
     reader: BufReader<R>,
     sender: UnboundedSender<PeerReaderEvent>,
+    metrics: Metrics,
     cancellation_token: CancellationToken,
 }
 
@@ -228,6 +240,7 @@ where
         protocol: ConnectionProtocol,
         reader: R,
         sender: UnboundedSender<PeerReaderEvent>,
+        metrics: Metrics,
         cancellation_token: CancellationToken,
     ) -> Self {
         Self {
@@ -236,6 +249,7 @@ where
             protocol,
             reader: BufReader::new(reader),
             sender,
+            metrics,
             cancellation_token,
         }
     }
@@ -314,7 +328,10 @@ where
 
         match read_result {
             Ok(0) => Err(Error::Closed),
-            Ok(_) => Ok(buffer),
+            Ok(_) => {
+                self.metrics.bytes_in.inc_by(len as u64);
+                Ok(buffer)
+            }
             Err(e) => Err(Error::Io(e)),
         }
     }
@@ -325,10 +342,8 @@ where
             return Err(Error::InvalidLength(4, buffer_size as u32));
         }
 
-        let length = BigEndian::read_u32(buffer);
-        let start_time = Instant::now();
-        let bytes = self.read(length as usize).await?;
-        let elapsed = start_time.elapsed();
+        let len = BigEndian::read_u32(buffer);
+        let bytes = self.read(len as usize).await?;
 
         // we want to unblock the reader thread as soon as possible
         // so we're going to move this whole process into a new separate thread
@@ -337,17 +352,7 @@ where
         tokio::spawn(async move {
             match Message::try_from(bytes.as_ref()) {
                 Ok(msg) => {
-                    Self::send(
-                        self_info.as_str(),
-                        &sender,
-                        PeerReaderEvent::Message(
-                            msg,
-                            DataTransferStats {
-                                transferred_bytes: bytes.len(),
-                                elapsed_micro: elapsed.as_micros(),
-                            },
-                        ),
-                    );
+                    Self::send(self_info.as_str(), &sender, PeerReaderEvent::Message(msg));
                 }
                 Err(e) => warn!(
                     "Peer {} reader received invalid message payload, {}",
@@ -407,6 +412,7 @@ mod tests {
                 peer_id,
                 incoming_stream.addr(),
                 incoming_stream,
+                Metrics::new(),
             );
 
             // write the handshake to the receiving connection
@@ -453,7 +459,7 @@ mod tests {
                 .recv()
                 .await
                 .expect("expected to receive the message");
-            if let PeerResponse::Message(result, _) = result {
+            if let PeerResponse::Message(result) = result {
                 assert_eq!(message, result, "expected the message to match");
             } else {
                 assert!(
@@ -481,6 +487,7 @@ mod tests {
                 peer_id,
                 outgoing_stream_addr,
                 outgoing_stream,
+                Metrics::new(),
             );
 
             connection
@@ -545,6 +552,7 @@ mod tests {
                 ConnectionProtocol::Tcp,
                 HandshakeFailureReader {},
                 sender,
+                Metrics::new(),
                 CancellationToken::new(),
             );
 
@@ -585,8 +593,12 @@ mod tests {
         let outgoing_stream = TcpStream::connect((socket_addr.ip(), incoming_port))
             .await
             .expect("expected to create an outgoing connection");
-        let connection =
-            PeerConnection::<TcpStream>::new_tcp(PeerId::new(), socket_addr, outgoing_stream);
+        let connection = PeerConnection::<TcpStream>::new_tcp(
+            PeerId::new(),
+            socket_addr,
+            outgoing_stream,
+            Metrics::new(),
+        );
 
         connection
             .close()

@@ -8,8 +8,8 @@ use std::fmt::Debug;
 use std::path::PathBuf;
 
 use popcorn_fx_torrent::torrent;
-pub use popcorn_fx_torrent::torrent::{PieceIndex, TorrentEvent, TorrentState, TorrentStats};
-use popcorn_fx_torrent::torrent::{PiecePriority, TorrentFlags};
+use popcorn_fx_torrent::torrent::{Metrics, PiecePriority, TorrentFlags};
+pub use popcorn_fx_torrent::torrent::{PieceIndex, TorrentEvent, TorrentState};
 
 #[cfg(any(test, feature = "testing"))]
 pub use mock::*;
@@ -25,7 +25,7 @@ pub trait Torrent: Debug + DowncastSync + Callback<TorrentEvent> + Send + Sync {
     fn handle(&self) -> TorrentHandle;
 
     /// Get the absolute filesystem path to a given file in the torrent.
-    fn absolute_file_path(&self, file: &torrent::File) -> PathBuf;
+    async fn absolute_file_path(&self, file: &torrent::File) -> PathBuf;
 
     /// Get the files of the torrent.
     /// It might return an empty array if the metadata is unknown.
@@ -81,7 +81,7 @@ pub trait Torrent: Debug + DowncastSync + Callback<TorrentEvent> + Send + Sync {
     async fn state(&self) -> TorrentState;
 
     /// Get the torrent metrics statics.
-    async fn stats(&self) -> TorrentStats;
+    fn stats(&self) -> &Metrics;
 }
 impl_downcast!(sync Torrent);
 
@@ -91,8 +91,8 @@ impl Torrent for torrent::Torrent {
         self.handle()
     }
 
-    fn absolute_file_path(&self, file: &torrent::File) -> PathBuf {
-        self.absolute_file_path(file)
+    async fn absolute_file_path(&self, file: &torrent::File) -> PathBuf {
+        self.absolute_file_path(file).await
     }
 
     async fn files(&self) -> Vec<torrent::File> {
@@ -127,7 +127,7 @@ impl Torrent for torrent::Torrent {
     }
 
     async fn has_piece(&self, piece: usize) -> bool {
-        self.has_piece(piece as PieceIndex).await
+        self.has_piece(&(piece as PieceIndex)).await
     }
 
     async fn prioritize_bytes(&self, bytes: &std::ops::Range<usize>) {
@@ -156,8 +156,8 @@ impl Torrent for torrent::Torrent {
         self.state().await
     }
 
-    async fn stats(&self) -> TorrentStats {
-        self.stats().await
+    fn stats(&self) -> &Metrics {
+        self.metrics()
     }
 }
 
@@ -286,7 +286,7 @@ mod mock {
         #[async_trait]
         impl Torrent for Torrent {
             fn handle(&self) -> TorrentHandle;
-            fn absolute_file_path(&self, file: &torrent::File) -> PathBuf;
+            async fn absolute_file_path(&self, file: &torrent::File) -> PathBuf;
             async fn files(&self) -> Vec<torrent::File>;
             async fn file_by_name(&self, name: &str) -> Option<torrent::File>;
             async fn largest_file(&self) -> Option<torrent::File>;
@@ -297,7 +297,7 @@ mod mock {
             async fn total_pieces(&self) -> usize;
             async fn sequential_mode(&self);
             async fn state(&self) -> TorrentState;
-            async fn stats(&self) -> TorrentStats;
+            fn stats(&self) -> &Metrics;
         }
 
         impl Callback<TorrentEvent> for Torrent {

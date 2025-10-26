@@ -1,7 +1,7 @@
 # FX-Torrent
 
 FX-Torrent is the most complete BitTorrent implementation fully written in Rust, which supports both Linux, MacOS and Windows. 
-It supports most of the Bittorrent protocol specification such as multi-file torrents, validating existing files, resuming torrent files, 
+It supports most of the Bittorrent protocol specifications, such as multi-file torrents, validating existing files, resuming torrent files, 
 and is based on the `libtorrent` library for functionality and naming convention.
 
 ## Features
@@ -19,10 +19,10 @@ and is based on the `libtorrent` library for functionality and naming convention
 - [x] [BEP20](https://www.bittorrent.org/beps/bep_0020.html) - Peer ID Conventions
 - [x] [BEP21](https://www.bittorrent.org/beps/bep_0021.html) - Extension for partial seeds
 - [x] [BEP29](https://www.bittorrent.org/beps/bep_0029.html) - uTorrent transport protocol
-- [ ] [BEP32](https://www.bittorrent.org/beps/bep_0032.html) - BitTorrent DHT Extensions for IPv6 (WIP)
+- [x] [BEP32](https://www.bittorrent.org/beps/bep_0032.html) - BitTorrent DHT Extensions for IPv6
 - [ ] [BEP33](https://www.bittorrent.org/beps/bep_0033.html) - DHT scrape
 - [x] [BEP40](https://www.bittorrent.org/beps/bep_0040.html) - Canonical Peer Priority
-- [ ] [BEP42](https://www.bittorrent.org/beps/bep_0042.html) - DHT Security extension (WIP)
+- [x] [BEP42](https://www.bittorrent.org/beps/bep_0042.html) - DHT Security extension
 - [ ] [BEP44](https://www.bittorrent.org/beps/bep_0044.html) - Storing arbitrary data in the DHT
 - [x] [BEP47](https://www.bittorrent.org/beps/bep_0047.html) - Padding files and extended file attributes
 - [x] [BEP48](https://www.bittorrent.org/beps/bep_0048.html) - Tracker Protocol Extension: Scrape
@@ -60,4 +60,4 @@ async fn main() {
 }
 ```
 
-For more examples, check the tests which are present within the crate.
+For more examples, see the [examples](./examples).

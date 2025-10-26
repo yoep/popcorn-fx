@@ -1,4 +1,5 @@
 use crate::torrent::peer::webseed::HttpPeer;
+use crate::torrent::peer_pool::CloseReason;
 use crate::torrent::{
     TorrentCommandEvent, TorrentContext, TorrentOperation, TorrentOperationResult,
 };
@@ -14,6 +15,7 @@ use url::Url;
 
 const BURST_DURATION: Duration = Duration::from_secs(10);
 
+/// Establishes additional peer connections for the torrent.
 #[derive(Debug)]
 pub struct TorrentConnectPeersOperation {
     webseed_urls: Mutex<Option<Vec<Url>>>,
@@ -39,9 +41,9 @@ impl TorrentConnectPeersOperation {
             return;
         }
 
-        let mut mutex = self.webseed_urls.lock().await;
+        let mut webseed_urls = self.webseed_urls.lock().await;
         let metadata = torrent.metadata_lock().read().await;
-        let urls = metadata
+        let mut urls = metadata
             .url_list
             .as_ref()
             .map(|list| {
@@ -50,8 +52,18 @@ impl TorrentConnectPeersOperation {
                     .collect()
             })
             .unwrap_or(Vec::new());
+        let mut http_seeds = metadata
+            .http_seeds
+            .as_ref()
+            .map(|e| {
+                e.iter()
+                    .flat_map(|url| Self::parse_url(torrent, url))
+                    .collect()
+            })
+            .unwrap_or(Vec::new());
+        urls.append(&mut http_seeds);
 
-        *mutex = Some(urls);
+        *webseed_urls = Some(urls);
     }
 
     /// Update the available in-flight permits from the latest torrent config.
@@ -265,7 +277,7 @@ impl TorrentConnectPeersOperation {
                 );
                 context
                     .peer_pool()
-                    .peer_connections_closed(vec![peer_addr])
+                    .peer_connection_closed(&peer_addr, CloseReason::ConnectionFailed)
                     .await;
                 break;
             }
@@ -345,7 +357,6 @@ mod tests {
     use super::*;
     use crate::create_torrent;
     use crate::init_logger;
-    use crate::torrent::{TorrentConfig, TorrentFlags};
     use tempfile::tempdir;
 
     #[tokio::test]

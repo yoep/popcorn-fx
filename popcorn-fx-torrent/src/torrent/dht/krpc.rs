@@ -97,6 +97,8 @@ pub struct GetPeersRequest {
     pub id: NodeId,
     /// The info hash of the torrent to retrieve peers for.
     pub info_hash: InfoHash,
+    #[serde(default)]
+    pub want: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -108,6 +110,8 @@ pub struct GetPeersResponse {
     pub values: Option<Vec<ByteBuf>>,
     #[serde(default, with = "serde_bytes")]
     pub nodes: Option<Vec<u8>>,
+    #[serde(default, with = "serde_bytes")]
+    pub nodes6: Option<Vec<u8>>,
 }
 
 /// The error message.

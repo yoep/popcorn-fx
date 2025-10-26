@@ -2,6 +2,7 @@ pub use discovery::*;
 pub use discovery_tcp::*;
 pub use discovery_utp::*;
 pub use errors::*;
+pub use metrics::*;
 pub use peer::*;
 pub use peer_id::*;
 
@@ -10,6 +11,7 @@ mod discovery_tcp;
 mod discovery_utp;
 mod errors;
 pub mod extension;
+mod metrics;
 mod peer;
 mod peer_connection;
 mod peer_id;
@@ -45,8 +47,8 @@ pub mod tests {
             fn client(&self) -> PeerClientInfo;
             fn addr(&self) -> SocketAddr;
             fn addr_as_ref(&self) -> &SocketAddr;
+            fn metrics(&self) -> &Metrics;
             async fn state(&self) -> PeerState;
-            async fn stats(&self) -> PeerStats;
             async fn is_seed(&self) -> bool;
             async fn remote_piece_bitfield(&self) -> BitVec;
             fn notify_piece_availability(&self, pieces: Vec<PieceIndex>);

@@ -595,9 +595,9 @@ impl<'de> Visitor<'de> for InfoHashVisitor {
 mod tests {
     use super::*;
     use crate::init_logger;
+    use crate::torrent::tests::read_test_file_to_bytes;
     use crate::torrent::{Magnet, TorrentMetadata};
     use hex_literal::hex;
-    use popcorn_fx_core::testing::read_test_file_to_bytes;
 
     #[test]
     fn test_info_hash_from_metadata_v1() {

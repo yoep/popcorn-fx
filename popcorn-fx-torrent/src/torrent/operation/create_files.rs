@@ -25,13 +25,13 @@ impl TorrentCreateFilesOperation {
                 let total_files = files.len();
                 torrent.update_files(files).await;
                 debug!(
-                    "A total of {} files have been created for {}",
-                    total_files, torrent
+                    "Torrent {} created a total of {} files",
+                    torrent, total_files
                 );
                 true
             }
             Err(e) => {
-                warn!("Failed to create torrent files of {}, {}", torrent, e);
+                warn!("Torrent {} failed to create files, {}", torrent, e);
                 false
             }
         }
@@ -112,7 +112,7 @@ mod tests {
     use crate::create_torrent;
     use crate::init_logger;
     use crate::torrent::operation::TorrentCreatePiecesOperation;
-    use crate::torrent::{PieceIndex, TorrentConfig, TorrentFlags};
+    use crate::torrent::PieceIndex;
     use tempfile::tempdir;
 
     #[tokio::test]
@@ -194,11 +194,6 @@ mod tests {
         let pieces_operation = TorrentCreatePiecesOperation::new();
         let operation = TorrentCreateFilesOperation::new();
         let context = torrent.instance().unwrap();
-        let metadata = context.metadata().await;
-        let metadata_info = metadata
-            .info
-            .as_ref()
-            .expect("expected the metadata info to be present");
 
         // create the torrent pieces
         let result = pieces_operation.execute(&context).await;
@@ -207,10 +202,7 @@ mod tests {
             result,
             "expected the pieces operation to have succeeded"
         );
-        let pieces = context
-            .pieces()
-            .await
-            .expect("expected the pieces to have been created");
+        let pieces = context.piece_pool().pieces().await;
 
         // create the torrent files
         let files = operation

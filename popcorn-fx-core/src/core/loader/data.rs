@@ -1,13 +1,11 @@
 use crate::core::media::MediaIdentifier;
 use crate::core::playlist::PlaylistItem;
 use crate::core::subtitles::model::{Subtitle, SubtitleInfo};
-use crate::core::torrents::{
-    Torrent, TorrentEvent, TorrentHandle, TorrentState, TorrentStats, TorrentStream,
-};
+use crate::core::torrents::{Torrent, TorrentEvent, TorrentHandle, TorrentState, TorrentStream};
 use async_trait::async_trait;
 use fx_callback::{Callback, Subscriber, Subscription};
 use popcorn_fx_torrent::torrent;
-use popcorn_fx_torrent::torrent::PieceIndex;
+use popcorn_fx_torrent::torrent::{Metrics, PieceIndex};
 use std::ops::Range;
 use std::path::PathBuf;
 
@@ -159,10 +157,10 @@ impl Torrent for TorrentData {
         }
     }
 
-    fn absolute_file_path(&self, file: &torrent::File) -> PathBuf {
+    async fn absolute_file_path(&self, file: &torrent::File) -> PathBuf {
         match self {
-            TorrentData::Torrent(e) => e.absolute_file_path(file),
-            TorrentData::Stream(e) => e.absolute_file_path(file),
+            TorrentData::Torrent(e) => e.absolute_file_path(file).await,
+            TorrentData::Stream(e) => e.absolute_file_path(file).await,
         }
     }
 
@@ -236,10 +234,10 @@ impl Torrent for TorrentData {
         }
     }
 
-    async fn stats(&self) -> TorrentStats {
+    fn stats(&self) -> &Metrics {
         match self {
-            TorrentData::Torrent(e) => e.stats().await,
-            TorrentData::Stream(e) => e.stats().await,
+            TorrentData::Torrent(e) => e.stats(),
+            TorrentData::Stream(e) => e.stats(),
         }
     }
 }

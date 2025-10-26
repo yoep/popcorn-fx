@@ -1,4 +1,5 @@
 pub use errors::*;
+pub use metrics::*;
 pub use node::*;
 pub use node_id::*;
 pub use tracker::*;
@@ -6,6 +7,7 @@ pub use tracker::*;
 mod compact;
 mod errors;
 mod krpc;
+mod metrics;
 mod node;
 mod node_id;
 mod routing_table;

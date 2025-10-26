@@ -233,10 +233,7 @@ impl InnerUtpPeerDiscovery {
 #[cfg(test)]
 mod tests {
     use super::*;
-
     use crate::create_torrent;
-    use crate::torrent::{TorrentConfig, TorrentFlags};
-
     use crate::init_logger;
     use tempfile::tempdir;
 

@@ -5,45 +5,47 @@ pub use info_hash::*;
 pub use magnet::*;
 use peer_pool::*;
 pub use piece::*;
-use piece_pool::*;
+use piece_chunk_pool::*;
 pub use session::*;
 pub use session_cache::*;
-use std::ops::Range;
 pub use torrent::*;
+use torrent_config::*;
 pub use torrent_flags::*;
 pub use torrent_health::*;
 pub use torrent_metadata::*;
+pub use torrent_metrics::*;
 pub use torrent_peer::*;
+use torrent_pools::*;
+
+use std::ops::Range;
 
 mod compact;
 #[cfg(feature = "dht")]
 pub mod dht;
-mod dns;
 mod errors;
 mod file;
-pub mod fs;
 mod info_hash;
 mod magnet;
 mod merkle;
+pub mod metrics;
 pub mod operation;
 pub mod peer;
 mod peer_pool;
 mod piece;
-mod piece_pool;
+mod piece_chunk_pool;
 mod session;
 mod session_cache;
+pub mod storage;
 mod torrent;
+mod torrent_config;
 mod torrent_flags;
 mod torrent_health;
 mod torrent_metadata;
+mod torrent_metrics;
 mod torrent_peer;
-mod tracker;
+mod torrent_pools;
+pub mod tracker;
 
-use crate::torrent::operation::{
-    TorrentConnectDhtNodesOperation, TorrentConnectPeersOperation, TorrentCreateFilesOperation,
-    TorrentCreatePiecesOperation, TorrentDhtPeersOperation, TorrentFileValidationOperation,
-    TorrentMetadataOperation, TorrentTrackersOperation,
-};
 #[cfg(feature = "extension-donthave")]
 use crate::torrent::peer::extension::donthave::DontHaveExtension;
 #[cfg(feature = "extension-metadata")]
@@ -66,22 +68,6 @@ const DEFAULT_TORRENT_EXTENSIONS: fn() -> ExtensionFactories = || {
     extensions.push(|| Box::new(DontHaveExtension::new()));
 
     extensions
-};
-/// The default operations applied to a torrent.
-/// These include the necessary chain of actions to be executed during the torrent lifecycle.
-const DEFAULT_TORRENT_OPERATIONS: fn() -> Vec<TorrentOperationFactory> = || {
-    vec![
-        || Box::new(TorrentTrackersOperation::new()),
-        #[cfg(feature = "dht")]
-        || Box::new(TorrentConnectDhtNodesOperation::new()),
-        #[cfg(feature = "dht")]
-        || Box::new(TorrentDhtPeersOperation::new()),
-        || Box::new(TorrentConnectPeersOperation::new()),
-        || Box::new(TorrentMetadataOperation::new()),
-        || Box::new(TorrentCreatePiecesOperation::new()),
-        || Box::new(TorrentCreateFilesOperation::new()),
-        || Box::new(TorrentFileValidationOperation::new()),
-    ]
 };
 
 /// Formats the given number of bytes into a human-readable format with appropriate units.
@@ -204,30 +190,21 @@ where
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use std::env;
 
-    use crate::torrent::fs::TorrentFileStorage;
     use crate::torrent::peer::tests::new_tcp_peer_discovery;
-    use crate::torrent::peer::{
-        BitTorrentPeer, PeerDiscovery, PeerId, PeerStream, TcpPeerDiscovery, UtpPeerDiscovery,
-    };
+    use crate::torrent::peer::{BitTorrentPeer, PeerDiscovery, PeerId, PeerStream};
 
-    use crate::torrent::dht::DhtTracker;
-    use crate::torrent::tracker::TrackerManager;
-    use log::LevelFilter;
-    use log4rs::append::console::ConsoleAppender;
-    use log4rs::config::{Appender, Logger, Root};
-    use log4rs::encode::pattern::PatternEncoder;
-    use log4rs::Config;
+    use log::trace;
     use std::net::SocketAddr;
     use std::path::PathBuf;
     use std::str::FromStr;
     use std::sync::Once;
     use std::time::Duration;
+    use std::{env, fs};
     use tokio::net::TcpStream;
     use tokio::sync::mpsc::unbounded_channel;
 
-    static INIT: Once = Once::new();
+    pub static INIT: Once = Once::new();
 
     /// Create the torrent metadata from the given uri.
     /// The uri can either point to a `.torrent` file or a magnet link.
@@ -243,92 +220,127 @@ pub mod tests {
 
     #[macro_export]
     macro_rules! create_torrent {
-        ($uri:expr, $temp_dir:expr, $options:expr) => {
-            crate::torrent::tests::create_torrent_with_default_discoveries(
+        ($uri:expr, $temp_dir:expr, $options:expr) => {{
+            create_torrent!(
                 $uri,
                 $temp_dir,
                 $options,
-                crate::torrent::TorrentConfig::builder().build(),
-                crate::torrent::DEFAULT_TORRENT_OPERATIONS(),
+                crate::torrent::TorrentConfig::builder()
+                    .path($temp_dir)
+                    .build()
             )
-            .await
-        };
-        ($uri:expr, $temp_dir:expr, $options:expr, $config:expr) => {
-            crate::torrent::tests::create_torrent_with_default_discoveries(
-                $uri,
-                $temp_dir,
-                $options,
-                $config,
-                crate::torrent::DEFAULT_TORRENT_OPERATIONS(),
-            )
-            .await
-        };
-        ($uri:expr, $temp_dir:expr, $options:expr, $config:expr, $operations:expr) => {
-            crate::torrent::tests::create_torrent_with_default_discoveries(
+        }};
+        ($uri:expr, $temp_dir:expr, $options:expr, $config:expr) => {{
+            use crate::torrent::operation::{
+                TorrentConnectPeersOperation, TorrentCreateFilesOperation,
+                TorrentCreatePiecesOperation, TorrentDhtNodesOperation, TorrentDhtPeersOperation,
+                TorrentFileValidationOperation, TorrentMetadataOperation, TorrentTrackersOperation,
+            };
+
+            create_torrent!(
                 $uri,
                 $temp_dir,
                 $options,
                 $config,
-                $operations,
+                vec![
+                    || Box::new(TorrentTrackersOperation::new()),
+                    || Box::new(TorrentDhtNodesOperation::new()),
+                    || Box::new(TorrentDhtPeersOperation::new()),
+                    || Box::new(TorrentConnectPeersOperation::new()),
+                    || Box::new(TorrentMetadataOperation::new()),
+                    || Box::new(TorrentCreatePiecesOperation::new()),
+                    || Box::new(TorrentCreateFilesOperation::new()),
+                    || Box::new(TorrentFileValidationOperation::new()),
+                ]
             )
-            .await
-        };
-        ($uri:expr, $temp_dir:expr, $options:expr, $config:expr, $operations:expr, $discoveries:expr) => {
-            crate::torrent::tests::create_torrent_from_uri(
+        }};
+        ($uri:expr, $temp_dir:expr, $options:expr, $config:expr, $operations:expr) => {{
+            use crate::torrent::peer::{PeerDiscovery, TcpPeerDiscovery, UtpPeerDiscovery};
+
+            let tcp_discovery = TcpPeerDiscovery::new()
+                .await
+                .expect("expected a new tcp peer discovery");
+            let utp_discovery = UtpPeerDiscovery::new()
+                .await
+                .expect("expected a new utp peer discovery");
+            let discoveries: Vec<Box<dyn PeerDiscovery>> =
+                vec![Box::new(tcp_discovery), Box::new(utp_discovery)];
+
+            create_torrent!($uri, $temp_dir, $options, $config, $operations, discoveries)
+        }};
+        ($uri:expr, $temp_dir:expr, $options:expr, $config:expr, $operations:expr, $discoveries:expr) => {{
+            create_torrent!(
                 $uri,
                 $temp_dir,
                 $options,
                 $config,
                 $operations,
                 $discoveries,
+                |params| {
+                    Box::new(crate::torrent::storage::DiskStorage::new(
+                        params.info_hash,
+                        params.path,
+                        params.files,
+                    ))
+                }
             )
-            .await
-        };
-    }
+        }};
+        ($uri:expr, $temp_dir:expr, $options:expr, $config:expr, $operations:expr, $discoveries:expr, $storage:expr) => {{
+            use crate::torrent::dht::DhtTracker;
+            use crate::torrent::storage::DiskStorage;
 
-    /// Create a new torrent instance from the given uri.
-    /// The uri can either be a [Magnet] uri or a filename to a torrent file within the testing resources.
-    pub async fn create_torrent_from_uri(
-        uri: &str,
-        temp_dir: &str,
-        options: TorrentFlags,
-        config: TorrentConfig,
-        operations: Vec<TorrentOperationFactory>,
-        discoveries: Vec<Box<dyn PeerDiscovery>>,
-    ) -> Torrent {
-        let torrent_info = create_metadata(uri);
-        let tracker_manager = TrackerManager::new(Duration::from_secs(2));
-        let dht = DhtTracker::builder().build().await.unwrap();
-        Torrent::request()
-            .metadata(torrent_info)
-            .peer_discoveries(discoveries)
-            .options(options)
-            .config(config)
-            .operations(operations.iter().map(|e| e()).collect())
-            .storage(TorrentFileStorage::new(temp_dir))
-            .tracker_manager(tracker_manager)
-            .dht(dht)
-            .build()
-            .unwrap()
-    }
+            create_torrent!(
+                $uri,
+                $temp_dir,
+                $options,
+                $config,
+                $operations,
+                $discoveries,
+                |params| {
+                    Box::new(DiskStorage::new(
+                        params.info_hash,
+                        params.path,
+                        params.files,
+                    ))
+                },
+                DhtTracker::builder().build().await.unwrap()
+            )
+        }};
+        ($uri:expr, $temp_dir:expr, $options:expr, $config:expr, $operations:expr, $discoveries:expr, $storage:expr, $dht:expr) => {{
+            use crate::torrent::peer::PeerDiscovery;
+            use crate::torrent::tests::create_metadata;
+            use crate::torrent::tracker::TrackerManager;
+            use crate::torrent::{Torrent, TorrentConfig, TorrentFlags, TorrentOperationFactory};
+            use std::time::Duration;
 
-    pub async fn create_torrent_with_default_discoveries(
-        uri: &str,
-        temp_dir: &str,
-        options: TorrentFlags,
-        config: TorrentConfig,
-        operations: Vec<TorrentOperationFactory>,
-    ) -> Torrent {
-        let tcp_discovery = TcpPeerDiscovery::new()
-            .await
-            .expect("expected a new tcp peer discovery");
-        let utp_discovery = UtpPeerDiscovery::new()
-            .await
-            .expect("expected a new utp peer discovery");
-        let discoveries: Vec<Box<dyn PeerDiscovery>> =
-            vec![Box::new(tcp_discovery), Box::new(utp_discovery)];
+            let uri: &str = $uri;
+            let options: TorrentFlags = $options;
+            let config: TorrentConfig = $config;
+            let operations: Vec<TorrentOperationFactory> = $operations;
+            let discoveries: Vec<Box<dyn PeerDiscovery>> = $discoveries;
+            let dht: DhtTracker = $dht;
+            let torrent_info = create_metadata(uri);
+            let tracker_manager = TrackerManager::new(Duration::from_secs(2));
+            let config = TorrentConfig::builder()
+                .path($temp_dir)
+                .peer_connection_timeout(config.peer_connection_timeout)
+                .max_in_flight_pieces(config.max_in_flight_pieces)
+                .peers_upper_limit(config.peers_upper_limit)
+                .peers_lower_limit(config.peers_lower_limit)
+                .build();
 
-        create_torrent_from_uri(uri, temp_dir, options, config, operations, discoveries).await
+            Torrent::request()
+                .metadata(torrent_info)
+                .peer_discoveries(discoveries)
+                .options(options)
+                .config(config)
+                .operations(operations.iter().map(|e| e()).collect())
+                .storage($storage)
+                .tracker_manager(tracker_manager)
+                .dht(dht)
+                .build()
+                .unwrap()
+        }};
     }
 
     /// A macro wrapper for [`tokio::time::timeout`] that awaits a future with a timeout duration.
@@ -505,33 +517,49 @@ pub mod tests {
     pub fn read_test_file_to_bytes(filename: &str) -> Vec<u8> {
         let source = test_resource_filepath(filename);
 
-        std::fs::read(&source).unwrap()
+        fs::read(&source).unwrap()
+    }
+
+    pub fn copy_test_file(temp_dir: &str, filename: &str, output_filename: Option<&str>) -> String {
+        let root_dir = &env::var("CARGO_MANIFEST_DIR").expect("$CARGO_MANIFEST_DIR");
+        let source = PathBuf::from(root_dir).join("test").join(filename);
+        let destination = PathBuf::from(temp_dir).join(output_filename.unwrap_or(filename));
+
+        // make sure the parent dir exists
+        fs::create_dir_all(destination.parent().unwrap()).unwrap();
+
+        trace!("Copying test file {} to {:?}", filename, destination);
+        fs::copy(&source, &destination).unwrap();
+
+        destination.to_str().unwrap().to_string()
     }
 
     /// Initializes the logger with the specified log level.
     #[macro_export]
     macro_rules! init_logger {
-        ($level:expr) => {
-            crate::torrent::tests::init_logger_level($level)
-        };
-        () => {
-            crate::torrent::tests::init_logger_level(log::LevelFilter::Trace)
-        };
-    }
+        () => {{
+            init_logger!(log::LevelFilter::Trace)
+        }};
+        ($level:expr) => {{
+            use log4rs::config::runtime::{Appender, Config, Logger, Root};
+            use log4rs::append::console::ConsoleAppender;
+            use log4rs::encode::pattern::PatternEncoder;
+            use log::LevelFilter;
 
-    /// Initializes the logger with the specified log level.
-    pub(crate) fn init_logger_level(level: LevelFilter) {
-        INIT.call_once(|| {
-            log4rs::init_config(Config::builder()
-                .appender(Appender::builder().build("stdout", Box::new(ConsoleAppender::builder()
-                    .encoder(Box::new(PatternEncoder::new("\x1B[37m{d(%Y-%m-%d %H:%M:%S%.3f)}\x1B[0m {h({l:>5.5})} \x1B[35m{I:>6.6}\x1B[0m \x1B[37m---\x1B[0m \x1B[37m[{T:>15.15}]\x1B[0m \x1B[36m{t:<60.60}\x1B[0m \x1B[37m:\x1B[0m {m}{n}")))
-                    .build())))
-                .logger(Logger::builder().build("fx_callback", LevelFilter::Info))
-                .logger(Logger::builder().build("mio", LevelFilter::Info))
-                .build(Root::builder().appender("stdout").build(level))
-                .unwrap())
-                .unwrap();
-        })
+            let level: LevelFilter = $level;
+
+            crate::torrent::tests::INIT.call_once(|| {
+                log4rs::init_config(Config::builder()
+                    .appender(Appender::builder().build("stdout", Box::new(ConsoleAppender::builder()
+                        .encoder(Box::new(PatternEncoder::new("\x1B[37m{d(%Y-%m-%d %H:%M:%S%.3f)}\x1B[0m {h({l:>5.5})} \x1B[35m{I:>6.6}\x1B[0m \x1B[37m---\x1B[0m \x1B[37m[{T:>15.15}]\x1B[0m \x1B[36m{t:<60.60}\x1B[0m \x1B[37m:\x1B[0m {m}{n}")))
+                        .build())))
+                    .logger(Logger::builder().build("fx_callback", LevelFilter::Info))
+                    .logger(Logger::builder().build("mio", LevelFilter::Info))
+                    .build(Root::builder().appender("stdout").build(level))
+                    .unwrap())
+                    .unwrap();
+            })
+        }};
     }
 
     #[macro_export]

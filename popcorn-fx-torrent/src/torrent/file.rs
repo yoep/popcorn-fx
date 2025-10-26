@@ -29,7 +29,7 @@ pub struct File {
     pub index: FileIndex,
     /// The path of the file within the torrent.
     pub torrent_path: PathBuf,
-    /// The byte offset of the file within the torrent.
+    /// The amount of bytes in the torrent before this file.
     pub torrent_offset: usize,
     /// The original metadata info of the file from the torrent.
     pub info: TorrentFileInfo,

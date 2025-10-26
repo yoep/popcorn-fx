@@ -1,12 +1,11 @@
-use crate::app::{AppCommand, FXKeyEvent, FXWidget};
-use crate::app_logger::LogEntry;
+use crate::app::{AppCommand, AppCommandSender, FXKeyEvent, FXWidget};
+use crate::app_logger::AppLogger;
 use crate::menu::add_torrent::MenuAddTorrent;
+use crate::menu::logging::MenuLogging;
 use crate::menu::overview::MenuOverview;
 use crate::menu::settings::MenuSettings;
 use crate::menu::widget::MenuSectionWidget;
 use async_trait::async_trait;
-use derive_more::Display;
-use fx_handle::Handle;
 use ratatui::layout::Constraint::{Fill, Length};
 use ratatui::layout::{Layout, Rect};
 use ratatui::text::Line;
@@ -16,9 +15,10 @@ use std::collections::HashMap;
 use std::io;
 use std::path::PathBuf;
 use std::str::FromStr;
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
 
 mod add_torrent;
+mod logging;
 mod overview;
 mod settings;
 mod widget;
@@ -27,24 +27,19 @@ const LOG_LIMIT: usize = 100;
 
 #[derive(Debug)]
 pub struct MenuWidget {
-    handle: Handle,
     sections: HashMap<MenuSection, Box<dyn MenuSectionWidget>>,
     active_section: MenuSection,
     logs: Vec<String>,
-    app_sender: UnboundedSender<AppCommand>,
+    app_sender: AppCommandSender,
     menu_receiver: UnboundedReceiver<MenuCommand>,
-    log_receiver: UnboundedReceiver<LogEntry>,
+    logger: AppLogger,
 }
 
 impl MenuWidget {
-    pub fn new(
-        app_sender: UnboundedSender<AppCommand>,
-        log_receiver: UnboundedReceiver<LogEntry>,
-    ) -> Self {
+    pub fn new(app_sender: AppCommandSender, logger: AppLogger) -> Self {
         let (menu_sender, menu_receiver) = unbounded_channel();
 
         Self {
-            handle: Default::default(),
             sections: vec![
                 (
                     MenuSection::Overview,
@@ -57,7 +52,11 @@ impl MenuWidget {
                 ),
                 (
                     MenuSection::Settings,
-                    Box::new(MenuSettings::new(app_sender.clone(), menu_sender)),
+                    Box::new(MenuSettings::new(app_sender.clone(), menu_sender.clone())),
+                ),
+                (
+                    MenuSection::Logging,
+                    Box::new(MenuLogging::new(logger.clone(), menu_sender)),
                 ),
             ]
             .into_iter()
@@ -66,7 +65,7 @@ impl MenuWidget {
             logs: vec![],
             app_sender,
             menu_receiver,
-            log_receiver,
+            logger,
         }
     }
 
@@ -142,10 +141,6 @@ impl MenuWidget {
 
 #[async_trait]
 impl FXWidget for MenuWidget {
-    fn handle(&self) -> Handle {
-        self.handle
-    }
-
     fn name(&self) -> &str {
         "Menu"
     }
@@ -155,8 +150,12 @@ impl FXWidget for MenuWidget {
             self.handle_command(command);
         }
 
-        while let Ok(entry) = self.log_receiver.try_recv() {
+        while let Some(entry) = self.logger.next() {
             self.log(entry.text);
+        }
+
+        for (_, section) in &mut self.sections {
+            section.tick().await;
         }
     }
 
@@ -182,7 +181,7 @@ impl FXWidget for MenuWidget {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-enum MenuCommand {
+pub enum MenuCommand {
     SelectSection(MenuSection),
     AddTorrentUri(String),
 }
@@ -192,20 +191,5 @@ enum MenuSection {
     Overview,
     AddTorrent,
     Settings,
-}
-
-#[derive(Debug, Display, Clone, PartialEq)]
-enum MenuItem {
-    #[display(fmt = "Add torrent")]
-    AddTorrent,
-    #[display(fmt = "Settings")]
-    Settings,
-    #[display(fmt = "Quit")]
-    Quit,
-}
-
-impl MenuItem {
-    pub fn all() -> Vec<MenuItem> {
-        vec![Self::AddTorrent, Self::Settings, Self::Quit]
-    }
+    Logging,
 }

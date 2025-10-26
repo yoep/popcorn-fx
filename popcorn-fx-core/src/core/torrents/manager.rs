@@ -11,6 +11,7 @@ use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, error, trace, warn};
 #[cfg(any(test, feature = "testing"))]
 pub use mock::*;
+use popcorn_fx_torrent::torrent::dht::DhtTracker;
 use popcorn_fx_torrent::torrent::{
     FileIndex, FilePriority, FxTorrentSession, Magnet, Session, SessionEvent, SessionState,
     TorrentEvent, TorrentFiles, TorrentFlags, TorrentHealth, TorrentState,
@@ -105,11 +106,16 @@ pub struct FxTorrentManager {
 
 impl FxTorrentManager {
     pub async fn new(settings: ApplicationConfig, event_publisher: EventPublisher) -> Result<Self> {
-        let mut session = FxTorrentSession::builder();
-        session
-            .base_path(settings.user_settings().await.torrent_settings.directory())
-            .client_name("PopcornFX");
-        let session: Box<dyn Session> = session
+        let session = FxTorrentSession::builder()
+            .path(settings.user_settings().await.torrent_settings.directory())
+            .client_name("PopcornFX")
+            .dht(
+                DhtTracker::builder()
+                    .default_routing_nodes()
+                    .build()
+                    .await
+                    .map_err(|e| Error::TorrentError(e.to_string()))?,
+            )
             .build()
             .map(|e| Box::new(e))
             .map_err(|e| Error::TorrentError(e.to_string()))?;
@@ -453,7 +459,7 @@ impl InnerTorrentManager {
                 ))
             }
             SessionState::Running => Ok(()),
-            SessionState::Error => Err(Error::TorrentError(
+            SessionState::Error | SessionState::Stopped => Err(Error::TorrentError(
                 "session state is invalid, state SessionState::Error".to_string(),
             )),
         }

@@ -6,7 +6,8 @@ use std::time::Duration;
 
 use crate::torrent::tracker::manager::AnnounceEvent;
 use crate::torrent::tracker::{
-    AnnounceEntryResponse, Announcement, ScrapeResult, TrackerConnection, TrackerHandle,
+    AnnounceEntryResponse, Announcement, ConnectionMetrics, ScrapeResult, TrackerConnection,
+    TrackerHandle,
 };
 use crate::torrent::tracker::{Result, TrackerError};
 use crate::torrent::InfoHash;
@@ -33,6 +34,7 @@ pub struct UdpConnection {
     addrs: AddressManager,
     session: Option<UdpConnectionSession>,
     timeout: Duration,
+    metrics: ConnectionMetrics,
     cancellation_token: CancellationToken,
 }
 
@@ -65,6 +67,7 @@ impl TrackerConnection for UdpConnection {
                 0x41727101980, // the magical connection id constant, see BEP15
                 transaction_id,
                 &socket,
+                &self.metrics,
                 &self.cancellation_token,
             )
             .await?;
@@ -148,6 +151,10 @@ impl TrackerConnection for UdpConnection {
         }
     }
 
+    fn metrics(&self) -> &ConnectionMetrics {
+        &self.metrics
+    }
+
     fn close(&mut self) {
         trace!("Closing udp connection");
         self.cancellation_token.cancel();
@@ -161,6 +168,7 @@ impl UdpConnection {
             addrs: AddressManager::new(addrs),
             session: Default::default(),
             timeout,
+            metrics: Default::default(),
             cancellation_token: Default::default(),
         }
     }
@@ -192,6 +200,7 @@ impl UdpConnection {
                 session.connection_id,
                 session.transaction_id,
                 &session.socket,
+                &self.metrics,
                 &self.cancellation_token,
             )
             .await
@@ -237,14 +246,18 @@ impl UdpConnection {
         if let Some(session) = &self.session {
             trace!(
                 "Reading udp message from socket {:?}",
-                session.socket.peer_addr().unwrap()
+                session.socket.peer_addr()?
             );
             let mut buffer = vec![0; 16 * 1024];
             let buffer_size = timeout(self.timeout.clone(), session.socket.recv(&mut buffer))
                 .await?
-                .map_err(|e| TrackerError::from(e))?;
+                .map_err(|e| {
+                    self.metrics.timeouts.inc();
+                    TrackerError::from(e)
+                })?;
 
             // make sure we shrink the buffer to the expected size before returning
+            self.metrics.bytes_in.inc_by(buffer_size as u64);
             Ok(buffer.into_iter().take(buffer_size).collect())
         } else {
             Err(TrackerError::Connection(
@@ -310,6 +323,7 @@ impl UdpConnection {
         connection_id: u64,
         transaction_id: u32,
         socket: &UdpSocket,
+        metrics: &ConnectionMetrics,
         cancellation_token: &CancellationToken,
     ) -> Result<()> {
         let mut buffer: Vec<u8> = Vec::new();
@@ -330,6 +344,7 @@ impl UdpConnection {
             buffer.len(),
             socket.peer_addr()?
         );
+        metrics.bytes_out.inc_by(buffer.len() as u64);
         select! {
             _ = cancellation_token.cancelled() => Err(TrackerError::Connection("connection is being closed".to_string())),
             response = socket.send(buffer.as_ref()) => {

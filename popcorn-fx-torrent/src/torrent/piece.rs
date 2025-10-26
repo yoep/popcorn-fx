@@ -1,6 +1,5 @@
 use crate::torrent::{overlapping_range, InfoHash};
 use bit_vec::BitVec;
-use log::trace;
 use std::cmp::Ordering;
 use std::ops::Range;
 
@@ -66,7 +65,7 @@ pub struct Piece {
     pub hash: InfoHash,
     /// The index of the piece
     pub index: PieceIndex,
-    /// The offset of the piece within the torrent
+    /// The offset in bytes of the piece within the torrent
     pub offset: usize,
     /// The piece length in bytes
     pub length: usize,
@@ -170,7 +169,7 @@ impl Piece {
     ///
     /// It returns a `Range<usize>` indicating the piece's position in bytes within the torrent,
     /// starting from its offset and extending to its length.
-    pub fn torrent_range(&self) -> std::ops::Range<usize> {
+    pub fn torrent_range(&self) -> Range<usize> {
         self.offset..(self.offset + self.length)
     }
 
@@ -185,34 +184,14 @@ impl Piece {
             .collect()
     }
 
-    /// Increase the availability of this piece.
-    /// If a peer has completed this piece, the availability should increase.
-    pub(crate) fn increase_availability(&mut self) {
-        self.availability += 1;
-    }
-
-    /// Decrease the availability of this piece.
-    /// If a peer that had this piece disconnected, the availability should decrease.
-    pub(crate) fn decrease_availability(&mut self) {
-        if self.availability == 0 {
-            trace!(
-                "Tried to decrease availability of piece {} below 0",
-                self.index
-            );
-            return;
-        }
-
-        self.availability -= 1;
-    }
-
     /// Mark this piece as fully completed.
     pub(crate) fn mark_completed(&mut self) {
         self.completed_parts.set_all();
     }
 
     /// Mark a part of this piece as completed
-    pub(crate) fn part_completed(&mut self, part: PartIndex) {
-        self.completed_parts.set(part, true);
+    pub(crate) fn part_completed(&mut self, part: &PartIndex) {
+        self.completed_parts.set(*part, true);
     }
 
     /// Reset completed parts in case the validation of the data failed.
@@ -288,52 +267,16 @@ mod tests {
     }
 
     #[test]
-    fn test_piece_increase_availability() {
-        let mut piece = Piece::new(InfoHash::default(), 0, 0, 1024);
-        let expected_result = 2;
-
-        piece.increase_availability();
-        piece.increase_availability();
-        let result = piece.availability();
-
-        assert_eq!(expected_result, result);
-    }
-
-    #[test]
-    fn test_piece_decrease_availability() {
-        let mut piece = Piece::new(InfoHash::default(), 0, 0, 1024);
-
-        piece.increase_availability();
-        piece.increase_availability();
-        piece.decrease_availability();
-
-        let result = piece.availability();
-        assert_eq!(1, result);
-    }
-
-    #[test]
-    fn test_piece_decrease_availability_overflow() {
-        let mut piece = Piece::new(InfoHash::default(), 0, 0, 1024);
-
-        piece.increase_availability();
-        piece.decrease_availability();
-        piece.decrease_availability();
-
-        let result = piece.availability();
-        assert_eq!(0, result);
-    }
-
-    #[test]
     fn test_piece_is_completed() {
         let mut piece = create_piece(0, 3);
 
-        piece.part_completed(0);
-        piece.part_completed(1);
+        piece.part_completed(&0);
+        piece.part_completed(&1);
 
         let result = piece.is_completed();
         assert_eq!(false, result);
 
-        piece.part_completed(2);
+        piece.part_completed(&2);
 
         let result = piece.is_completed();
         assert_eq!(true, result);

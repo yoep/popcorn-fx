@@ -1,6 +1,6 @@
 use crate::torrent::peer::{
-    ConnectionDirection, ConnectionProtocol, Peer, PeerClientInfo, PeerEvent, PeerHandle, PeerId,
-    PeerState, PeerStats,
+    ConnectionDirection, ConnectionProtocol, Metrics, Peer, PeerClientInfo, PeerEvent, PeerHandle,
+    PeerId, PeerState,
 };
 use crate::torrent::PieceIndex;
 use async_trait::async_trait;
@@ -22,6 +22,7 @@ const CRC32: Crc<u32> = Crc::<u32>::new(&CRC_32_ISCSI);
 pub struct TorrentPeer {
     handle: PeerHandle,
     addr: SocketAddr,
+    metrics: Metrics,
     inner: Weak<dyn Peer>,
 }
 
@@ -31,6 +32,7 @@ impl TorrentPeer {
         Self {
             handle: peer.handle(),
             addr: peer.addr(),
+            metrics: peer.metrics().clone(), // store a reference to the metrics
             inner: Arc::downgrade(peer),
         }
     }
@@ -87,12 +89,8 @@ impl Peer for TorrentPeer {
         PeerState::Closed
     }
 
-    async fn stats(&self) -> PeerStats {
-        if let Some(inner) = self.instance() {
-            return inner.stats().await;
-        }
-
-        PeerStats::default()
+    fn metrics(&self) -> &Metrics {
+        &self.metrics
     }
 
     async fn is_seed(&self) -> bool {
@@ -262,6 +260,8 @@ impl PeerPriority {
         Some(Self::crc32_hash_pair(&bytes, &other_bytes))
     }
 
+    /// Create an empty peer priority.
+    /// This priority has no underlying value.
     pub fn none() -> Self {
         Self(None)
     }
@@ -315,10 +315,9 @@ impl From<(&SocketAddr, &SocketAddr)> for PeerPriority {
     }
 }
 
-#[cfg(test)]
-impl From<Option<u32>> for PeerPriority {
-    fn from(value: Option<u32>) -> Self {
-        Self(value)
+impl From<u32> for PeerPriority {
+    fn from(value: u32) -> Self {
+        Self(Some(value))
     }
 }
 
@@ -337,6 +336,7 @@ mod tests {
             peer.expect_handle().return_const(PeerHandle::new());
             peer.expect_addr()
                 .return_const(SocketAddr::from(([127, 0, 0, 1], 6881)));
+            peer.expect_metrics().return_const(Metrics::default());
             let peer = Arc::from(Box::new(peer) as Box<dyn Peer>);
             let torrent_peer = TorrentPeer::new(&peer);
 
@@ -355,6 +355,7 @@ mod tests {
             peer.expect_handle().return_const(handle);
             peer.expect_addr()
                 .return_const(SocketAddr::from(([127, 0, 0, 1], 6881)));
+            peer.expect_metrics().return_const(Metrics::default());
             let peer = Arc::from(Box::new(peer) as Box<dyn Peer>);
             let torrent_peer = TorrentPeer::new(&peer);
 
@@ -373,6 +374,7 @@ mod tests {
             peer.expect_addr()
                 .return_const(SocketAddr::from(([127, 0, 0, 1], 6881)));
             peer.expect_state().returning(|| PeerState::Downloading);
+            peer.expect_metrics().return_const(Metrics::default());
             let peer = Arc::from(Box::new(peer) as Box<dyn Peer>);
             let torrent_peer = TorrentPeer::new(&peer);
 

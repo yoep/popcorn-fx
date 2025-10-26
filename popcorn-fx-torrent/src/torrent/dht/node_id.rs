@@ -12,7 +12,7 @@ const MAX_DISTANCE: u8 = NODE_ID_SIZE as u8 * 8; // = 160
 const CRC32: Crc<u32> = Crc::<u32>::new(&CRC_32_ISCSI);
 
 /// The unique DHT node identifier.
-#[derive(Copy, Clone, PartialEq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct NodeId([u8; NODE_ID_SIZE]);
 
 impl NodeId {
@@ -131,6 +131,11 @@ impl NodeId {
     ///
     /// Returns `true` if the source ip is valid, else `false`.
     pub fn verify_id(&self, source_ip: &IpAddr) -> bool {
+        self.is_secure_id(&source_ip) || self.is_plausible_legacy_id()
+    }
+
+    /// Verify if this node follows the BEP42 verification.
+    pub fn is_secure_id(&self, source_ip: &IpAddr) -> bool {
         // no need to verify local IPs, they would be incorrect anyway
         if source_ip.is_local() {
             return true;
@@ -142,6 +147,12 @@ impl NodeId {
         self.0[0] == verification_id.0[0]
             && self.0[1] == verification_id.0[1]
             && (self.0[2] & 0xf8) == (verification_id.0[2] & 0xf8)
+    }
+
+    fn is_plausible_legacy_id(&self) -> bool {
+        let first = self.0[0];
+        // reject all-zeros and single-byte repeats
+        !self.0.iter().all(|&b| b == 0) && !self.0.iter().all(|&b| b == first)
     }
 }
 
@@ -206,6 +217,20 @@ impl<'de> Deserialize<'de> for NodeId {
 
 pub trait IsLocal {
     /// Verify if the ip address is a local address.
+    /// This includes the following IP blocks:
+    ///
+    /// ```text
+    /// 10.0.0.0/8
+    ///     reserved for local networks
+    /// 172.16.0.0/12
+    ///     reserved for local networks
+    /// 192.168.0.0/16
+    ///     reserved for local networks
+    /// 169.254.0.0/16
+    ///     reserved for self-assigned IPs
+    /// 127.0.0.0/8
+    ///     reserved for loopback
+    /// ```
     ///
     /// # Returns
     ///
@@ -322,23 +347,6 @@ mod tests {
             let result = NodeId::from_ip_with_rand(&ip, rand);
 
             assert_id_prefix(&[0x5a, 0x3c, 0xe9], result.as_slice());
-            assert_eq!(
-                rand,
-                result.as_slice()[19],
-                "expected the last byte to match the rand"
-            );
-        }
-
-        // FIXME: check with the original libtorrent test
-        #[test]
-        #[ignore]
-        fn test_from_ip_rand_22() {
-            let ip = [21, 75, 31, 124].into();
-            let rand = 22;
-
-            let result = NodeId::from_ip_with_rand(&ip, rand);
-
-            assert_id_prefix(&[0xa5, 0xd4, 0x32], result.as_slice());
             assert_eq!(
                 rand,
                 result.as_slice()[19],

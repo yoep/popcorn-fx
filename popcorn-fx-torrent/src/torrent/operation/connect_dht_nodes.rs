@@ -4,15 +4,16 @@ use log::{debug, trace, warn};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+/// Connect to the DHT nodes defined within the torrent metadata.
 #[derive(Debug)]
-pub struct TorrentConnectDhtNodesOperation {
-    inner: Arc<InnerConnectDhtNodesOperation>,
+pub struct TorrentDhtNodesOperation {
+    inner: Arc<InnerDhtNodesOperation>,
 }
 
-impl TorrentConnectDhtNodesOperation {
+impl TorrentDhtNodesOperation {
     pub fn new() -> Self {
         Self {
-            inner: Arc::new(InnerConnectDhtNodesOperation {
+            inner: Arc::new(InnerDhtNodesOperation {
                 initialized: Default::default(),
                 running: Default::default(),
             }),
@@ -21,7 +22,7 @@ impl TorrentConnectDhtNodesOperation {
 }
 
 #[async_trait]
-impl TorrentOperation for TorrentConnectDhtNodesOperation {
+impl TorrentOperation for TorrentDhtNodesOperation {
     fn name(&self) -> &str {
         "connect torrent DHT nodes operation"
     }
@@ -46,12 +47,12 @@ impl TorrentOperation for TorrentConnectDhtNodesOperation {
 }
 
 #[derive(Debug)]
-struct InnerConnectDhtNodesOperation {
+struct InnerDhtNodesOperation {
     initialized: AtomicBool,
     running: AtomicBool,
 }
 
-impl InnerConnectDhtNodesOperation {
+impl InnerDhtNodesOperation {
     /// Check if the operation is currently connecting to DHT nodes.
     fn is_connecting(&self) -> bool {
         self.running.load(Ordering::Relaxed)
@@ -112,11 +113,8 @@ impl InnerConnectDhtNodesOperation {
 #[cfg(test)]
 mod tests {
     use super::*;
-
     use crate::torrent::TorrentError;
-    use crate::torrent::{TorrentConfig, TorrentFlags};
     use crate::{create_torrent, init_logger};
-
     use std::time::Duration;
     use tempfile::tempdir;
     use tokio::select;
@@ -137,7 +135,7 @@ mod tests {
             vec![]
         );
         let context = torrent.instance().unwrap();
-        let operation = TorrentConnectDhtNodesOperation::new();
+        let operation = TorrentDhtNodesOperation::new();
 
         let result = operation.execute(&context).await;
         assert_eq!(

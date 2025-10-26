@@ -8,6 +8,7 @@ use tokio::sync::Mutex;
 const RETRIEVE_INTERVAL: Duration = Duration::from_secs(90);
 const RETRIEVE_TIMEOUT: Duration = Duration::from_secs(3);
 
+/// Retrieve potential peer addresses for the torrent through the DHT network.
 #[derive(Debug)]
 pub struct TorrentDhtPeersOperation {
     last_executed: Mutex<Option<Instant>>,
@@ -67,13 +68,9 @@ impl TorrentOperation for TorrentDhtPeersOperation {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    use crate::torrent::dht::DEFAULT_BOOTSTRAP_SERVERS;
-    use crate::torrent::dns::DnsResolver;
-    use crate::torrent::{TorrentConfig, TorrentFlags};
+    use crate::torrent::dht::DhtTracker;
+    use crate::torrent::storage::MemoryStorage;
     use crate::{create_torrent, init_logger};
-
-    use std::str::FromStr;
     use tempfile::tempdir;
 
     #[tokio::test]
@@ -88,30 +85,16 @@ mod tests {
             TorrentFlags::none(),
             TorrentConfig::default(),
             vec![],
-            vec![]
+            vec![],
+            |_| Box::new(MemoryStorage::new()),
+            DhtTracker::builder()
+                .default_routing_nodes()
+                .build()
+                .await
+                .unwrap()
         );
         let context = torrent.instance().unwrap();
         let operation = TorrentDhtPeersOperation::new();
-
-        // add the default dht nodes
-        {
-            let dht = context
-                .dht()
-                .expect("expected the dht tracker to have been present");
-
-            for addr in DEFAULT_BOOTSTRAP_SERVERS() {
-                if let Ok(resolver) = DnsResolver::from_str(addr) {
-                    resolver
-                        .resolve()
-                        .await
-                        .into_iter()
-                        .flatten()
-                        .for_each(|addr| {
-                            dht.add_router_node(addr);
-                        })
-                }
-            }
-        }
 
         // execute the operation
         let result = operation.execute(&context).await;

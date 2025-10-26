@@ -2,6 +2,7 @@ use crate::app::FXKeyEvent;
 use crate::menu::widget::MenuSectionWidget;
 use crate::menu::{MenuCommand, MenuSection, MenuWidget};
 use crate::widget::InputWidget;
+use async_trait::async_trait;
 use crossterm::event::KeyCode;
 use ratatui::layout::Constraint::{Fill, Length};
 use ratatui::layout::{Layout, Rect};
@@ -21,7 +22,7 @@ pub struct MenuAddTorrent {
 impl MenuAddTorrent {
     pub fn new(menu_sender: UnboundedSender<MenuCommand>) -> Self {
         Self {
-            input: InputWidget::new_with_opts(true),
+            input: InputWidget::new_with_opts("", true),
             error: None,
             menu_sender,
         }
@@ -47,6 +48,7 @@ impl MenuAddTorrent {
     }
 }
 
+#[async_trait]
 impl MenuSectionWidget for MenuAddTorrent {
     fn preferred_width(&self) -> u16 {
         128
@@ -109,5 +111,9 @@ impl MenuSectionWidget for MenuAddTorrent {
                 .style(Style::new().bold().fg(Color::Red))
                 .render(invalid_area, frame.buffer_mut());
         }
+    }
+
+    async fn tick(&mut self) {
+        // no-op
     }
 }

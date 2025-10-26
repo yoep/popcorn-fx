@@ -607,6 +607,9 @@ pub struct TorrentMetadata {
     /// Optional list of URLs associated with the torrent.
     #[serde(rename = "url-list")]
     pub url_list: Option<UrlList>,
+    /// Optional list of http webseeds of the torrent.
+    #[serde(default, rename = "httpseeds")]
+    pub http_seeds: Option<Vec<String>>,
     /// When metadata (.torrent file) isn't available, this uniquely identifies the torrent
     /// and validates the info-dict when received from the swarm.
     #[serde(skip)]
@@ -794,19 +797,19 @@ impl TryFrom<Magnet> for TorrentMetadata {
 
         // extract the display name
         if let Some(name) = value.display_name.as_ref() {
-            builder = builder.name(name);
+            builder.name(name);
         }
         // extract the trackers
         for tracker in value.trackers() {
-            builder = builder.tracker(tracker);
+            builder.tracker(tracker);
         }
         // extract webseeds
         let webseeds: UrlList = value.ws().into_iter().map(|e| e.clone()).collect();
         if !webseeds.is_empty() {
-            builder = builder.url_list(webseeds);
+            builder.url_list(webseeds);
         }
         // extract the info hash
-        builder = builder.info_hash(InfoHash::try_from_str_slice(value.xt().as_slice())?);
+        builder.info_hash(InfoHash::try_from_str_slice(value.xt().as_slice())?);
 
         Ok(builder.build())
     }
@@ -869,6 +872,7 @@ pub struct TorrentMetadataBuilder {
     created_by: Option<String>,
     encoding: Option<String>,
     url_list: Option<UrlList>,
+    http_seeds: Option<Vec<String>>,
     info_hash: Option<InfoHash>,
     piece_layers: Option<HashMap<String, String>>,
 }
@@ -892,7 +896,7 @@ impl TorrentMetadataBuilder {
     /// # Returns
     ///
     /// The updated `TorrentInfoBuilder` instance.
-    pub fn name<T: Into<String>>(mut self, name: T) -> Self {
+    pub fn name<T: Into<String>>(&mut self, name: T) -> &mut Self {
         self.name = Some(name.into());
         self
     }
@@ -906,7 +910,7 @@ impl TorrentMetadataBuilder {
     /// # Returns
     ///
     /// The updated `TorrentInfoBuilder` instance.
-    pub fn announce<T: Into<String>>(mut self, announce: T) -> Self {
+    pub fn announce<T: Into<String>>(&mut self, announce: T) -> &mut Self {
         self.announce = Some(announce.into());
         self
     }
@@ -920,7 +924,7 @@ impl TorrentMetadataBuilder {
     /// # Returns
     ///
     /// The updated `TorrentInfoBuilder` instance.
-    pub fn info(mut self, info: TorrentMetadataInfo) -> Self {
+    pub fn info(&mut self, info: TorrentMetadataInfo) -> &mut Self {
         self.info = Some(info);
         self
     }
@@ -934,7 +938,7 @@ impl TorrentMetadataBuilder {
     /// # Returns
     ///
     /// The updated `TorrentInfoBuilder` instance.
-    pub fn announce_list(mut self, announce_list: Vec<Vec<String>>) -> Self {
+    pub fn announce_list(&mut self, announce_list: Vec<Vec<String>>) -> &mut Self {
         self.announce_list = Some(announce_list);
         self
     }
@@ -944,7 +948,7 @@ impl TorrentMetadataBuilder {
     /// # Arguments
     ///
     /// * `nodes` - The DHT nodes to add.
-    pub fn nodes(mut self, nodes: Vec<TorrentNode>) -> Self {
+    pub fn nodes(&mut self, nodes: Vec<TorrentNode>) -> &mut Self {
         let builder_nodes = &mut self.nodes.get_or_insert(Vec::new());
         for node in nodes {
             builder_nodes.push(node);
@@ -967,14 +971,9 @@ impl TorrentMetadataBuilder {
     /// # Arguments
     ///
     /// * `tracker_uri` - The URL of the tracker to add.
-    ///
-    /// # Returns
-    ///
-    /// The updated `TorrentInfoBuilder` instance.
-    pub fn tracker<T: Into<String>>(mut self, tracker_uri: T) -> Self {
-        let mut announce_list = self.announce_list.unwrap_or_else(Vec::new);
+    pub fn tracker<T: Into<String>>(&mut self, tracker_uri: T) -> &mut Self {
+        let announce_list = self.announce_list.get_or_insert(Vec::new());
         announce_list.push(vec![tracker_uri.into()]);
-        self.announce_list = Some(announce_list);
         self
     }
 
@@ -983,11 +982,7 @@ impl TorrentMetadataBuilder {
     /// # Arguments
     ///
     /// * `creation_date` - The creation date as a Unix timestamp.
-    ///
-    /// # Returns
-    ///
-    /// The updated `TorrentInfoBuilder` instance.
-    pub fn creation_date(mut self, creation_date: u64) -> Self {
+    pub fn creation_date(&mut self, creation_date: u64) -> &mut Self {
         self.creation_date = Some(creation_date);
         self
     }
@@ -997,11 +992,7 @@ impl TorrentMetadataBuilder {
     /// # Arguments
     ///
     /// * `comment` - A comment associated with the torrent.
-    ///
-    /// # Returns
-    ///
-    /// The updated `TorrentInfoBuilder` instance.
-    pub fn comment<T: Into<String>>(mut self, comment: T) -> Self {
+    pub fn comment<T: Into<String>>(&mut self, comment: T) -> &mut Self {
         self.comment = Some(comment.into());
         self
     }
@@ -1011,11 +1002,7 @@ impl TorrentMetadataBuilder {
     /// # Arguments
     ///
     /// * `created_by` - The name of the creator.
-    ///
-    /// # Returns
-    ///
-    /// The updated `TorrentInfoBuilder` instance.
-    pub fn created_by(mut self, created_by: String) -> Self {
+    pub fn created_by(&mut self, created_by: String) -> &mut Self {
         self.created_by = Some(created_by);
         self
     }
@@ -1025,26 +1012,30 @@ impl TorrentMetadataBuilder {
     /// # Arguments
     ///
     /// * `encoding` - The encoding format.
-    ///
-    /// # Returns
-    ///
-    /// The updated `TorrentInfoBuilder` instance.
-    pub fn encoding(mut self, encoding: String) -> Self {
+    pub fn encoding(&mut self, encoding: String) -> &mut Self {
         self.encoding = Some(encoding);
         self
     }
 
     /// Sets the list of URLs associated with the torrent.
+    /// This will replace any existing url within the list.
     ///
     /// # Arguments
     ///
     /// * `url_list` - The `UrlList` containing associated URLs.
-    ///
-    /// # Returns
-    ///
-    /// The updated `TorrentInfoBuilder` instance.
-    pub fn url_list(mut self, url_list: UrlList) -> Self {
+    pub fn url_list(&mut self, url_list: UrlList) -> &mut Self {
         self.url_list = Some(url_list);
+        self
+    }
+
+    /// Set the list of HTTP webseeds for the torrent.
+    /// This will replace any existing http seeds within the list.
+    ///
+    /// # Arguments
+    ///
+    /// * `seeds` - The http webseeds.
+    pub fn http_seeds(&mut self, seeds: Vec<String>) -> &mut Self {
+        self.http_seeds = Some(seeds);
         self
     }
 
@@ -1053,11 +1044,7 @@ impl TorrentMetadataBuilder {
     /// # Arguments
     ///
     /// * `info_hash` - The `InfoHash` for the torrent.
-    ///
-    /// # Returns
-    ///
-    /// The updated `TorrentInfoBuilder` instance.
-    pub fn info_hash(mut self, info_hash: InfoHash) -> Self {
+    pub fn info_hash(&mut self, info_hash: InfoHash) -> &mut Self {
         self.info_hash = Some(info_hash);
         self
     }
@@ -1067,11 +1054,7 @@ impl TorrentMetadataBuilder {
     /// # Arguments
     ///
     /// * `piece_layers` - A `HashMap` of piece layers.
-    ///
-    /// # Returns
-    ///
-    /// The updated `TorrentInfoBuilder` instance.
-    pub fn piece_layers(mut self, piece_layers: HashMap<String, String>) -> Self {
+    pub fn piece_layers(&mut self, piece_layers: HashMap<String, String>) -> &mut Self {
         self.piece_layers = Some(piece_layers);
         self
     }
@@ -1082,23 +1065,25 @@ impl TorrentMetadataBuilder {
     ///
     /// A `TorrentInfo` instance containing the fields set in the builder.
     /// Panics if the `info_hash` field is not set.
-    pub fn build(self) -> TorrentMetadata {
+    pub fn build(&mut self) -> TorrentMetadata {
         TorrentMetadata {
-            name: self.name,
-            announce: self.announce,
-            info: self.info,
+            name: self.name.take(),
+            announce: self.announce.take(),
+            info: self.info.take(),
             info_byte_size: None,
-            piece_layers: self.piece_layers,
+            piece_layers: self.piece_layers.take(),
             magnet_uri: None,
-            announce_list: self.announce_list,
-            nodes: self.nodes,
-            creation_date: self.creation_date,
-            comment: self.comment,
-            created_by: self.created_by,
-            encoding: self.encoding,
-            url_list: self.url_list,
+            announce_list: self.announce_list.take(),
+            nodes: self.nodes.take(),
+            creation_date: self.creation_date.take(),
+            comment: self.comment.take(),
+            created_by: self.created_by.take(),
+            encoding: self.encoding.take(),
+            url_list: self.url_list.take(),
+            http_seeds: self.http_seeds.take(),
             info_hash: self
                 .info_hash
+                .take()
                 .expect("expected the info hash to be present"),
         }
     }
@@ -1320,7 +1305,6 @@ mod tests {
     use super::*;
 
     use crate::init_logger;
-    use popcorn_fx_core::testing::read_test_file_to_bytes;
     use std::str::FromStr;
 
     #[test]
@@ -1353,6 +1337,7 @@ mod tests {
 
     mod torrent_metadata {
         use super::*;
+        use crate::torrent::tests::read_test_file_to_bytes;
 
         #[test]
         fn test_tiered_trackers() {

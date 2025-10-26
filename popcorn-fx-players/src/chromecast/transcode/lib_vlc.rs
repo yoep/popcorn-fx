@@ -112,7 +112,7 @@ impl LibraryHandle {
     /// # Returns
     ///
     /// A `Result` containing the symbol if found, or an error.
-    pub fn get<T>(&self, name: &[u8]) -> Result<Symbol<T>, libloading::Error> {
+    pub fn get<T>(&self, name: &[u8]) -> Result<Symbol<'_, T>, libloading::Error> {
         unsafe { self.libvlc.get(name) }
     }
 

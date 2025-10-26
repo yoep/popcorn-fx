@@ -1054,8 +1054,11 @@ mod tests {
 
         let mut receiver = manager.subscribe();
         tokio::spawn(async move {
-            if let Some(event) = receiver.recv().await {
-                tx.send((*event).clone()).unwrap();
+            while let Some(event) = receiver.recv().await {
+                if let TrackerManagerEvent::TrackerAdded(_) = &*event {
+                    tx.send((*event).clone()).unwrap();
+                    break;
+                }
             }
         });
 
@@ -1066,11 +1069,21 @@ mod tests {
 
         let result = timeout!(
             rx.recv(),
-            Duration::from_millis(200),
+            Duration::from_millis(750),
             "expected to receive an event"
         )
         .unwrap();
-        if let TrackerManagerEvent::TrackerAdded(_) = result {
+        if let TrackerManagerEvent::TrackerAdded(handle) = result {
+            let result = manager
+                .trackers()
+                .await
+                .into_iter()
+                .any(|e| e.handle() == handle);
+            assert!(
+                result,
+                "expected tracker {} to have been present within the managed",
+                handle
+            );
         } else {
             assert!(
                 false,

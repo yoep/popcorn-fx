@@ -1470,7 +1470,7 @@ impl PeerContext {
     /// This tries to retrieve the requested data from the torrent.
     async fn handle_remote_pending_request(&self, request: Request) {
         // check if the request is still queued
-        // if not, it has been cancelled in the meantime
+        // if not, it has been canceled in the meantime
         let mut mutex = self.remote_pending_requests.write().await;
         if let Some(position) = mutex.iter().position(|e| e == &request) {
             let _ = mutex.remove(position);
@@ -1491,61 +1491,54 @@ impl PeerContext {
             return;
         }
 
-        if self
+        // check if the piece request is valid
+        // if not, reject the request
+        if !self.validate_piece_request(&request).await {
+            debug!("Peer {} received invalid piece request {:?}", self, request);
+            self.send_reject_request(request).await;
+            return;
+        }
+
+        if *self.state.read().await != PeerState::Uploading {
+            self.send_command_event(PeerCommandEvent::State(PeerState::Uploading));
+        }
+
+        let request_end = request.begin + request.length;
+        match self
             .torrent
-            .piece_pool()
-            .is_piece_completed(&request.index)
+            .read_piece_bytes(request.index, request.begin..request_end)
             .await
         {
-            if *self.state.read().await != PeerState::Uploading {
-                self.send_command_event(PeerCommandEvent::State(PeerState::Uploading));
-            }
-
-            let request_end = request.begin + request.length;
-            match self
-                .torrent
-                .read_piece_bytes(request.index, request.begin..request_end)
-                .await
-            {
-                Ok(data) => {
-                    let data_len = data.len();
-                    match self
-                        .send(Message::Piece(Piece {
-                            index: request.index,
-                            begin: request.begin,
-                            data,
-                        }))
-                        .await
-                    {
-                        Ok(_) => {
-                            debug!(
-                                "Peer {} sent piece {} data part (size {}) to remote peer",
-                                self, request.index, data_len
-                            );
-                            self.metrics.bytes_out_useful.inc_by(data_len as u64);
-                        },
-                        Err(e) => warn!(
-                            "Peer {} failed to sent piece {} data part (size {}) to remote peer, {}",
-                            self, request.index, data_len, e
-                        ),
+            Ok(data) => {
+                let data_len = data.len();
+                match self
+                    .send(Message::Piece(Piece {
+                        index: request.index,
+                        begin: request.begin,
+                        data,
+                    }))
+                    .await
+                {
+                    Ok(_) => {
+                        debug!(
+                            "Peer {} sent piece {} data part (size {}) to remote peer",
+                            self, request.index, data_len
+                        );
+                        self.metrics.bytes_out_useful.inc_by(data_len as u64);
                     }
-                }
-                Err(e) => {
-                    warn!(
-                        "Peer {} failed read piece {} data, {}",
-                        self, request.index, e
-                    );
-                    self.send_reject_request(request).await;
+                    Err(e) => warn!(
+                        "Peer {} failed to sent piece {} data part (size {}) to remote peer, {}",
+                        self, request.index, data_len, e
+                    ),
                 }
             }
-        } else {
-            let piece = request.index;
-            debug!(
-                "Peer {} is unable to provide piece {} data, torrent doesn't have the piece data available",
-                self, piece
-            );
-
-            self.send_reject_request(request).await;
+            Err(e) => {
+                warn!(
+                    "Peer {} failed read piece {} data, {}",
+                    self, request.index, e
+                );
+                self.send_reject_request(request).await;
+            }
         }
     }
 
@@ -2691,6 +2684,33 @@ impl PeerContext {
             trace!("Peer {} has more wanted pieces from the remote peer", self);
             self.check_for_wanted_pieces().await;
         }
+    }
+
+    /// Verify that the given piece request is valid to be processed.
+    /// This will check that the requested range is within the piece range and that the piece is completed.
+    async fn validate_piece_request(&self, request: &Request) -> bool {
+        let piece_pool = self.torrent.piece_pool();
+
+        if piece_pool.is_piece_completed(&request.index).await {
+            if let Some(piece) = piece_pool.get(&request.index).await {
+                let piece_len = piece.length;
+                let request_end = request.begin + request.length;
+
+                return request.begin < piece_len && request_end <= piece_len;
+            } else {
+                warn!(
+                    "Peer {} failed to retrieve piece data of {}",
+                    self, request.index
+                );
+            }
+        } else {
+            debug!(
+                "Peer {} received piece request for incomplete piece {}",
+                self, request.index
+            );
+        }
+
+        false
     }
 
     /// Find the supported extension from our own client extensions through the extensions number.

@@ -88,20 +88,21 @@ impl DiskStorage {
         self.assert_valid_filepath(&absolute_path).await?;
 
         if write {
-            create_dir_all(absolute_path.parent().unwrap_or(&self.path.read().await))
-                .await
-                .map_err(|e| Error::Io(e))?;
+            let base_dir = self.path.read().await.clone();
+            let parent = absolute_path.parent().unwrap_or(base_dir.as_path());
+            create_dir_all(parent).await.map_err(Error::Io)?;
         }
 
-        Ok(OpenOptions::new()
+        OpenOptions::new()
             .read(true)
             .write(write)
             .create(write)
             .open(absolute_path)
-            .await?)
+            .await
+            .map_err(Error::Io)
     }
 
-    /// The readwrite file index and torrent offset to start from for the given piece and offset.
+    /// The read/write file index and torrent offset to start from for the given piece and offset.
     async fn readwrite(
         &self,
         piece: &PieceIndex,
@@ -117,8 +118,11 @@ impl DiskStorage {
             .ok_or(Error::Unavailable)?;
 
         // check if the requested range is still within the torrent range
+        let end = torrent_offset
+            .checked_add(buffer_len)
+            .ok_or(Error::OutOfBounds)?;
         let torrent_len = self.torrent_len().await;
-        if torrent_offset + buffer_len > torrent_len {
+        if end > torrent_len {
             return Err(Error::OutOfBounds);
         }
 
@@ -132,8 +136,7 @@ impl DiskStorage {
     }
 
     /// Get the canonicalized path for the given path.
-    /// This function traverses the path components and resolves ".." and "." appropriately.
-    /// It returns the resulting path.
+    /// Resolves "." and ".." without touching the filesystem (symlinks not resolved).
     fn canonicalize_unchecked(path: &Path) -> PathBuf {
         let components = path.components();
         let mut result = PathBuf::new();
@@ -151,8 +154,9 @@ impl DiskStorage {
                 std::path::Component::Normal(part) => {
                     result.push(part);
                 }
-                // Handle other components, like RootDir, if necessary
-                _ => {}
+                std::path::Component::RootDir | std::path::Component::Prefix(_) => {
+                    result.push(component.as_os_str());
+                }
             }
         }
 
@@ -174,7 +178,7 @@ impl Storage for DiskStorage {
                 .get(&file_index)
                 .await
                 .ok_or(Error::Unavailable)?;
-            let bytes_remaining = buffer_len - cursor;
+            let bytes_remaining = buffer_len.saturating_sub(cursor);
 
             // check if the file is a padding file
             // if so, we skip the bytes as they all yield zero
@@ -210,20 +214,32 @@ impl Storage for DiskStorage {
             let mut fs_file = self.open(&file.torrent_path, false).await?;
             let start_offset = torrent_offset.saturating_sub(file.torrent_offset);
             fs_file.seek(SeekFrom::Start(start_offset as u64)).await?;
-            let bytes_read = fs_file
-                .read(&mut buffer[cursor..cursor + bytes_remaining])
-                .await?;
 
-            cursor += bytes_read;
-            torrent_offset += bytes_read;
-            file_index += 1;
-            self.metrics.bytes_read.inc_by(bytes_read as u64);
+            let mut total_bytes_read = 0;
+            while total_bytes_read < bytes_remaining {
+                let bytes_read = fs_file
+                    .read(&mut buffer[cursor + total_bytes_read..cursor + bytes_remaining])
+                    .await?;
 
-            // check if all bytes of the file are available
+                // check if we've reached EOF
+                if bytes_read == 0 {
+                    break;
+                }
+
+                total_bytes_read += bytes_read;
+                self.metrics.bytes_read.inc_by(bytes_read as u64);
+            }
+
+            cursor += total_bytes_read;
+
+            // check if all bytes from the file where available
             // if not, don't read the next file
-            if start_offset + bytes_read < file.len() {
+            if start_offset + total_bytes_read < file.len() {
                 break;
             }
+
+            file_index += 1;
+            torrent_offset += total_bytes_read;
         }
 
         Ok(cursor)

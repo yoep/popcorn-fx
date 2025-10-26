@@ -2964,6 +2964,7 @@ mod tests {
     use crate::{create_torrent, timeout};
 
     use crate::torrent::tests::{copy_test_file, read_test_file_to_bytes};
+    use log::LevelFilter;
     use std::ops::Sub;
     use std::str::FromStr;
     use tempfile::tempdir;
@@ -3105,14 +3106,14 @@ mod tests {
             temp_path_source,
             TorrentFlags::UploadMode,
             TorrentConfig::default(),
-            vec![|| Box::new(TorrentConnectPeersOperation::new()),]
+            vec![]
         );
         let target_torrent = create_torrent!(
             "debian-udp.torrent",
             temp_path_target,
             TorrentFlags::DownloadMode | TorrentFlags::Paused,
             TorrentConfig::default(),
-            vec![]
+            vec![|| Box::new(TorrentConnectPeersOperation::new()),]
         );
         let source_context = source_torrent.instance().unwrap();
 
@@ -3179,14 +3180,14 @@ mod tests {
             }
         });
 
-        // connect the source torrent to the target torrent
-        let source_context = source_torrent.instance().unwrap();
-        source_context
+        // connect the target torrent to the source torrent
+        // do not connect the source torrent to the target, as the source torrent is seeding and won't actively create new connections
+        target_context
             .peer_pool()
             .add_peer_addresses(
                 vec![SocketAddr::from((
                     [127, 0, 0, 1],
-                    target_torrent.peer_port().unwrap(),
+                    source_torrent.peer_port().unwrap(),
                 ))],
                 None,
             )

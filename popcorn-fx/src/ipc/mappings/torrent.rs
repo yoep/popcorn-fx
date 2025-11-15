@@ -214,7 +214,9 @@ impl From<&Error> for torrent::Error {
 mod tests {
     use super::*;
     use popcorn_fx_core::testing::read_test_file_to_bytes;
+    use popcorn_fx_torrent::torrent::metrics::Metric;
     use popcorn_fx_torrent::torrent::TorrentMetadata;
+    use std::time::Duration;
 
     #[test]
     fn test_health_state_from() {
@@ -360,9 +362,14 @@ mod tests {
     #[test]
     fn test_torrent_event_from_stats() {
         let metrics = Metrics::new();
+        metrics.download_useful.inc_by(2048);
+        metrics.upload_useful.inc_by(1024);
         metrics.wanted_pieces.set(100);
         metrics.wanted_completed_pieces.set(60);
         metrics.peers.set(70);
+        metrics.tick(Duration::from_secs(1));
+        metrics.download_useful.inc_by(2048);
+        metrics.upload_useful.inc_by(1024);
         let event = TorrentEvent::Stats(metrics);
         let expected_result = proto::torrent::TorrentEvent {
             torrent_handle: Default::default(),
@@ -376,15 +383,15 @@ mod tests {
                     progress: 0.6,
                     upload: 0,
                     upload_rate: 0,
-                    upload_useful: 0,
-                    upload_useful_rate: 0,
+                    upload_useful: 1024,
+                    upload_useful_rate: 204,
                     download: 0,
                     download_rate: 0,
-                    download_useful: 0,
-                    download_useful_rate: 0,
+                    download_useful: 2048,
+                    download_useful_rate: 409,
                     total_uploaded: 0,
                     total_downloaded: 0,
-                    total_downloaded_useful: 0,
+                    total_downloaded_useful: 4096,
                     wanted_pieces: 100,
                     completed_pieces: 60,
                     total_size: 0,

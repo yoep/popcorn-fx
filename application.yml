@@ -8,6 +8,8 @@ popcorn:
       level: warn
     popcorn_fx_core:
       level: info
+    popcorn_fx_core::core::event:
+      level: info
     popcorn_fx_core::core::loader:
       level: info
     popcorn_fx_core::core::media:
@@ -18,6 +20,8 @@ popcorn:
       level: info
     popcorn_fx_core::core::torrents:
       level: info
+    popcorn_fx_core::core::torrents::stream:
+      level: debug
     popcorn_fx_players:
       level: warn
     popcorn_fx_opensubtitles:

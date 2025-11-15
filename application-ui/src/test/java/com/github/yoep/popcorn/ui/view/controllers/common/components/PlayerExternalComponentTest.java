@@ -95,7 +95,7 @@ class PlayerExternalComponentTest {
         var request = Player.PlayRequest.newBuilder()
                 .setTitle(title)
                 .build();
-        when(imageService.load(isA(String.class))).thenReturn(new CompletableFuture<>());
+        lenient().when(imageService.load(isA(String.class))).thenReturn(new CompletableFuture<>());
         controller.initialize(url, resourceBundle);
 
         var listener = externalListenerHolder.get();

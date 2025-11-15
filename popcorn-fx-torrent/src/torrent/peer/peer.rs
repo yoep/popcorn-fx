@@ -2690,8 +2690,9 @@ impl PeerContext {
     /// This will check that the requested range is within the piece range and that the piece is completed.
     async fn validate_piece_request(&self, request: &Request) -> bool {
         let piece_pool = self.torrent.piece_pool();
+        let is_piece_completed = piece_pool.is_piece_completed(&request.index).await;
 
-        if piece_pool.is_piece_completed(&request.index).await {
+        if is_piece_completed {
             if let Some(piece) = piece_pool.get(&request.index).await {
                 let piece_len = piece.length;
                 let request_end = request.begin + request.length;
@@ -2806,8 +2807,11 @@ impl PeerContext {
         let _ = self.connection.close().await;
         // notify any subscribers
         self.update_state(PeerState::Closed).await;
+
         // notify the torrent that this peer is being closed
-        self.torrent.notify_peer_closed(self.client.handle);
+        if !self.torrent.is_cancelled() {
+            self.torrent.notify_peer_closed(self.client.handle);
+        }
     }
 
     /// Publish a command event to the peer that will be processed by the main loop.

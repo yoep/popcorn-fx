@@ -24,7 +24,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.ResourceBundle;
 
 @Slf4j
@@ -126,8 +125,10 @@ public class PlayerExternalComponent implements Initializable {
             titleText.setText(request.getTitle());
             captionText.setText(request.getCaption());
         });
-        Optional.ofNullable(request.getBackground())
-                .ifPresent(this::loadBackgroundImage);
+
+        if (request.hasBackground()) {
+            loadBackgroundImage(request.getBackground());
+        }
     }
 
     private void reset() {

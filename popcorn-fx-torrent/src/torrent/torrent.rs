@@ -262,6 +262,22 @@ impl TorrentRequest {
     pub fn build(&mut self) -> Result<Torrent> {
         Torrent::try_from(self)
     }
+
+    /// Get the list of default operations for the torrent.
+    pub fn default_operations() -> Vec<Box<dyn TorrentOperation>> {
+        vec![
+            Box::new(TorrentTrackersOperation::new()),
+            #[cfg(feature = "dht")]
+            Box::new(TorrentDhtNodesOperation::new()),
+            #[cfg(feature = "dht")]
+            Box::new(TorrentDhtPeersOperation::new()),
+            Box::new(TorrentConnectPeersOperation::new()),
+            Box::new(TorrentMetadataOperation::new()),
+            Box::new(TorrentCreatePiecesOperation::new()),
+            Box::new(TorrentCreateFilesOperation::new()),
+            Box::new(TorrentFileValidationOperation::new()),
+        ]
+    }
 }
 
 impl Debug for TorrentRequest {
@@ -296,7 +312,7 @@ impl TryFrom<&mut TorrentRequest> for Torrent {
         let extensions = request
             .extensions
             .take()
-            .unwrap_or_else(|| DEFAULT_TORRENT_EXTENSIONS());
+            .unwrap_or_else(DEFAULT_TORRENT_EXTENSIONS);
         let options = request.options.unwrap_or(TorrentFlags::default());
         let config = request
             .config
@@ -312,20 +328,10 @@ impl TryFrom<&mut TorrentRequest> for Torrent {
             path: config.path().to_path_buf(),
             files: file_pool.clone(),
         };
-        let operations = request.operations.take().unwrap_or_else(|| {
-            vec![
-                Box::new(TorrentTrackersOperation::new()),
-                #[cfg(feature = "dht")]
-                Box::new(TorrentDhtNodesOperation::new()),
-                #[cfg(feature = "dht")]
-                Box::new(TorrentDhtPeersOperation::new()),
-                Box::new(TorrentConnectPeersOperation::new()),
-                Box::new(TorrentMetadataOperation::new()),
-                Box::new(TorrentCreatePiecesOperation::new()),
-                Box::new(TorrentCreateFilesOperation::new()),
-                Box::new(TorrentFileValidationOperation::new()),
-            ]
-        });
+        let operations = request
+            .operations
+            .take()
+            .unwrap_or_else(TorrentRequest::default_operations);
         let dht = request.dht.take();
         let tracker_manager =
             request
@@ -1372,6 +1378,11 @@ impl TorrentContext {
         &self.peer_discoveries
     }
 
+    /// Returns `true` if the torrent is cancelled.
+    pub fn is_cancelled(&self) -> bool {
+        self.cancellation_token.is_cancelled()
+    }
+
     /// Returns a Future that gets fulfilled when the torrent is being cancelled/stopped.
     /// The future will complete immediately if the torrenbt is already cancelled when this method is called.
     pub fn cancelled(&self) -> WaitForCancellationFuture<'_> {
@@ -1840,6 +1851,7 @@ impl TorrentContext {
         match self.peer_pool.add_peer(peer).await {
             Ok(_) => {
                 debug!("Torrent {} added peer {}", self, info);
+                self.metrics.peers.inc();
                 self.invoke_event(TorrentEvent::PeerConnected(info));
             }
             Err(e) => {
@@ -1859,6 +1871,7 @@ impl TorrentContext {
                 self.pieces.update_availability(&piece_index, -1).await;
             }
 
+            self.metrics.peers.dec();
             self.invoke_event(TorrentEvent::PeerDisconnected(peer.client()));
         }
     }
@@ -2861,9 +2874,10 @@ impl TorrentContext {
     /// It will queue the command for execution on the main loop thread.
     pub fn send_command_event(&self, event: TorrentCommandEvent) {
         if let Err(e) = self.event_sender.send(event) {
-            warn!(
+            trace!(
                 "Failed to send command event of {} to the main loop, {}",
-                self, e
+                self,
+                e
             );
         }
     }
@@ -2964,7 +2978,6 @@ mod tests {
     use crate::{create_torrent, timeout};
 
     use crate::torrent::tests::{copy_test_file, read_test_file_to_bytes};
-    use log::LevelFilter;
     use std::ops::Sub;
     use std::str::FromStr;
     use tempfile::tempdir;

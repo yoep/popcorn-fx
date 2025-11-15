@@ -101,7 +101,7 @@ public class SubtitleServiceImpl implements ISubtitleService, FxCallback<Subtitl
                             return new SubtitleWrapper(response.getSubtitle());
                         } else {
                             log.error("Failed to download and parse subtitle for {}, {}", subtitleInfo, response.getError());
-                            throw new FxChannelException("Failed to download and parse subtitle");
+                            throw new SubtitleException(response.getError().getType(), "Failed to download and parse subtitle");
                         }
                     });
         } else {

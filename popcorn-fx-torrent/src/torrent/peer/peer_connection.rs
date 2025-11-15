@@ -366,7 +366,7 @@ where
 
     fn send(self_info: &str, sender: &UnboundedSender<PeerReaderEvent>, event: PeerReaderEvent) {
         if let Err(e) = sender.send(event) {
-            warn!("Peer {} reader failed to send event, {}", self_info, e)
+            trace!("Peer {} reader failed to send event, {}", self_info, e)
         }
     }
 }

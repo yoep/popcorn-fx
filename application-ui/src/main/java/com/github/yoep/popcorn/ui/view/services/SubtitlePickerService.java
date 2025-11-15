@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.ui.view.services;
 
+import com.github.yoep.popcorn.backend.PopcornException;
 import com.github.yoep.popcorn.backend.messages.SubtitleMessage;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleException;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
@@ -66,7 +67,7 @@ public class SubtitlePickerService {
         var primaryStage = viewManager.getPrimaryStage();
 
         if (primaryStage.isEmpty()) {
-            throw new SubtitleException("Unable to show subtitle picker, primary stage is unknown");
+            throw new PopcornException("Unable to show subtitle picker, primary stage is unknown");
         }
 
         return primaryStage.get();

@@ -10,10 +10,7 @@ import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
 import com.github.yoep.popcorn.backend.settings.AbstractApplicationSettingsEventListener;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.subtitles.ISubtitle;
-import com.github.yoep.popcorn.backend.subtitles.ISubtitleInfo;
-import com.github.yoep.popcorn.backend.subtitles.ISubtitleService;
-import com.github.yoep.popcorn.backend.subtitles.SubtitleInfoWrapper;
+import com.github.yoep.popcorn.backend.subtitles.*;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.view.services.SubtitlePickerService;
 import javafx.beans.property.*;
@@ -257,6 +254,12 @@ public class SubtitleManagerService {
                         onSubtitleDownloaded(subtitle);
                     })
                     .exceptionally(ex -> {
+                        if (ex instanceof SubtitleException err) {
+                            if (err.getErrorType() == Subtitle.Error.Type.NO_FILES_FOUND) {
+                                return null;
+                            }
+                        }
+
                         eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(VideoMessage.SUBTITLE_DOWNLOAD_FILED)));
                         return null;
                     });

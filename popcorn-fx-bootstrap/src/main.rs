@@ -1,18 +1,18 @@
 #![windows_subsystem = "windows"]
 
-use std::{env, thread};
+use std::env;
 use std::env::VarError;
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
+use crate::bootstrapper::{BootstrapError, Bootstrapper};
 use log::error;
 use signal_hook::consts::TERM_SIGNALS;
 use signal_hook::flag;
 use tokio::runtime::Runtime;
-
-use crate::bootstrapper::{BootstrapError, Bootstrapper};
+use tokio::time::sleep;
 
 mod bootstrapper;
 mod data_installer;
@@ -78,7 +78,7 @@ fn main() -> Result<(), BootstrapError> {
     let term_now_shutdown = term_now.clone();
     runtime.spawn(async move {
         while !term_now_shutdown.load(Ordering::Relaxed) {
-            thread::sleep(Duration::from_millis(100));
+            sleep(Duration::from_millis(200)).await;
         }
 
         bootstrapper_shutdown.shutdown();

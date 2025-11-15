@@ -55,7 +55,7 @@ extension-pex = []
 chrono = "0.4.41"
 crossterm = { version = "0.29.0", features = ["event-stream"] }
 hex-literal = "0.4.1"
-log4rs = { version = "1", features = ["console_writer"] }
+log4rs = { workspace = true, features = ["console_writer"] }
 mockall.workspace = true
 ratatui = "0.29.0"
 tempfile.workspace = true

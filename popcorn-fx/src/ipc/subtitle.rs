@@ -158,6 +158,8 @@ impl MessageHandler for SubtitleMessageHandler {
                                 special_fields: Default::default(),
                             }),
                             download_failed: Default::default(),
+                            conversion_failed: Default::default(),
+                            unsupported_type: Default::default(),
                             special_fields: Default::default(),
                         }),
                         special_fields: Default::default(),

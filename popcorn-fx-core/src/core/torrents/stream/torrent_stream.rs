@@ -330,7 +330,7 @@ impl TorrentStreamContext {
 
     /// Handle the given torrent event.
     async fn handle_torrent_event(&self, event: Arc<TorrentEvent>) {
-        debug!("Torrent stream {} handling torrent event {:?}", self, event);
+        trace!("Torrent stream {} handling torrent event {:?}", self, event);
         match &*event {
             TorrentEvent::StateChanged(state) => {
                 if state == &TorrentState::Finished {
@@ -614,11 +614,13 @@ impl TorrentStream for TorrentStreamContext {
 pub struct FXTorrentStreamingResource {
     torrent: Arc<Box<dyn Torrent>>,
     torrent_filename: String,
+    /// The offset of the torrent file within the torrent
+    torrent_offset: usize,
     /// The open reader handle to the torrent file
     file: File,
     /// The absolute path to the torrent file
     filepath: PathBuf,
-    /// The total length of the file resource.
+    /// The total length of the file resource
     resource_length: u64,
     /// The current reading cursor for the stream
     cursor: usize,
@@ -704,6 +706,7 @@ impl FXTorrentStreamingResource {
                     Ok(Self {
                         torrent,
                         torrent_filename: filename.to_string(),
+                        torrent_offset: torrent_file.torrent_offset,
                         file,
                         filepath: absolute_filepath,
                         resource_length,
@@ -909,8 +912,11 @@ impl Stream for FXTorrentStreamingResource {
             return Poll::Ready(None);
         }
 
+        // get the next buffer to read from
         let buffer = self.next_buffer();
-        let is_available = match pin!(self.torrent.has_bytes(&buffer)).poll(cx) {
+        // calculate the actual range of bytes for the buffer within the torrent
+        let torrent_buffer = buffer.start + self.torrent_offset..buffer.end + self.torrent_offset;
+        let is_available = match pin!(self.torrent.has_bytes(&torrent_buffer)).poll(cx) {
             Poll::Ready(e) => e,
             Poll::Pending => return Poll::Pending,
         };

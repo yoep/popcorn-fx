@@ -73,6 +73,13 @@ message Subtitle {
     optional string quality = 2;
   }
 
+  /// The subtitle extension type
+  enum Type {
+    SRT = 0;
+    VTT = 1;
+  }
+
+  /// The language of the subtitle
   enum Language {
     NONE = 0;
     CUSTOM = 1;
@@ -117,6 +124,8 @@ message Subtitle {
     optional InvalidUrl invalid_url = 2;
     optional SearchFailed search_failed = 3;
     optional DownloadFailed download_failed = 4;
+    optional ConversionFailed conversion_failed = 5;
+    optional UnsupportedType unsupported_type = 6;
 
     message InvalidUrl {
       string url = 1;
@@ -131,10 +140,26 @@ message Subtitle {
       string reason = 2;
     }
 
+    message ConversionFailed {
+      Subtitle.Type type = 1;
+      string reason = 2;
+    }
+
+    message UnsupportedType {
+      Subtitle.Type type = 1;
+    }
+
     enum Type {
       INVALID_URL = 0;
       SEARCH_FAILED = 1;
       DOWNLOAD_FAILED = 2;
+      IO = 3;
+      PARSE_FILE = 4;
+      PARSE_URL = 5;
+      CONVERSION = 6;
+      UNSUPPORTED_TYPE = 7;
+      NO_FILES_FOUND = 8;
+      INVALID_FILE = 9;
     }
   }
 }

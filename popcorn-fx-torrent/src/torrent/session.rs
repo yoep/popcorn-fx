@@ -1,7 +1,11 @@
 #[cfg(feature = "dht")]
 use crate::torrent::dht::DhtTracker;
 use crate::torrent::errors::Result;
-use crate::torrent::operation::TorrentTrackersOperation;
+use crate::torrent::operation::{
+    TorrentConnectPeersOperation, TorrentCreateFilesOperation, TorrentCreatePiecesOperation,
+    TorrentDhtNodesOperation, TorrentDhtPeersOperation, TorrentFileValidationOperation,
+    TorrentMetadataOperation, TorrentTrackersOperation,
+};
 use crate::torrent::peer::{ProtocolExtensionFlags, TcpPeerDiscovery, UtpPeerDiscovery};
 use crate::torrent::session_cache::{FxSessionCache, SessionCache};
 use crate::torrent::storage::{DiskStorage, MemoryStorage, Storage, StorageParams};
@@ -801,7 +805,21 @@ impl FxTorrentSessionBuilder {
             .extension_factories
             .take()
             .unwrap_or_else(DEFAULT_TORRENT_EXTENSIONS);
-        let torrent_operations = self.operation_factories.take().unwrap_or_else(|| vec![]);
+        let torrent_operations = self.operation_factories.take().unwrap_or_else(|| {
+            // FIXME: this is currently a duplicate list, consolidate with the torrent request operations
+            vec![
+                || Box::new(TorrentTrackersOperation::new()),
+                #[cfg(feature = "dht")]
+                || Box::new(TorrentDhtNodesOperation::new()),
+                #[cfg(feature = "dht")]
+                || Box::new(TorrentDhtPeersOperation::new()),
+                || Box::new(TorrentConnectPeersOperation::new()),
+                || Box::new(TorrentMetadataOperation::new()),
+                || Box::new(TorrentCreatePiecesOperation::new()),
+                || Box::new(TorrentCreateFilesOperation::new()),
+                || Box::new(TorrentFileValidationOperation::new()),
+            ]
+        });
         let storage = self.storage.take().unwrap_or_else(|| {
             Arc::new(|params| {
                 Box::new(DiskStorage::new(

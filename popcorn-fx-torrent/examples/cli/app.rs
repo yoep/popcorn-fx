@@ -18,7 +18,7 @@ use popcorn_fx_torrent::torrent::operation::{
 };
 use popcorn_fx_torrent::torrent::{
     FxSessionCache, FxTorrentSession, Session, SessionEvent, SessionState, TorrentFlags,
-    TorrentOperationFactory,
+    TorrentOperation, TorrentOperationFactory,
 };
 use ratatui::layout::Constraint::{Length, Min};
 use ratatui::layout::{Alignment, Layout, Rect};
@@ -417,9 +417,26 @@ impl App {
             || Box::new(TorrentCreateFilesOperation::new()),
             || Box::new(TorrentFileValidationOperation::new()),
         ];
+        let mut operation_index = 0;
 
+        // add the initial configurable operations
         if settings.trackers_enabled {
-            operations.insert(0, || Box::new(TorrentTrackersOperation::new()));
+            operations.insert(
+                operation_index,
+                || Box::new(TorrentTrackersOperation::new()),
+            );
+            operation_index += 1;
+        }
+        if settings.dht_enabled {
+            operations.insert(
+                operation_index,
+                || Box::new(TorrentDhtNodesOperation::new()),
+            );
+            operation_index += 1;
+            operations.insert(
+                operation_index,
+                || Box::new(TorrentDhtPeersOperation::new()),
+            );
         }
 
         FxTorrentSession::builder()

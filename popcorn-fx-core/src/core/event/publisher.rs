@@ -247,6 +247,7 @@ impl InnerEventPublisher {
         );
         trace!("Invoking callbacks {:?}", invocations);
         for invocation in invocations.iter() {
+            let event_info = event.to_string();
             let (event_handler, receiver) = EventHandler::new(event);
             if let Err(mut e) = invocation.sender.send(event_handler) {
                 event = e.0.take().expect("expected the event to still be present");
@@ -256,7 +257,7 @@ impl InnerEventPublisher {
 
             select! {
                 _ = time::sleep(Duration::from_secs(60)) => {
-                    error!("Event publisher callback invocation timed out");
+                    error!("Event publisher callback invocation timed out for {:?}", event_info);
                     break;
                 }
                 result = receiver => {

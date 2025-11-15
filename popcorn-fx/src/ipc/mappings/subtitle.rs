@@ -4,7 +4,7 @@ use crate::ipc::{proto, Error, Result};
 use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
-use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo};
+use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
 use popcorn_fx_core::core::subtitles::{SubtitleError, SubtitleFile, SubtitlePreference};
 use protobuf::MessageField;
 
@@ -292,10 +292,48 @@ impl From<&SubtitleError> for subtitle::Error {
                     special_fields: Default::default(),
                 });
             }
-            _ => todo!(),
+            SubtitleError::IO(_, _) => {
+                err.type_ = subtitle::error::Type::IO.into();
+            }
+            SubtitleError::ParseFileError(_, _) => {
+                err.type_ = subtitle::error::Type::PARSE_FILE.into();
+            }
+            SubtitleError::ParseUrlError(_) => {
+                err.type_ = subtitle::error::Type::PARSE_URL.into();
+            }
+            SubtitleError::ConversionFailed(subtitle_type, reason) => {
+                err.type_ = subtitle::error::Type::CONVERSION.into();
+                err.conversion_failed = MessageField::some(subtitle::error::ConversionFailed {
+                    type_: subtitle::Type::from(subtitle_type).into(),
+                    reason: reason.clone(),
+                    special_fields: Default::default(),
+                })
+            }
+            SubtitleError::TypeNotSupported(subtitle_type) => {
+                err.type_ = subtitle::error::Type::UNSUPPORTED_TYPE.into();
+                err.unsupported_type = MessageField::some(subtitle::error::UnsupportedType {
+                    type_: subtitle::Type::from(subtitle_type).into(),
+                    special_fields: Default::default(),
+                })
+            }
+            SubtitleError::NoFilesFound => {
+                err.type_ = subtitle::error::Type::NO_FILES_FOUND.into();
+            }
+            SubtitleError::InvalidFile(_, _) => {
+                err.type_ = subtitle::error::Type::INVALID_FILE.into();
+            }
         }
 
         err
+    }
+}
+
+impl From<&SubtitleType> for subtitle::Type {
+    fn from(value: &SubtitleType) -> Self {
+        match value {
+            SubtitleType::Srt => Self::SRT,
+            SubtitleType::Vtt => Self::VTT,
+        }
     }
 }
 
@@ -611,6 +649,8 @@ mod tests {
             }),
             search_failed: Default::default(),
             download_failed: Default::default(),
+            conversion_failed: Default::default(),
+            unsupported_type: Default::default(),
             special_fields: Default::default(),
         };
 
@@ -633,6 +673,31 @@ mod tests {
                 reason: reason.to_string(),
                 special_fields: Default::default(),
             }),
+            conversion_failed: Default::default(),
+            unsupported_type: Default::default(),
+            special_fields: Default::default(),
+        };
+
+        let result = subtitle::Error::from(&err);
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_subtitle_error_from_conversion_failed() {
+        let reason = "Some failure reason";
+        let err = SubtitleError::ConversionFailed(SubtitleType::Srt, reason.to_string());
+        let expected_result = subtitle::Error {
+            type_: subtitle::error::Type::CONVERSION.into(),
+            invalid_url: Default::default(),
+            search_failed: Default::default(),
+            download_failed: Default::default(),
+            conversion_failed: MessageField::some(subtitle::error::ConversionFailed {
+                type_: subtitle::Type::SRT.into(),
+                reason: reason.to_string(),
+                special_fields: Default::default(),
+            }),
+            unsupported_type: Default::default(),
             special_fields: Default::default(),
         };
 

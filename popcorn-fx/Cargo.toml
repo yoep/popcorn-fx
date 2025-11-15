@@ -33,7 +33,7 @@ thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "fs", "time", "signal"] }
 tokio-util = { workspace = true }
 url.workspace = true
-protobuf = "3.7.1"
+protobuf.workspace = true
 
 [dev-dependencies]
 popcorn-fx = { path = "." }

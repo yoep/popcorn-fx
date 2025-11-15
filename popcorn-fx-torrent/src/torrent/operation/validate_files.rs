@@ -4,9 +4,10 @@ use crate::torrent::{
 };
 use async_trait::async_trait;
 use futures::{stream, StreamExt};
-use log::{debug, info, warn};
+use log::{debug, info, trace, warn};
 use std::sync::Arc;
 use std::time::Instant;
+use tokio::select;
 use tokio::sync::Mutex;
 
 /// The maximum number of bytes to validate at once
@@ -44,6 +45,16 @@ impl TorrentFileValidationOperation {
             let pieces = context.piece_pool().pieces().await;
             let piece_len = pieces.get(0).map(|e| e.len()).unwrap_or_default();
 
+            // early exit if the torrent is cancelled
+            // before the validation process could be started
+            if context.is_cancelled() {
+                trace!(
+                    "Torrent {} is skipping validation, torrent is cancelled",
+                    context
+                );
+                return;
+            }
+
             if pieces.len() > 0 {
                 debug!(
                     "Torrent {} is validating files {:?}",
@@ -62,13 +73,18 @@ impl TorrentFileValidationOperation {
                     .map(|piece| Self::validate_piece(context.clone(), piece))
                     .collect();
 
-                let valid_pieces = stream::iter(futures)
-                    .buffer_unordered(max_parallel)
-                    .collect::<Vec<_>>()
-                    .await
-                    .into_iter()
-                    .flat_map(|e| e)
-                    .collect::<Vec<_>>();
+                let valid_pieces = select! {
+                    _ = context.cancelled() => {
+                        return;
+                    },
+                    futures = stream::iter(futures)
+                        .buffer_unordered(max_parallel)
+                        .collect::<Vec<_>>() => {
+                            futures.into_iter()
+                            .flat_map(|e| e)
+                            .collect::<Vec<_>>()
+                    }
+                };
 
                 let time_taken = start.elapsed();
                 info!(

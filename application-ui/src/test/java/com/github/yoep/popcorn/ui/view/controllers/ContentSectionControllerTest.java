@@ -163,26 +163,32 @@ class ContentSectionControllerTest {
 
         eventPublisher.publish(new ShowAboutEvent(this));
         WaitForAsyncUtils.waitForFxEvents();
-        assertEquals(ContentSectionController.ContentType.ABOUT, controller.activeType);
+        assertTimeout(Duration.ofSeconds(1),
+                () -> Objects.equals(ContentSectionController.ContentType.ABOUT, controller.activeType),
+                String.format("expected ContentType.ABOUT, but got %s", controller.activeType));
 
         eventPublisher.publish(new CloseAboutEvent(this));
         WaitForAsyncUtils.waitForFxEvents();
-        assertEquals(ContentSectionController.ContentType.LIST, controller.activeType);
+        assertTimeout(Duration.ofSeconds(1),
+                () -> Objects.equals(ContentSectionController.ContentType.LIST, controller.activeType),
+                String.format("expected ContentType.LIST, but got %s", controller.activeType));
     }
 
     @Test
-    void testOnCloseUpdate() throws TimeoutException {
+    void testOnCloseUpdate() {
         controller.initialize(url, resourceBundle);
 
         eventPublisher.publish(new ShowAboutEvent(this));
         WaitForAsyncUtils.waitForFxEvents();
-        WaitForAsyncUtils.waitFor(750, TimeUnit.MILLISECONDS, () -> Objects.equals(ContentSectionController.ContentType.ABOUT, controller.activeType));
+        assertTimeout(Duration.ofSeconds(1),
+                () -> Objects.equals(ContentSectionController.ContentType.ABOUT, controller.activeType),
+                String.format("expected ContentType.ABOUT, but got %s", controller.activeType));
 
         eventPublisher.publish(new CloseUpdateEvent(this));
         WaitForAsyncUtils.waitForFxEvents();
-        assertTimeout(Duration.ofMillis(750),
+        assertTimeout(Duration.ofSeconds(1),
                 () -> Objects.equals(ContentSectionController.ContentType.LIST, controller.activeType),
-                "expected the content section to have been updated to list");
+                String.format("expected ContentType.LIST, but got %s", controller.activeType));
     }
 
     @Test

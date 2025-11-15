@@ -433,9 +433,20 @@ mod tests {
     #[tokio::test]
     async fn test_process_get_media_episode_available_subtitles_request() {
         init_logger!();
+        let imdb_id = "tt31589662";
+        let response = read_test_file_to_string("subtitles-movie.json");
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(Method::GET)
+                .path("/api/v1/subtitles")
+                .query_param("imdb_id", imdb_id.replace("tt", ""))
+                .query_param("season_number", "1")
+                .query_param("episode_number", "1");
+            then.status(200).body(response);
+        });
         let media = Box::new(ShowDetails {
             title: "MyShow".to_string(),
-            imdb_id: "tt31589662".to_string(),
+            imdb_id: imdb_id.to_string(),
             tvdb_id: "448023".to_string(),
             year: "2024".to_string(),
             num_seasons: 2,
@@ -471,7 +482,9 @@ mod tests {
         }) as Box<dyn MediaIdentifier>;
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let mut args = default_args(temp_path);
+        args.properties.subtitle.url = server.url("/api/v1");
+        let instance = Arc::new(PopcornFX::new(args).await.unwrap());
         let (incoming, outgoing) = create_channel_pair().await;
         let handler = SubtitleMessageHandler::new(instance.clone());
 

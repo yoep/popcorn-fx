@@ -1,20 +1,19 @@
 use crate::torrent::metrics::Metric;
 use crate::torrent::peer::PeerId;
-use crate::torrent::tracker::http::HttpConnection;
+use crate::torrent::tracker::http::HttpClient;
 use crate::torrent::tracker::udp::UdpConnection;
-use crate::torrent::tracker::{
-    AnnounceEvent, ConnectionMetrics, Result, TrackerError, TrackerMetrics,
-};
+use crate::torrent::tracker::{ConnectionMetrics, Result, TrackerError, TrackerMetrics};
 use crate::torrent::InfoHash;
 use async_trait::async_trait;
 use derive_more::Display;
 use fx_handle::Handle;
 use log::{debug, trace};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::net::SocketAddr;
 use std::ops::Sub;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::net::lookup_host;
@@ -25,6 +24,38 @@ use url::Url;
 const DEFAULT_CONNECTION_TIMEOUT_SECONDS: u64 = 10;
 const DEFAULT_ANNOUNCEMENT_INTERVAL_SECONDS: u64 = 120;
 const DISABLE_TRACKER_AFTER_FAILURES: usize = 6;
+
+/// Kinds of tracker announces. This is typically indicated as the ``&event=``
+/// HTTP query string parameter to HTTP trackers.
+#[repr(u8)]
+#[derive(Debug, Display, Copy, Clone, PartialEq)]
+pub enum AnnounceEvent {
+    #[display(fmt = "none")]
+    None = 0,
+    #[display(fmt = "completed")]
+    Completed = 1,
+    #[display(fmt = "started")]
+    Started = 2,
+    #[display(fmt = "stopped")]
+    Stopped = 3,
+    #[display(fmt = "paused")]
+    Paused = 4,
+}
+
+impl FromStr for AnnounceEvent {
+    type Err = TrackerError;
+
+    fn from_str(value: &str) -> Result<Self> {
+        match value.to_lowercase().trim() {
+            "none" => Ok(AnnounceEvent::None),
+            "completed" => Ok(AnnounceEvent::Completed),
+            "started" => Ok(AnnounceEvent::Started),
+            "stopped" => Ok(AnnounceEvent::Stopped),
+            "paused" => Ok(AnnounceEvent::Paused),
+            _ => Err(TrackerError::UnsupportedEvent(value.to_string())),
+        }
+    }
+}
 
 /// The announcement information for a tracker.
 /// This is the most recent torrent information that should be shared with the tracker.
@@ -62,14 +93,14 @@ pub struct AnnounceEntryResponse {
 }
 
 /// The metrics result of a tracker scrape operation.
-#[derive(Debug, Default, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ScrapeResult {
     /// The file metrics from the scrape result
     pub files: HashMap<InfoHash, ScrapeFileMetrics>,
 }
 
 /// The metrics of a specific torrent file.
-#[derive(Debug, Default, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ScrapeFileMetrics {
     /// The number of active peers that have completed downloading.
     pub complete: u32,
@@ -86,7 +117,7 @@ pub struct ScrapeFileMetrics {
 ///
 /// Implementations of this trait will provide specific logic for different tracker connection protocols or types.
 #[async_trait]
-pub(crate) trait TrackerConnection: Debug + Send + Sync {
+pub(crate) trait TrackerClientConnection: Debug + Send + Sync {
     /// Asynchronously start the tracker connection.
     ///
     /// This method should connect to one of the addresses provided by the tracker.
@@ -109,7 +140,7 @@ pub(crate) trait TrackerConnection: Debug + Send + Sync {
     /// It returns the tracker announcement response for the given announcement.
     async fn announce(&self, announcement: Announcement) -> Result<AnnounceEntryResponse>;
 
-    /// Scrape the tracker for metrics the given info hashes.
+    /// Scrape the tracker for metrics for one or more info hashes.
     ///
     /// # Arguments
     ///
@@ -126,7 +157,7 @@ pub(crate) trait TrackerConnection: Debug + Send + Sync {
     /// Close the tracker connection and cancel any pending tasks.
     ///
     /// This method should gracefully shut down the connection to the tracker and cancel any ongoing operations.
-    fn close(&mut self);
+    fn close(&self);
 }
 
 /// The tracker identifier handle
@@ -178,8 +209,7 @@ impl Tracker {
             url.host_str().unwrap_or_default(),
             url.port().unwrap_or(port)
         ))
-        .await
-        .map_err(|e| TrackerError::Io(e.to_string()))?
+        .await?
         .collect::<Vec<_>>();
         let connection = Self::create_connection(handle, &url, &endpoints, timeout.clone()).await?;
 
@@ -335,23 +365,23 @@ impl Tracker {
         url: &Url,
         addrs: &[SocketAddr],
         timeout: Duration,
-    ) -> Result<Box<dyn TrackerConnection>> {
+    ) -> Result<Box<dyn TrackerClientConnection>> {
         trace!("Trying to connect to tracker at {}", url);
         let scheme = url.scheme();
-        let mut connection: Box<dyn TrackerConnection>;
+        let mut connection: Box<dyn TrackerClientConnection>;
 
         match scheme {
             "udp" => {
                 connection = Box::new(UdpConnection::new(handle, addrs, timeout));
             }
             "http" | "https" => {
-                connection = Box::new(HttpConnection::new(handle, url.clone(), timeout));
+                connection = Box::new(HttpClient::new(handle, url.clone(), timeout));
             }
             _ => return Err(TrackerError::UnsupportedScheme(scheme.to_string())),
         }
 
         let _ = select! {
-            _ = time::sleep(timeout) => Err(TrackerError::Timeout(url.clone())),
+            _ = time::sleep(timeout) => Err(TrackerError::Timeout),
             result = connection.start() => result,
         }?;
 
@@ -422,7 +452,7 @@ struct InnerTracker {
     /// The known addresses of the tracker
     endpoints: Vec<SocketAddr>,
     /// The underlying communication connection
-    connection: Box<dyn TrackerConnection>,
+    connection: Box<dyn TrackerClientConnection>,
     /// The timeout for tracker connections before failing
     timeout: Duration,
     /// The interval in seconds to do another announcement to the tracker
@@ -437,11 +467,12 @@ struct InnerTracker {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::init_logger;
     use crate::torrent::tests::read_test_file_to_bytes;
+    use crate::torrent::tracker::http::HttpServer;
+    use crate::torrent::tracker::TrackerServer;
     use crate::torrent::TorrentMetadata;
-
-    use super::*;
 
     #[tokio::test]
     async fn test_tracker_new() {
@@ -490,10 +521,48 @@ mod tests {
     #[tokio::test]
     async fn test_tracker_announce_https() {
         init_logger!();
-        let data = read_test_file_to_bytes("ubuntu-https.torrent");
-        let info = TorrentMetadata::try_from(data.as_slice()).unwrap();
+        let info_hash = InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7")
+            .expect("expected a valid hash");
+        let http_server = HttpServer::with_port(0).await.unwrap();
+        let server = TrackerServer::with_listeners(vec![Box::new(http_server)])
+            .await
+            .unwrap();
+        let url =
+            Url::from_str(format!("http://localhost:{}/announce", server.addr().port()).as_str())
+                .unwrap();
+        let tracker = Tracker::builder().url(url).build().await.unwrap();
 
-        let result = execute_tracker_announcement(&info).await;
+        // add dummy peers to the tracker server
+        server
+            .add_peer(
+                info_hash.clone(),
+                ([127, 0, 0, 1], 8080).into(),
+                PeerId::new(),
+                6881,
+                false,
+            )
+            .await;
+        server
+            .add_peer(
+                info_hash.clone(),
+                ([127, 0, 0, 2], 8080).into(),
+                PeerId::new(),
+                6882,
+                true,
+            )
+            .await;
+
+        let result = tracker
+            .announce(Announcement {
+                info_hash,
+                peer_id: PeerId::new(),
+                peer_port: 6881,
+                event: AnnounceEvent::Started,
+                bytes_completed: 0,
+                bytes_remaining: u64::MAX,
+            })
+            .await
+            .unwrap();
 
         assert_ne!(
             0,

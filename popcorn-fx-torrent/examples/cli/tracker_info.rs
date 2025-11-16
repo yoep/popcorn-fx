@@ -4,7 +4,7 @@ use crossterm::event::KeyCode;
 use fx_callback::{Callback, Subscription};
 use popcorn_fx_torrent::torrent::format_bytes;
 use popcorn_fx_torrent::torrent::tracker::{
-    Tracker, TrackerManager, TrackerManagerEvent, TrackerState,
+    Tracker, TrackerClient, TrackerClientEvent, TrackerState,
 };
 use ratatui::layout::Constraint::{Fill, Length, Min, Percentage};
 use ratatui::layout::{Layout, Rect};
@@ -22,14 +22,14 @@ pub(crate) const TRACKER_INFO_WIDGET_NAME: &str = "Tracker";
 
 #[derive(Debug)]
 pub struct TrackersInfoWidget {
-    tracker_manager: TrackerManager,
+    tracker_manager: TrackerClient,
     data: TrackerManagerData,
     details_widget: TrackerDetailsWidget,
-    event_receiver: Subscription<TrackerManagerEvent>,
+    event_receiver: Subscription<TrackerClientEvent>,
 }
 
 impl TrackersInfoWidget {
-    pub fn new(tracker_manager: TrackerManager, trackers: Vec<Tracker>) -> Self {
+    pub fn new(tracker_manager: TrackerClient, trackers: Vec<Tracker>) -> Self {
         let event_receiver = tracker_manager.subscribe();
 
         Self {
@@ -43,12 +43,12 @@ impl TrackersInfoWidget {
     async fn handle_events(&mut self) {
         while let Ok(event) = self.event_receiver.try_recv() {
             match &*event {
-                TrackerManagerEvent::TrackerAdded(handle) => {
+                TrackerClientEvent::TrackerAdded(handle) => {
                     if let Some(tracker) = self.tracker_manager.get(handle).await {
                         self.details_widget.add_tracker(tracker);
                     }
                 }
-                TrackerManagerEvent::Stats(metrics) => {
+                TrackerClientEvent::Stats(metrics) => {
                     self.data.total_trackers = self.tracker_manager.trackers_len().await;
                     self.data.tracked_torrents = self.tracker_manager.torrents_len().await;
 

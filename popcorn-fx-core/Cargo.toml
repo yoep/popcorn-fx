@@ -29,7 +29,7 @@ html-escape = "0"
 itertools.workspace = true
 local-ip-address.workspace = true
 log.workspace = true
-log4rs = { version = "1", features = ["console_writer"], optional = true }
+log4rs = { workspace = true, features = ["console_writer"], optional = true }
 mockall = { workspace = true, optional = true }
 percent-encoding.workspace = true
 rand.workspace = true
@@ -59,16 +59,10 @@ tokio = { workspace = true, features = ["test-util"] }
 
 [features]
 default = [
-    "cache",
     "launcher",
-    "loader",
-    "platform",
 ]
 
-cache = []
 launcher = []
-loader = []
-platform = []
 testing = [
     "log4rs",
     "tempfile",

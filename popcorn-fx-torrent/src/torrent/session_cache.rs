@@ -149,10 +149,9 @@ mod tests {
             let metadata2 =
                 TorrentMetadata::try_from(read_test_file_to_bytes("debian-udp.torrent").as_slice())
                     .unwrap();
-            let metadata3 = TorrentMetadata::try_from(
-                read_test_file_to_bytes("ubuntu-https.torrent").as_slice(),
-            )
-            .unwrap();
+            let metadata3 =
+                TorrentMetadata::try_from(read_test_file_to_bytes("ubuntu-udp.torrent").as_slice())
+                    .unwrap();
             let mut session_cache = FxSessionCache::new(2);
 
             session_cache.store_metadata(&metadata1);

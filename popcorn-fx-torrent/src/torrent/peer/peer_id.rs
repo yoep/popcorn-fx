@@ -11,7 +11,7 @@ const ID_PREFIX: &str = "-RW0082-";
 /// the version number of the client.
 ///
 /// See https://www.bittorrent.org/beps/bep_0020.html for more information.
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct PeerId([u8; 20]);
 
 impl PeerId {

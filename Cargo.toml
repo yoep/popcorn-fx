@@ -18,6 +18,7 @@ exclude = [
 
 [workspace.dependencies]
 async-trait = "0.1"
+axum = "0.8.7"
 base32 = "0.5.1"
 base64 = "0.22.1"
 byteorder = "1.5"
@@ -32,6 +33,7 @@ fx-handle = "1.0.0"
 itertools = "0.14.0"
 local-ip-address = "0.6"
 log = "0.4"
+log4rs = "1.4.0"
 oauth2 = "4.4"
 open = "5.3.0"
 percent-encoding = "2.3"

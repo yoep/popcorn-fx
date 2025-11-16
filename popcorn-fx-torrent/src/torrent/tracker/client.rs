@@ -7,8 +7,8 @@ use std::time::{Duration, Instant};
 use crate::torrent::metrics::Metric;
 use crate::torrent::peer::PeerId;
 use crate::torrent::tracker::{
-    AnnounceEntryResponse, Announcement, Result, ScrapeFileMetrics, ScrapeResult, Tracker,
-    TrackerError, TrackerHandle, TrackerManagerMetrics, TrackerState,
+    AnnounceEntryResponse, AnnounceEvent, Announcement, Result, ScrapeFileMetrics, ScrapeResult,
+    Tracker, TrackerClientMetrics, TrackerError, TrackerHandle, TrackerState,
 };
 use crate::torrent::{InfoHash, Metrics};
 use derive_more::Display;
@@ -24,24 +24,7 @@ use url::Url;
 const DEFAULT_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(30);
 const STATS_INTERVAL: Duration = Duration::from_secs(1);
 
-/// Kinds of tracker announces. This is typically indicated as the ``&event=``
-/// HTTP query string parameter to HTTP trackers.
-#[repr(u8)]
-#[derive(Debug, Display, Copy, Clone)]
-pub enum AnnounceEvent {
-    #[display(fmt = "none")]
-    None = 0,
-    #[display(fmt = "completed")]
-    Completed = 1,
-    #[display(fmt = "started")]
-    Started = 2,
-    #[display(fmt = "stopped")]
-    Stopped = 3,
-    #[display(fmt = "paused")]
-    Paused = 4,
-}
-
-/// The announcement result returned by all trackers.
+/// Aggregated announcement result returned by one or more trackers.
 #[derive(Default, Clone, PartialEq)]
 pub struct AnnouncementResult {
     /// The total number of leechers reported by the trackers.
@@ -53,6 +36,9 @@ pub struct AnnouncementResult {
 }
 
 impl AnnouncementResult {
+    /// Returns the total number of peers reported by the trackers.
+    ///
+    /// This is simply the length of [`Self::peers`].
     pub fn total_peers(&self) -> u64 {
         self.peers.len() as u64
     }
@@ -79,40 +65,42 @@ pub struct TrackerEntry {
 
 /// The event that can be emitted by the tracker manager.
 #[derive(Debug, Clone)]
-pub enum TrackerManagerEvent {
+pub enum TrackerClientEvent {
     /// Invoked when new peers have been discovered for a torrent
     PeersDiscovered(InfoHash, Vec<SocketAddr>),
     /// Invoked when a new tracker has been added
     TrackerAdded(TrackerHandle),
     /// Invoked when the metric stats are updated of the tracker manager.
-    Stats(TrackerManagerMetrics),
+    Stats(TrackerClientMetrics),
 }
 
-impl PartialEq for TrackerManagerEvent {
+impl PartialEq for TrackerClientEvent {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (
-                TrackerManagerEvent::PeersDiscovered(a, _),
-                TrackerManagerEvent::PeersDiscovered(b, _),
+                TrackerClientEvent::PeersDiscovered(a, _),
+                TrackerClientEvent::PeersDiscovered(b, _),
             ) => a == b,
-            (TrackerManagerEvent::TrackerAdded(a), TrackerManagerEvent::TrackerAdded(b)) => a == b,
-            (TrackerManagerEvent::Stats(_), TrackerManagerEvent::Stats(_)) => true,
+            (TrackerClientEvent::TrackerAdded(a), TrackerClientEvent::TrackerAdded(b)) => a == b,
+            (TrackerClientEvent::Stats(_), TrackerClientEvent::Stats(_)) => true,
             _ => false,
         }
     }
 }
 
-/// Manages torrent trackers and handles periodic announcements.
+/// A tracker client that manages communication with one or more trackers
+/// for a set of torrents.
 ///
-/// The `TrackerManager` is responsible for managing a list of trackers, performing automatic announcements, and handling tracker updates.
+/// It allows registering torrents, adding trackers, announcing events,
+/// scraping statistics, and retrieving discovered peers.
 #[derive(Debug, Display, Clone)]
 #[display(fmt = "{}", inner)]
-pub struct TrackerManager {
-    inner: Arc<InnerTrackerManager>,
+pub struct TrackerClient {
+    inner: Arc<InnerClient>,
 }
 
-impl TrackerManager {
-    /// Creates a new `TrackerManager` instance.
+impl TrackerClient {
+    /// Creates a new [`TrackerClient`] instance.
     ///
     /// # Arguments
     ///
@@ -123,7 +111,7 @@ impl TrackerManager {
     /// A `TrackerManager` instance with initialized settings.
     pub fn new(connection_timeout: Duration) -> Self {
         let (command_sender, command_receiver) = unbounded_channel();
-        let inner = Arc::new(InnerTrackerManager {
+        let inner = Arc::new(InnerClient {
             handle: Default::default(),
             trackers: Default::default(),
             torrents: Default::default(),
@@ -143,7 +131,7 @@ impl TrackerManager {
     }
 
     /// Get the metric stats of this tracker manager.
-    pub fn metrics(&self) -> &TrackerManagerMetrics {
+    pub fn metrics(&self) -> &TrackerClientMetrics {
         &self.inner.metrics
     }
 
@@ -221,7 +209,7 @@ impl TrackerManager {
     }
 
     /// Get the discovered peers for the given info hash.
-    /// The info hash should be first registered through the [TrackerManager::add_torrent].
+    /// The info hash should be first registered through the [TrackerClient::add_torrent].
     pub async fn discovered_peers(&self, info_hash: &InfoHash) -> Option<Vec<SocketAddr>> {
         self.inner
             .torrents
@@ -374,7 +362,7 @@ impl TrackerManager {
     ///
     /// This doesn't remove the torrent from the tracker manager,
     /// but temporarily disables any new automatic announcements.
-    /// Use [TrackerManager::start_announcing] to enable the automatic announcements again.
+    /// Use [TrackerClient::start_announcing] to enable the automatic announcements again.
     pub fn stop_announcing(&self, info_hash: &InfoHash) {
         let _ = self
             .inner
@@ -388,12 +376,12 @@ impl TrackerManager {
     }
 }
 
-impl Callback<TrackerManagerEvent> for TrackerManager {
-    fn subscribe(&self) -> Subscription<TrackerManagerEvent> {
+impl Callback<TrackerClientEvent> for TrackerClient {
+    fn subscribe(&self) -> Subscription<TrackerClientEvent> {
         self.inner.callbacks.subscribe()
     }
 
-    fn subscribe_with(&self, subscriber: Subscriber<TrackerManagerEvent>) {
+    fn subscribe_with(&self, subscriber: Subscriber<TrackerClientEvent>) {
         self.inner.callbacks.subscribe_with(subscriber)
     }
 }
@@ -407,8 +395,8 @@ enum TrackerManagerCommand {
 
 #[derive(Debug, Display)]
 #[display(fmt = "{}", handle)]
-struct InnerTrackerManager {
-    /// The unique handle of this tracker
+struct InnerClient {
+    /// The unique handle of this client
     handle: TrackerHandle,
     /// Active trackers being used by this tracker
     trackers: RwLock<Vec<Tracker>>,
@@ -419,12 +407,12 @@ struct InnerTrackerManager {
     /// The manager command sender for handling async tasks
     command_sender: UnboundedSender<TrackerManagerCommand>,
     /// The callbacks of the tracker
-    callbacks: MultiThreadedCallback<TrackerManagerEvent>,
-    metrics: TrackerManagerMetrics,
+    callbacks: MultiThreadedCallback<TrackerClientEvent>,
+    metrics: TrackerClientMetrics,
     cancellation_token: CancellationToken,
 }
 
-impl InnerTrackerManager {
+impl InnerClient {
     /// Start the main loop of the tracker manager.
     async fn start(&self, mut command_receiver: UnboundedReceiver<TrackerManagerCommand>) {
         let mut announcement_tick = time::interval(DEFAULT_ANNOUNCEMENT_INTERVAL);
@@ -563,7 +551,7 @@ impl InnerTrackerManager {
             debug!("Tracker {} has been added to {}", tracker_info, self);
         }
 
-        self.send_event(TrackerManagerEvent::TrackerAdded(handle));
+        self.send_event(TrackerClientEvent::TrackerAdded(handle));
         Ok(handle)
     }
 
@@ -593,7 +581,7 @@ impl InnerTrackerManager {
         );
         let total_peers = unique_new_peer_addrs.len();
         if total_peers > 0 {
-            self.send_event(TrackerManagerEvent::PeersDiscovered(
+            self.send_event(TrackerClientEvent::PeersDiscovered(
                 info_hash.clone(),
                 unique_new_peer_addrs,
             ));
@@ -764,7 +752,7 @@ impl InnerTrackerManager {
         }
     }
 
-    fn send_event(&self, event: TrackerManagerEvent) {
+    fn send_event(&self, event: TrackerClientEvent) {
         self.callbacks.invoke(event);
     }
 
@@ -818,14 +806,14 @@ impl InnerTrackerManager {
             tracker.tick(STATS_INTERVAL);
         }
 
-        self.send_event(TrackerManagerEvent::Stats(self.metrics.snapshot()));
+        self.send_event(TrackerClientEvent::Stats(self.metrics.snapshot()));
         self.metrics.tick(STATS_INTERVAL);
     }
 }
 
 /// A torrent peer registered with the tracker.
 #[derive(Debug, PartialEq)]
-pub struct TrackerTorrent {
+struct TrackerTorrent {
     /// The unique peer id of the torrent
     peer_id: PeerId,
     /// The port the torrent is listening on to accept incoming connections
@@ -866,7 +854,7 @@ mod tests {
                 metrics: Metrics::new(),
                 is_announcing: true,
             };
-            let manager = TrackerManager::new(Duration::from_secs(1));
+            let manager = TrackerClient::new(Duration::from_secs(1));
 
             {
                 let result = manager
@@ -901,7 +889,7 @@ mod tests {
             init_logger!();
             let info_hash =
                 InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
-            let manager = TrackerManager::new(Duration::from_secs(1));
+            let manager = TrackerClient::new(Duration::from_secs(1));
 
             let result = manager
                 .add_torrent(PeerId::new(), 0, info_hash, Metrics::new())
@@ -916,7 +904,7 @@ mod tests {
         init_logger!();
         let url = Url::parse("udp://tracker.opentrackr.org:1337").unwrap();
         let entry = TrackerEntry { tier: 0, url };
-        let manager = TrackerManager::new(Duration::from_secs(1));
+        let manager = TrackerClient::new(Duration::from_secs(1));
 
         let result = manager.add_tracker_entry(entry).await;
 
@@ -932,7 +920,7 @@ mod tests {
         init_logger!();
         let info_hash =
             InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
-        let manager = TrackerManager::new(Duration::from_secs(1));
+        let manager = TrackerClient::new(Duration::from_secs(1));
 
         // try to remove a non-existing torrent
         manager.remove_torrent(&info_hash);
@@ -968,7 +956,7 @@ mod tests {
         let info_hash =
             InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
         let entry = TrackerEntry { tier: 0, url };
-        let manager = TrackerManager::new(Duration::from_secs(1));
+        let manager = TrackerClient::new(Duration::from_secs(1));
 
         manager
             .add_torrent(peer_id, 6881, info_hash.clone(), Metrics::new())
@@ -991,7 +979,7 @@ mod tests {
         let info_hash =
             InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
         let entry = TrackerEntry { tier: 0, url };
-        let manager = TrackerManager::new(Duration::from_secs(1));
+        let manager = TrackerClient::new(Duration::from_secs(1));
 
         manager
             .add_torrent(peer_id, 6881, info_hash.clone(), Metrics::new())
@@ -1017,7 +1005,7 @@ mod tests {
         let info_hash =
             InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
         let peer_addr = SocketAddr::from(([127, 0, 0, 1], 6882));
-        let manager = TrackerManager::new(Duration::from_secs(1));
+        let manager = TrackerClient::new(Duration::from_secs(1));
 
         manager.inner.torrents.lock().await.insert(
             info_hash.clone(),
@@ -1050,12 +1038,12 @@ mod tests {
         let url = Url::parse("udp://tracker.opentrackr.org:1337").unwrap();
         let entry = TrackerEntry { tier: 0, url };
         let (tx, mut rx) = unbounded_channel();
-        let manager = TrackerManager::new(Duration::from_secs(1));
+        let manager = TrackerClient::new(Duration::from_secs(1));
 
         let mut receiver = manager.subscribe();
         tokio::spawn(async move {
             while let Some(event) = receiver.recv().await {
-                if let TrackerManagerEvent::TrackerAdded(_) = &*event {
+                if let TrackerClientEvent::TrackerAdded(_) = &*event {
                     tx.send((*event).clone()).unwrap();
                     break;
                 }
@@ -1073,7 +1061,7 @@ mod tests {
             "expected to receive an event"
         )
         .unwrap();
-        if let TrackerManagerEvent::TrackerAdded(handle) = result {
+        if let TrackerClientEvent::TrackerAdded(handle) = result {
             let result = manager
                 .trackers()
                 .await
@@ -1100,7 +1088,7 @@ mod tests {
         let peer_port = 6881;
         let info_hash =
             InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
-        let manager = TrackerManager::new(Duration::from_secs(1));
+        let manager = TrackerClient::new(Duration::from_secs(1));
 
         let result = manager
             .add_torrent(peer_id, peer_port, info_hash.clone(), Metrics::new())
@@ -1142,7 +1130,7 @@ mod tests {
     async fn test_drop() {
         init_logger!();
         let url = Url::parse("udp://tracker.opentrackr.org:1337").unwrap();
-        let manager = TrackerManager::new(Duration::from_secs(1));
+        let manager = TrackerClient::new(Duration::from_secs(1));
 
         manager
             .add_tracker_async(TrackerEntry { tier: 0, url })

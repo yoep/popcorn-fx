@@ -19,6 +19,7 @@ use popcorn_fx_core::core::launcher::LauncherOptions;
 use crate::data_installer::{DataInstaller, DefaultDataInstaller};
 
 const CONSOLE_APPENDER: &str = "stdout";
+const DEFAULT_LOG_LEVEL: &str = "info";
 const LOG_FORMAT_CONSOLE: &str = "\x1B[37m{d(%Y-%m-%d %H:%M:%S%.3f)}\x1B[0m {h({l:>5.5})} \x1B[35m{I:>6.6}\x1B[0m \x1B[37m---\x1B[0m \x1B[37m[{T:>15.15}]\x1B[0m \x1B[36m{t:<40.40}\x1B[0m \x1B[37m:\x1B[0m {m}{n}";
 const DATA_DIRECTORY_NAME: &str = "popcorn-fx";
 const RUNTIMES_DIRECTORY_NAME: &str = "runtimes";
@@ -42,8 +43,22 @@ pub enum BootstrapError {
     InitialSetupFailed(String),
     #[error("child process failed to execute, {1}\nCommand: {0:?}")]
     ExecuteFailed(Command, String),
+    #[error("failed to restart application")]
+    RestartFailed,
     #[error("invalid process handle, {0}")]
     InvalidHandle(String),
+}
+
+impl PartialEq for BootstrapError {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (BootstrapError::InitialSetupFailed(_), BootstrapError::InitialSetupFailed(_)) => true,
+            (BootstrapError::ExecuteFailed(_, _), BootstrapError::ExecuteFailed(_, _)) => true,
+            (BootstrapError::RestartFailed, BootstrapError::RestartFailed) => true,
+            (BootstrapError::InvalidHandle(_), BootstrapError::InvalidHandle(_)) => true,
+            _ => false,
+        }
+    }
 }
 
 /// The action to take after an instance process has completed.
@@ -73,7 +88,6 @@ enum Action {
 pub struct Bootstrapper {
     pub path: String,
     pub args: Vec<String>,
-    pub data_base_path: PathBuf,
     pub data_path: PathBuf,
     pub process_path: Option<String>,
     pub data_installer: Box<dyn DataInstaller>,
@@ -94,14 +108,19 @@ impl Bootstrapper {
             .prepare()
             .map_err(|e| BootstrapError::InitialSetupFailed(e.to_string()))?;
 
+        let mut restarts: u8 = 0;
         loop {
             match self.launch_instance() {
                 Ok(action) => {
                     if action == Action::Shutdown {
                         debug!("Shutting down application");
                         return Ok(());
-                    } else {
+                    } else if restarts < 3 {
                         debug!("Restarting application");
+                        restarts += 1;
+                    } else {
+                        warn!("Application failed to correctly (re)start");
+                        return Err(BootstrapError::RestartFailed);
                     }
                 }
                 Err(e) => {
@@ -227,8 +246,18 @@ impl Bootstrapper {
     }
 
     fn initialize_logger() {
-        let root_level = env::var("LOG_LEVEL").unwrap_or("Info".to_string());
-        let config = Config::builder()
+        let root_level = match LevelFilter::from_str(
+            env::var("LOG_LEVEL")
+                .unwrap_or(DEFAULT_LOG_LEVEL.to_string())
+                .as_str(),
+        ) {
+            Ok(level) => level,
+            Err(e) => {
+                eprintln!("Failed to configure logger, {}", e);
+                return;
+            }
+        };
+        let config = match Config::builder()
             .appender(
                 Appender::builder().build(
                     CONSOLE_APPENDER,
@@ -243,8 +272,13 @@ impl Bootstrapper {
                 Root::builder()
                     .appender(CONSOLE_APPENDER)
                     .build(LevelFilter::from_str(root_level.as_str()).unwrap()),
-            )
-            .unwrap();
+            ) {
+            Ok(config) => config,
+            Err(e) => {
+                eprintln!("Failed to configure logger, {}", e);
+                return;
+            }
+        };
 
         match log4rs::init_config(config) {
             Ok(_) => trace!("Popcorn FX bootstrap logger has been initialized"),
@@ -398,7 +432,6 @@ impl BootstrapperBuilder {
                 }),
             }),
             data_path,
-            data_base_path,
             process_path: self.process_path,
             shutting_down: Arc::new(Default::default()),
         }
@@ -448,7 +481,6 @@ mod test {
         let bootstrap = Bootstrapper {
             path: "".to_string(),
             args: vec!["popcorn-fx".to_string()],
-            data_base_path: PathBuf::from(temp_path).join(DATA_DIRECTORY_NAME),
             data_path: PathBuf::from(temp_path),
             process_path: Some("echo".to_string()),
             data_installer: Box::new(data_installer),
@@ -457,8 +489,9 @@ mod test {
 
         let result = bootstrap.launch();
 
-        assert!(
-            result.is_ok(),
+        assert_eq!(
+            Ok(()),
+            result,
             "expected the process to be completed with success"
         )
     }
@@ -475,7 +508,6 @@ mod test {
         let bootstrap = Bootstrapper {
             path: "".to_string(),
             args: vec![],
-            data_base_path: PathBuf::from(temp_path).join(DATA_DIRECTORY_NAME),
             data_path: PathBuf::from(temp_path),
             process_path: Some("echo".to_string()),
             data_installer: Box::new(data_installer),
@@ -484,14 +516,10 @@ mod test {
 
         let result = bootstrap.launch();
 
-        if let Err(e) = result {
-            match e {
-                BootstrapError::InitialSetupFailed(_) => {}
-                _ => assert!(false, "expected BootstrapError::InitialSetupFailed"),
-            }
-        } else {
-            assert!(false, "expected an error to be returned");
-        }
+        assert!(
+            matches!(result, Err(BootstrapError::InitialSetupFailed(..))),
+            "expected BootstrapError::InitialSetupFailed, got: {result:?}",
+        );
     }
 
     #[test]
@@ -504,7 +532,6 @@ mod test {
         let bootstrap = Bootstrapper {
             path: "".to_string(),
             args: vec![],
-            data_base_path: PathBuf::from(temp_path).join(DATA_DIRECTORY_NAME),
             data_path: PathBuf::from(temp_path),
             process_path: Some("lorem".to_string()),
             data_installer: Box::new(data_installer),
@@ -513,14 +540,10 @@ mod test {
 
         let result = bootstrap.launch();
 
-        if let Err(error) = result {
-            match error {
-                BootstrapError::ExecuteFailed(_command, _message) => {}
-                _ => assert!(false, "expected BootstrapError::ExecuteFailed"),
-            }
-        } else {
-            assert!(false, "expected an error to have been returned")
-        }
+        assert!(
+            matches!(result, Err(BootstrapError::ExecuteFailed(..))),
+            "expected BootstrapError::ExecuteFailed, got: {result:?}",
+        );
     }
 
     #[test]

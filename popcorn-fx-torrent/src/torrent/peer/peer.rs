@@ -1593,6 +1593,7 @@ impl PeerContext {
         let request: Option<Request> = self.remove_client_pending_request(&piece.request()).await;
 
         if let Some(request) = request {
+            self.metrics.bytes_in_useful.inc_by(piece.data.len() as u64);
             trace!("Received piece data for {:?} from {}", request, self);
             if let Some(part) = self.torrent.piece_part(piece.index, piece.begin).await {
                 let data_size = piece.data.len();

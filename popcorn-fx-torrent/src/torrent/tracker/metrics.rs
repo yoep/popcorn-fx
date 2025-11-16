@@ -1,13 +1,17 @@
 use crate::torrent::metrics::{Counter, Metric};
 use std::time::Duration;
 
+/// Aggregated I/O metrics for a [`TrackerClient`].
+///
+/// Tracks the total number of bytes received (`bytes_in`) and sent (`bytes_out`)
+/// across all trackers managed by the client.
 #[derive(Debug, Default, Clone)]
-pub struct TrackerManagerMetrics {
+pub struct TrackerClientMetrics {
     pub bytes_in: Counter,
     pub bytes_out: Counter,
 }
 
-impl Metric for TrackerManagerMetrics {
+impl Metric for TrackerClientMetrics {
     fn is_snapshot(&self) -> bool {
         self.bytes_in.is_snapshot()
     }

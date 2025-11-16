@@ -15,8 +15,8 @@ use crate::torrent::peer::{
 use crate::torrent::storage::{Storage, StorageParams};
 use crate::torrent::torrent_config::TorrentConfig;
 use crate::torrent::tracker::{
-    AnnounceEvent, AnnouncementResult, TrackerEntry, TrackerHandle, TrackerManager,
-    TrackerManagerEvent,
+    AnnounceEvent, AnnouncementResult, TrackerClient, TrackerClientEvent, TrackerEntry,
+    TrackerHandle,
 };
 use crate::torrent::{
     FileAttributeFlags, FileIndex, FilePool, Metrics, PeerPool, Piece, PieceChunkPool, PieceIndex,
@@ -165,7 +165,7 @@ pub struct TorrentRequest {
     /// The DHT node server to use for discovering peers
     dht: Option<DhtTracker>,
     /// The peer tracker manager for the torrent
-    tracker_manager: Option<TrackerManager>,
+    tracker_manager: Option<TrackerClient>,
 }
 
 impl TorrentRequest {
@@ -252,7 +252,7 @@ impl TorrentRequest {
     }
 
     /// Set the tracker manager for discovering peers.
-    pub fn tracker_manager(&mut self, tracker_manager: TrackerManager) -> &mut Self {
+    pub fn tracker_manager(&mut self, tracker_manager: TrackerClient) -> &mut Self {
         self.tracker_manager.get_or_insert(tracker_manager);
         self
     }
@@ -476,7 +476,7 @@ impl Torrent {
         storage: Box<dyn Storage>,
         operations: Vec<Box<dyn TorrentOperation>>,
         dht: Option<DhtTracker>,
-        tracker_manager: TrackerManager,
+        tracker_manager: TrackerClient,
     ) -> Self {
         let handle = TorrentHandle::new();
         let peer_id = PeerId::new();
@@ -1215,7 +1215,7 @@ pub struct TorrentContext {
     /// This might still be incomplete if the torrent was created from a magnet link
     metadata: RwLock<TorrentMetadata>,
     /// The manager of the trackers for the torrent
-    tracker_manager: TrackerManager,
+    tracker_manager: TrackerClient,
     /// The dht server of the torrent
     dht: Option<DhtTracker>,
 
@@ -1401,7 +1401,7 @@ impl TorrentContext {
     }
 
     /// Get the tracker manager for the torrent.
-    pub fn tracker_manager(&self) -> &TrackerManager {
+    pub fn tracker_manager(&self) -> &TrackerClient {
         &self.tracker_manager
     }
 
@@ -2299,15 +2299,15 @@ impl TorrentContext {
         }
     }
 
-    async fn handle_tracker_event(&self, event: TrackerManagerEvent) {
+    async fn handle_tracker_event(&self, event: TrackerClientEvent) {
         trace!("Handling event {:?} for torrent {}", event, self);
         match event {
-            TrackerManagerEvent::PeersDiscovered(info_hash, peers) => {
+            TrackerClientEvent::PeersDiscovered(info_hash, peers) => {
                 if info_hash == self.metadata.read().await.info_hash {
                     self.add_peer_addresses(peers).await
                 }
             }
-            TrackerManagerEvent::TrackerAdded(handle) => {
+            TrackerClientEvent::TrackerAdded(handle) => {
                 let is_paused = self.options.read().await.contains(TorrentFlags::Paused);
                 let is_pieces_known = self.pieces.len().await > 0;
                 let is_completed = self.is_completed().await;

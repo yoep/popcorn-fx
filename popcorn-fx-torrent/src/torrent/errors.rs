@@ -181,7 +181,7 @@ mod tests {
     fn test_torrent_error_from_tracker_error() {
         let err_text = "foo bar";
         let err = TrackerError::Connection(err_text.to_string());
-        let expected_result = TorrentError::Tracker(err.clone());
+        let expected_result = TorrentError::Tracker(TrackerError::Connection(err_text.to_string()));
 
         let result: TorrentError = err.into();
 

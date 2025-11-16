@@ -4,10 +4,9 @@ use std::io::{Cursor, Read, Write};
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::time::Duration;
 
-use crate::torrent::tracker::manager::AnnounceEvent;
 use crate::torrent::tracker::{
-    AnnounceEntryResponse, Announcement, ConnectionMetrics, ScrapeResult, TrackerConnection,
-    TrackerHandle,
+    AnnounceEntryResponse, AnnounceEvent, Announcement, ConnectionMetrics, ScrapeResult,
+    TrackerClientConnection, TrackerHandle,
 };
 use crate::torrent::tracker::{Result, TrackerError};
 use crate::torrent::InfoHash;
@@ -39,7 +38,7 @@ pub struct UdpConnection {
 }
 
 #[async_trait]
-impl TrackerConnection for UdpConnection {
+impl TrackerClientConnection for UdpConnection {
     async fn start(&mut self) -> Result<()> {
         let socket = UdpSocket::bind("0:0").await?;
         let mut connected = false;
@@ -91,9 +90,12 @@ impl TrackerConnection for UdpConnection {
                 _ => {
                     // invalidate the active session as the connect request failed
                     self.session = None;
-                    Err(TrackerError::Io(format!(
-                        "expected Response::Connection, but got {:?} instead",
-                        response
+                    Err(TrackerError::Io(io::Error::new(
+                        io::ErrorKind::Other,
+                        format!(
+                            "expected Response::Connection, but got {:?} instead",
+                            response
+                        ),
                     )))
                 }
             }
@@ -144,9 +146,9 @@ impl TrackerConnection for UdpConnection {
                 Ok(result)
             }
             ResponseMessage::Error(e) => Err(TrackerError::AnnounceError(e)),
-            _ => Err(TrackerError::Io(format!(
-                "expected Response::Scrape, but got {:?} instead",
-                response
+            _ => Err(TrackerError::Io(io::Error::new(
+                io::ErrorKind::Other,
+                format!("expected Response::Scrape, but got {:?} instead", response),
             ))),
         }
     }
@@ -155,7 +157,7 @@ impl TrackerConnection for UdpConnection {
         &self.metrics
     }
 
-    fn close(&mut self) {
+    fn close(&self) {
         trace!("Closing udp connection");
         self.cancellation_token.cancel();
     }
@@ -305,9 +307,12 @@ impl UdpConnection {
                 })
             }
             ResponseMessage::Error(e) => Err(TrackerError::AnnounceError(e)),
-            _ => Err(TrackerError::Io(format!(
-                "expected Response::Announce, but got {:?} instead",
-                response
+            _ => Err(TrackerError::Io(io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "expected Response::Announce, but got {:?} instead",
+                    response
+                ),
             ))),
         }
     }

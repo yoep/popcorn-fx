@@ -309,7 +309,7 @@ pub mod tests {
         ($uri:expr, $temp_dir:expr, $options:expr, $config:expr, $operations:expr, $discoveries:expr, $storage:expr, $dht:expr) => {{
             use crate::torrent::peer::PeerDiscovery;
             use crate::torrent::tests::create_metadata;
-            use crate::torrent::tracker::TrackerManager;
+            use crate::torrent::tracker::TrackerClient;
             use crate::torrent::{Torrent, TorrentConfig, TorrentFlags, TorrentOperationFactory};
             use std::time::Duration;
 
@@ -320,7 +320,7 @@ pub mod tests {
             let discoveries: Vec<Box<dyn PeerDiscovery>> = $discoveries;
             let dht: DhtTracker = $dht;
             let torrent_info = create_metadata(uri);
-            let tracker_manager = TrackerManager::new(Duration::from_secs(2));
+            let tracker_manager = TrackerClient::new(Duration::from_secs(2));
             let config = TorrentConfig::builder()
                 .path($temp_dir)
                 .peer_connection_timeout(config.peer_connection_timeout)
@@ -553,8 +553,11 @@ pub mod tests {
                     .appender(Appender::builder().build("stdout", Box::new(ConsoleAppender::builder()
                         .encoder(Box::new(PatternEncoder::new("\x1B[37m{d(%Y-%m-%d %H:%M:%S%.3f)}\x1B[0m {h({l:>5.5})} \x1B[35m{I:>6.6}\x1B[0m \x1B[37m---\x1B[0m \x1B[37m[{T:>15.15}]\x1B[0m \x1B[36m{t:<60.60}\x1B[0m \x1B[37m:\x1B[0m {m}{n}")))
                         .build())))
+                    .logger(Logger::builder().build("axum", LevelFilter::Info))
                     .logger(Logger::builder().build("fx_callback", LevelFilter::Info))
+                    .logger(Logger::builder().build("hyper_util", LevelFilter::Info))
                     .logger(Logger::builder().build("mio", LevelFilter::Info))
+                    .logger(Logger::builder().build("reqwest", LevelFilter::Info))
                     .build(Root::builder().appender("stdout").build(level))
                     .unwrap())
                     .unwrap();

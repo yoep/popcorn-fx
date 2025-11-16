@@ -10,7 +10,7 @@ use crate::torrent::peer::{ProtocolExtensionFlags, TcpPeerDiscovery, UtpPeerDisc
 use crate::torrent::session_cache::{FxSessionCache, SessionCache};
 use crate::torrent::storage::{DiskStorage, MemoryStorage, Storage, StorageParams};
 use crate::torrent::torrent::Torrent;
-use crate::torrent::tracker::TrackerManager;
+use crate::torrent::tracker::TrackerClient;
 use crate::torrent::{
     ExtensionFactories, ExtensionFactory, InfoHash, Magnet, NoSessionCache, TorrentConfig,
     TorrentError, TorrentEvent, TorrentFlags, TorrentHandle, TorrentHealth, TorrentMetadata,
@@ -98,7 +98,7 @@ pub trait Session: Debug + Callback<SessionEvent> + Send + Sync {
     async fn dht(&self) -> Option<DhtTracker>;
 
     /// Get the tracker manager of the session.
-    async fn tracker(&self) -> TrackerManager;
+    async fn tracker(&self) -> TrackerClient;
 
     /// Get the current state of the session.
     async fn state(&self) -> SessionState;
@@ -337,7 +337,7 @@ impl FxTorrentSession {
             path: RwLock::new(path.as_ref().to_path_buf()),
             client_name: client_name.as_ref().to_string(),
             dht: Mutex::new(dht),
-            tracker: TrackerManager::new(Duration::from_secs(DEFAULT_TRACKER_TIMEOUT_SECONDS)),
+            tracker: TrackerClient::new(Duration::from_secs(DEFAULT_TRACKER_TIMEOUT_SECONDS)),
             torrents: Default::default(),
             protocol_extensions,
             extension_factories: extensions,
@@ -468,7 +468,7 @@ impl Session for FxTorrentSession {
         self.inner.dht.lock().await.clone()
     }
 
-    async fn tracker(&self) -> TrackerManager {
+    async fn tracker(&self) -> TrackerClient {
         self.inner.tracker.clone()
     }
 
@@ -883,7 +883,7 @@ struct InnerSession {
     /// The DHT node server of the session
     dht: Mutex<Option<DhtTracker>>,
     /// The tracker of the session
-    tracker: TrackerManager,
+    tracker: TrackerClient,
     /// The currently active torrents within the session
     torrents: RwLock<HashMap<InfoHash, Torrent>>,
     /// The enabled protocol extensions of the session
@@ -1099,7 +1099,7 @@ mod mock {
         impl Session for Session {
             fn handle(&self) -> SessionHandle;
             async fn dht(&self) -> Option<DhtTracker>;
-            async fn tracker(&self) -> TrackerManager;
+            async fn tracker(&self) -> TrackerClient;
             async fn state(&self) -> SessionState;
             async fn base_path(&self) -> PathBuf;
             async fn set_base_path(&self, location: PathBuf);

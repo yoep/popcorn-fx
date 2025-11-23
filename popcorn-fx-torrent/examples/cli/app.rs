@@ -37,6 +37,8 @@ use tokio_util::sync::CancellationToken;
 pub const APP_CLIENT_NAME: &str = "FX torrent";
 pub const APP_DEFAULT_STORAGE: &str = "torrents";
 pub const PERFORMANCE_HISTORY: usize = 150;
+pub const DEFAULT_TORRENT_FLAGS: fn() -> TorrentFlags =
+    || TorrentFlags::default() | TorrentFlags::UploadMode;
 const APP_QUIT_KEY: char = 'q';
 const TAB_NAME_LEN: usize = 16;
 const SESSION_CACHE_LIMIT: usize = 10;
@@ -182,6 +184,8 @@ impl App {
             AppCommand::Storage(location) => self.update_storage(location).await,
             AppCommand::DhtInfo => self.show_session_info(DHT_INFO_WIDGET_NAME),
             AppCommand::TrackersInfo => self.show_session_info(TRACKER_INFO_WIDGET_NAME),
+            AppCommand::AddTorrentFlags(flags) => self.add_torrent_flags(flags),
+            AppCommand::RemoveTorrentFlags(flags) => self.remove_torrent_flags(flags),
             AppCommand::Quit => self.cancellation_token.cancel(),
         }
     }
@@ -276,7 +280,7 @@ impl App {
     async fn add_torrent_uri(&mut self, uri: &str) {
         match self
             .session
-            .add_torrent_from_uri(uri, TorrentFlags::default() | TorrentFlags::UploadMode)
+            .add_torrent_from_uri(uri, self.settings.torrent_flags)
             .await
         {
             Ok(torrent) => match torrent.metadata().await {
@@ -291,7 +295,7 @@ impl App {
                                 .map(|e| e.to_string())
                                 .unwrap_or("<unknown>".to_string())
                         });
-                    let widget = TorrentInfoWidget::new(&name, torrent);
+                    let widget = TorrentInfoWidget::new(&name, torrent).await;
                     self.tabs
                         .push((Box::new(widget), TabState::with(true, false)));
                 }
@@ -340,6 +344,14 @@ impl App {
             state.visible = true;
             self.select_tab(index);
         }
+    }
+
+    fn add_torrent_flags(&mut self, flags: TorrentFlags) {
+        self.settings.torrent_flags |= flags;
+    }
+
+    fn remove_torrent_flags(&mut self, flags: TorrentFlags) {
+        self.settings.torrent_flags &= !flags;
     }
 
     async fn create_session_tabs(&mut self) {
@@ -474,6 +486,10 @@ pub enum AppCommand {
     DhtInfo,
     /// Show the Tracker info widget
     TrackersInfo,
+    /// Add torrent flags to the application settings when creating new torrents
+    AddTorrentFlags(TorrentFlags),
+    /// Remove torrent flags from the application settings when creating new torrents
+    RemoveTorrentFlags(TorrentFlags),
     /// Quit the app
     Quit,
 }
@@ -483,6 +499,7 @@ struct AppSettings {
     storage: PathBuf,
     dht_enabled: bool,
     trackers_enabled: bool,
+    torrent_flags: TorrentFlags,
 }
 
 impl Default for AppSettings {
@@ -491,6 +508,7 @@ impl Default for AppSettings {
             storage: PathBuf::from(APP_DEFAULT_STORAGE),
             dht_enabled: true,
             trackers_enabled: true,
+            torrent_flags: DEFAULT_TORRENT_FLAGS(),
         }
     }
 }

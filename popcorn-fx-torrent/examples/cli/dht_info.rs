@@ -2,7 +2,6 @@ use crate::app::{FXKeyEvent, FXWidget, PERFORMANCE_HISTORY};
 use async_trait::async_trait;
 use crossterm::event::KeyCode;
 use fx_callback::{Callback, Subscription};
-use fx_handle::Handle;
 use popcorn_fx_torrent::torrent::dht::{DhtEvent, DhtTracker, Node, NodeState};
 use popcorn_fx_torrent::torrent::format_bytes;
 use ratatui::layout::Constraint::{Fill, Length, Min, Percentage};
@@ -206,7 +205,7 @@ impl DhtNodeInfoWidget {
             .into_iter()
             .map(Cell::from)
             .collect::<Row>()
-            .style(Style::new().bg(Color::Yellow));
+            .style(Style::new().bg(Color::DarkGray).fg(Color::White));
         let rows = self
             .nodes
             .iter()
@@ -233,7 +232,7 @@ impl DhtNodeInfoWidget {
         let table = Table::new(rows, [Fill(1), Min(14), Min(6), Min(8), Min(8)])
             .header(header)
             .block(Block::bordered().title("Nodes"))
-            .row_highlight_style(Style::new().bg(Color::LightYellow))
+            .row_highlight_style(Style::new().bg(Color::LightYellow).fg(Color::DarkGray))
             .highlight_spacing(HighlightSpacing::Always);
 
         if let Ok(mut state) = self.state.lock() {

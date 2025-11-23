@@ -57,3 +57,9 @@ impl<'a> From<&'a CheckboxWidget> for Text<'a> {
         Self::from(value.as_str())
     }
 }
+
+impl<'a> From<&'a CheckboxWidget> for Span<'a> {
+    fn from(value: &'a CheckboxWidget) -> Self {
+        Self::from(value.as_str())
+    }
+}

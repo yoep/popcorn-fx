@@ -1,9 +1,12 @@
-use crate::app::{AppCommand, AppCommandSender, FXKeyEvent, APP_DEFAULT_STORAGE};
+use crate::app::{
+    AppCommand, AppCommandSender, FXKeyEvent, APP_DEFAULT_STORAGE, DEFAULT_TORRENT_FLAGS,
+};
 use crate::menu::widget::MenuSectionWidget;
 use crate::menu::{MenuCommand, MenuSection};
 use crate::widget::{CheckboxWidget, InputWidget};
 use async_trait::async_trait;
 use crossterm::event::KeyCode;
+use popcorn_fx_torrent::torrent::TorrentFlags;
 use ratatui::layout::Rect;
 use ratatui::prelude::{Color, StatefulWidget, Style};
 use ratatui::style::Stylize;
@@ -12,47 +15,162 @@ use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Widget};
 use ratatui::Frame;
 use std::fmt::Debug;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::vec;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
+/// A trait that implements a simple setting option.
+/// This option has no additional rendering for modifying the settings.
 trait Setting: Debug + Send {
-    fn menu_setting(&self) -> MenuSettingType;
-
-    /// Handle a received key event for the setting widget.
-    fn on_key_event(&mut self, key: FXKeyEvent);
+    /// Activate/trigger the setting option.
+    /// This either updates the state of the option or opens the settings widget.
+    fn activate(&mut self);
 
     /// Get the list item representation of the settings widget for the overview.
     fn item(&'_ self) -> ListItem<'_>;
+}
 
-    /// Render the individual separate widget.
+/// A trait that implements a setting widget that renders additional content.
+trait SettingWidget: Setting {
+    /// Handle a received key event for the setting widget.
+    fn on_key_event(&mut self, key: FXKeyEvent);
+
+    /// Render the settings widget details.
     fn render(&self, frame: &mut Frame, area: Rect);
 }
 
 #[derive(Debug)]
+enum SettingsMenuItem {
+    Title(String),
+    Option(Box<dyn Setting>),
+    Widget(Box<dyn SettingWidget>),
+}
+
+impl SettingsMenuItem {
+    fn activate(&mut self) {
+        match self {
+            SettingsMenuItem::Option(option) => option.activate(),
+            SettingsMenuItem::Widget(widget) => widget.activate(),
+            _ => {}
+        }
+    }
+
+    fn item(&self) -> ListItem<'_> {
+        match self {
+            SettingsMenuItem::Title(title) => {
+                ListItem::new(vec![Line::from(vec![Span::from(title).bold()])])
+            }
+            SettingsMenuItem::Option(option) => option.item(),
+            SettingsMenuItem::Widget(widget) => widget.item(),
+        }
+    }
+
+    fn on_key_event(&mut self, key: FXKeyEvent) {
+        match self {
+            SettingsMenuItem::Widget(widget) => widget.on_key_event(key),
+            _ => {}
+        }
+    }
+
+    fn render(&self, frame: &mut Frame, area: Rect) {
+        match self {
+            SettingsMenuItem::Widget(widget) => widget.render(frame, area),
+            _ => {}
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct MenuSettings {
-    items: Vec<Box<dyn Setting>>,
-    active_menu: MenuSettingType,
+    items: Vec<SettingsMenuItem>,
     state: Mutex<ListState>,
+    is_subitem_active: AtomicBool,
+    close_receiver: UnboundedReceiver<()>,
     menu_sender: UnboundedSender<MenuCommand>,
-    setting_receiver: UnboundedReceiver<MenuSettingCommand>,
 }
 
 impl MenuSettings {
     pub fn new(app_sender: AppCommandSender, menu_sender: UnboundedSender<MenuCommand>) -> Self {
-        let (setting_sender, setting_receiver) = unbounded_channel();
+        let (close_sender, close_receiver) = unbounded_channel();
+        let torrent_flags = DEFAULT_TORRENT_FLAGS();
 
         Self {
-            menu_sender,
             items: vec![
-                Box::new(DhtSetting::new(app_sender.clone())),
-                Box::new(TrackerSetting::new(app_sender.clone())),
-                Box::new(StorageSetting::new(app_sender, setting_sender)),
-                Box::new(FlagsSetting::new()),
+                SettingsMenuItem::Title("Peer discovery".to_string()),
+                SettingsMenuItem::Option(Box::new(DhtSetting::new(app_sender.clone()))),
+                SettingsMenuItem::Option(Box::new(TrackerSetting::new(app_sender.clone()))),
+                SettingsMenuItem::Title("Storage location".to_string()),
+                SettingsMenuItem::Widget(Box::new(StorageSetting::new(
+                    app_sender.clone(),
+                    close_sender,
+                ))),
+                SettingsMenuItem::Title("Torrent options".to_string()),
+                SettingsMenuItem::Option(Box::new(TorrentFlagSetting::new(
+                    "Seed mode",
+                    TorrentFlags::SeedMode,
+                    torrent_flags,
+                    app_sender.clone(),
+                ))),
+                SettingsMenuItem::Option(Box::new(TorrentFlagSetting::new(
+                    "Upload mode",
+                    TorrentFlags::UploadMode,
+                    torrent_flags,
+                    app_sender.clone(),
+                ))),
+                SettingsMenuItem::Option(Box::new(TorrentFlagSetting::new(
+                    "Download mode",
+                    TorrentFlags::DownloadMode,
+                    torrent_flags,
+                    app_sender.clone(),
+                ))),
+                SettingsMenuItem::Option(Box::new(TorrentFlagSetting::new(
+                    "Share mode",
+                    TorrentFlags::ShareMode,
+                    torrent_flags,
+                    app_sender.clone(),
+                ))),
+                SettingsMenuItem::Option(Box::new(TorrentFlagSetting::new(
+                    "Apply IP filter",
+                    TorrentFlags::ApplyIpFilter,
+                    torrent_flags,
+                    app_sender.clone(),
+                ))),
+                SettingsMenuItem::Option(Box::new(TorrentFlagSetting::new(
+                    "Paused",
+                    TorrentFlags::Paused,
+                    torrent_flags,
+                    app_sender.clone(),
+                ))),
+                SettingsMenuItem::Option(Box::new(TorrentFlagSetting::new(
+                    "Metadata",
+                    TorrentFlags::Metadata,
+                    torrent_flags,
+                    app_sender.clone(),
+                ))),
+                SettingsMenuItem::Option(Box::new(TorrentFlagSetting::new(
+                    "Sequential download",
+                    TorrentFlags::SequentialDownload,
+                    torrent_flags,
+                    app_sender.clone(),
+                ))),
+                SettingsMenuItem::Option(Box::new(TorrentFlagSetting::new(
+                    "Stop when ready",
+                    TorrentFlags::StopWhenReady,
+                    torrent_flags,
+                    app_sender.clone(),
+                ))),
             ],
-            active_menu: MenuSettingType::Overview,
-            setting_receiver,
-            state: Mutex::new(ListState::default().with_selected(Some(0))),
+            is_subitem_active: AtomicBool::new(false),
+            close_receiver,
+            state: Mutex::new(ListState::default().with_selected(Some(1))),
+            menu_sender,
+        }
+    }
+
+    fn select_index(&self, index: usize) {
+        if let Ok(mut state) = self.state.lock() {
+            state.select(Some(index));
         }
     }
 
@@ -64,7 +182,7 @@ impl MenuSettings {
             .unwrap_or(0)
     }
 
-    fn selected_mut(&mut self) -> &mut Box<dyn Setting> {
+    fn selected_mut(&mut self) -> &mut SettingsMenuItem {
         let selected = self.selected_index();
 
         self.items
@@ -72,12 +190,70 @@ impl MenuSettings {
             .expect("expected a valid item to have been selected")
     }
 
-    async fn handle_command(&mut self, command: MenuSettingCommand) {
-        match command {
-            MenuSettingCommand::SwitchMenu(active_setting) => {
-                self.active_menu = active_setting;
+    /// Select the next widget item within the menu list.
+    fn next_item(&self) {
+        let current_index = self.selected_index().saturating_add(1);
+        for index in current_index..self.items.len() {
+            let item = &self.items[index];
+            if let SettingsMenuItem::Title(_) = item {
+                continue;
             }
+
+            self.select_index(index);
+            return;
         }
+    }
+
+    /// Select the previous widget item within the menu list.
+    fn previous_item(&self) {
+        let current_index = self.selected_index();
+        for index in (0..current_index).into_iter().rev() {
+            let item = &self.items[index];
+            if let SettingsMenuItem::Title(_) = item {
+                continue;
+            }
+
+            self.select_index(index);
+            return;
+        }
+    }
+
+    fn handle_menu_key_event(&mut self, mut key: FXKeyEvent) {
+        match key.code() {
+            KeyCode::Up => {
+                key.consume();
+                self.previous_item();
+            }
+            KeyCode::Down => {
+                key.consume();
+                self.next_item();
+            }
+            KeyCode::Esc | KeyCode::Backspace => {
+                key.consume();
+                let _ = self
+                    .menu_sender
+                    .send(MenuCommand::SelectSection(MenuSection::Overview));
+            }
+            KeyCode::Enter => {
+                key.consume();
+                let item = self.selected_mut();
+                item.activate();
+                if let SettingsMenuItem::Widget(_) = item {
+                    self.is_subitem_active.store(true, Ordering::Relaxed);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn render_menu_overview(&self, frame: &mut Frame, area: Rect) {
+        let items = self.items.iter().map(|e| e.item()).collect::<Vec<_>>();
+        let menu_list = List::new(items)
+            .block(Block::new().title("Settings").borders(Borders::ALL))
+            .highlight_style(Style::new().bg(Color::DarkGray));
+
+        let mut state = self.state.lock().expect("Mutex poisoned");
+        StatefulWidget::render(menu_list, area, frame.buffer_mut(), &mut state);
     }
 }
 
@@ -87,39 +263,11 @@ impl MenuSectionWidget for MenuSettings {
         128
     }
 
-    fn on_key_event(&mut self, mut key: FXKeyEvent) {
-        if self.active_menu == MenuSettingType::Overview {
-            match key.code() {
-                KeyCode::Up => {
-                    key.consume();
-                    let selected = self.selected_index().saturating_sub(1);
-                    if let Ok(mut state) = self.state.lock() {
-                        key.consume();
-                        state.select(Some(selected));
-                    }
-                }
-                KeyCode::Down => {
-                    key.consume();
-                    let selected = self.selected_index().saturating_add(1);
-                    if let Ok(mut state) = self.state.lock() {
-                        if selected <= self.items.len() - 1 {
-                            state.select(Some(selected));
-                        }
-                    }
-                }
-                KeyCode::Esc | KeyCode::Backspace => {
-                    key.consume();
-                    let _ = self
-                        .menu_sender
-                        .send(MenuCommand::SelectSection(MenuSection::Overview));
-                }
-                KeyCode::Enter => {
-                    self.selected_mut().on_key_event(key);
-                }
-                _ => {}
-            }
-        } else {
+    fn on_key_event(&mut self, key: FXKeyEvent) {
+        if self.is_subitem_active.load(Ordering::Relaxed) {
             self.selected_mut().on_key_event(key);
+        } else {
+            self.handle_menu_key_event(key);
         }
     }
 
@@ -128,44 +276,19 @@ impl MenuSectionWidget for MenuSettings {
     }
 
     fn render(&self, frame: &mut Frame, area: Rect) {
-        if self.active_menu == MenuSettingType::Overview {
-            let items = self.items.iter().map(|e| e.item()).collect::<Vec<_>>();
-            let menu_list = List::new(items)
-                .block(Block::new().title("Settings").borders(Borders::ALL))
-                .highlight_style(Style::new().bg(Color::DarkGray));
-
-            let mut state = self.state.lock().expect("Mutex poisoned");
-            StatefulWidget::render(menu_list, area, frame.buffer_mut(), &mut state);
+        if self.is_subitem_active.load(Ordering::Relaxed) {
+            let index = self.selected_index();
+            self.items.get(index).map(|e| e.render(frame, area));
         } else {
-            if let Some(item) = self
-                .items
-                .iter()
-                .find(|e| e.menu_setting() == self.active_menu)
-            {
-                item.render(frame, area);
-            }
+            self.render_menu_overview(frame, area);
         }
     }
 
     async fn tick(&mut self) {
-        while let Ok(command) = self.setting_receiver.try_recv() {
-            self.handle_command(command).await;
+        if let Ok(_) = self.close_receiver.try_recv() {
+            self.is_subitem_active.store(false, Ordering::Relaxed);
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum MenuSettingType {
-    Overview,
-    Dht,
-    Tracker,
-    Storage,
-    Flags,
-}
-
-#[derive(Debug, PartialEq)]
-enum MenuSettingCommand {
-    SwitchMenu(MenuSettingType),
 }
 
 #[derive(Debug)]
@@ -184,25 +307,15 @@ impl DhtSetting {
 }
 
 impl Setting for DhtSetting {
-    fn menu_setting(&self) -> MenuSettingType {
-        MenuSettingType::Dht
-    }
-
-    fn on_key_event(&mut self, key: FXKeyEvent) {
-        if key.code() == KeyCode::Enter {
-            self.checkbox.toggle();
-            let _ = self
-                .app_sender
-                .send(AppCommand::DhtEnabled(self.checkbox.is_checked()));
-        }
+    fn activate(&mut self) {
+        self.checkbox.toggle();
+        let _ = self
+            .app_sender
+            .send(AppCommand::DhtEnabled(self.checkbox.is_checked()));
     }
 
     fn item(&'_ self) -> ListItem<'_> {
         Text::from(&self.checkbox).into()
-    }
-
-    fn render(&self, _: &mut Frame, _: Rect) {
-        // no-op
     }
 }
 
@@ -222,55 +335,46 @@ impl TrackerSetting {
 }
 
 impl Setting for TrackerSetting {
-    fn menu_setting(&self) -> MenuSettingType {
-        MenuSettingType::Tracker
-    }
-
-    fn on_key_event(&mut self, key: FXKeyEvent) {
-        if key.code() == KeyCode::Enter {
-            self.checkbox.toggle();
-            let _ = self
-                .app_sender
-                .send(AppCommand::TrackerEnabled(self.checkbox.is_checked()));
-        }
+    fn activate(&mut self) {
+        self.checkbox.toggle();
+        let _ = self
+            .app_sender
+            .send(AppCommand::TrackerEnabled(self.checkbox.is_checked()));
     }
 
     fn item(&'_ self) -> ListItem<'_> {
         Text::from(&self.checkbox).into()
-    }
-
-    fn render(&self, _: &mut Frame, _: Rect) {
-        // no-op
     }
 }
 
 #[derive(Debug)]
 struct StorageSetting {
     input: InputWidget,
-    is_active: bool,
     app_sender: AppCommandSender,
-    setting_sender: UnboundedSender<MenuSettingCommand>,
+    close_sender: UnboundedSender<()>,
 }
 
 impl StorageSetting {
-    fn new(
-        app_sender: AppCommandSender,
-        setting_sender: UnboundedSender<MenuSettingCommand>,
-    ) -> Self {
+    fn new(app_sender: AppCommandSender, close_sender: UnboundedSender<()>) -> Self {
         Self {
             input: InputWidget::new_with_opts(APP_DEFAULT_STORAGE, true),
-            is_active: false,
             app_sender,
-            setting_sender,
+            close_sender,
         }
     }
 }
 
 impl Setting for StorageSetting {
-    fn menu_setting(&self) -> MenuSettingType {
-        MenuSettingType::Storage
+    fn activate(&mut self) {
+        // no-op
     }
 
+    fn item(&'_ self) -> ListItem<'_> {
+        Line::from(vec![self.input.as_str().into()]).into()
+    }
+}
+
+impl SettingWidget for StorageSetting {
     fn on_key_event(&mut self, mut key: FXKeyEvent) {
         match key.code() {
             KeyCode::Esc => {
@@ -283,19 +387,9 @@ impl Setting for StorageSetting {
             }
             KeyCode::Enter => {
                 key.consume();
-                if !self.is_active {
-                    let _ = self
-                        .setting_sender
-                        .send(MenuSettingCommand::SwitchMenu(MenuSettingType::Storage));
-                } else {
-                    let new_location = PathBuf::from(self.input.as_str());
-                    let _ = self.app_sender.send(AppCommand::Storage(new_location));
-                    let _ = self
-                        .setting_sender
-                        .send(MenuSettingCommand::SwitchMenu(MenuSettingType::Overview));
-                }
-
-                self.is_active = !self.is_active;
+                let new_location = PathBuf::from(self.input.as_str());
+                let _ = self.app_sender.send(AppCommand::Storage(new_location));
+                let _ = self.close_sender.send(());
             }
             KeyCode::Char(char) => {
                 key.consume();
@@ -313,13 +407,6 @@ impl Setting for StorageSetting {
         }
     }
 
-    fn item(&'_ self) -> ListItem<'_> {
-        ListItem::new(vec![
-            Line::from(vec![Span::from("Storage").bold()]),
-            Line::from(vec![self.input.as_str().into()]),
-        ])
-    }
-
     fn render(&self, frame: &mut Frame, area: Rect) {
         let border = Block::new().title("Storage location").borders(Borders::ALL);
 
@@ -329,27 +416,40 @@ impl Setting for StorageSetting {
 }
 
 #[derive(Debug)]
-struct FlagsSetting {}
+struct TorrentFlagSetting {
+    widget: CheckboxWidget,
+    flag: TorrentFlags,
+    app_sender: AppCommandSender,
+}
 
-impl FlagsSetting {
-    fn new() -> Self {
-        Self {}
+impl TorrentFlagSetting {
+    fn new(
+        name: &str,
+        flag: TorrentFlags,
+        initial_flags: TorrentFlags,
+        app_sender: AppCommandSender,
+    ) -> Self {
+        Self {
+            widget: CheckboxWidget::new(name, initial_flags.contains(flag)),
+            flag,
+            app_sender,
+        }
     }
 }
 
-impl Setting for FlagsSetting {
-    fn menu_setting(&self) -> MenuSettingType {
-        MenuSettingType::Flags
+impl Setting for TorrentFlagSetting {
+    fn activate(&mut self) {
+        self.widget.toggle();
+        if self.widget.is_checked() {
+            let _ = self.app_sender.send(AppCommand::AddTorrentFlags(self.flag));
+        } else {
+            let _ = self
+                .app_sender
+                .send(AppCommand::RemoveTorrentFlags(self.flag));
+        }
     }
-
-    fn on_key_event(&mut self, key: FXKeyEvent) {}
 
     fn item(&'_ self) -> ListItem<'_> {
-        ListItem::new(vec![
-            Line::from(vec![Span::from("Torrent options").bold()]),
-            Line::from(vec![Span::from("TODO").bold()]),
-        ])
+        Line::from(vec![Span::from(&self.widget)]).into()
     }
-
-    fn render(&self, frame: &mut Frame, area: Rect) {}
 }

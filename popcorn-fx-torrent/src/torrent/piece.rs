@@ -25,6 +25,21 @@ pub enum PiecePriority {
     Now = 5,
 }
 
+impl PiecePriority {
+    /// Returns an iterator over the variants of the enum.
+    pub fn iter() -> impl Iterator<Item = Self> {
+        [
+            Self::None,
+            Self::Normal,
+            Self::High,
+            Self::Readahead,
+            Self::Next,
+            Self::Now,
+        ]
+        .into_iter()
+    }
+}
+
 impl Default for PiecePriority {
     fn default() -> Self {
         Self::Normal

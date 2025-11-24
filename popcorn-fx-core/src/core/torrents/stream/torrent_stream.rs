@@ -690,8 +690,10 @@ impl FXTorrentStreamingResource {
                     );
                     Error::FileNotFound(filename.to_string())
                 })
-                .and_then(|mut file| {
-                    let resource_length = Self::file_bytes(&mut file)?;
+                .and_then(|file| {
+                    // always use the torrent file length rather than the underlying fs length
+                    // as the disk file might not have the full file length written to disk
+                    let resource_length = torrent_file.len() as u64;
                     let mut stream_length = len.unwrap_or_else(|| resource_length);
                     let stream_end = offset + stream_length;
 
@@ -748,7 +750,7 @@ impl FXTorrentStreamingResource {
             "Torrent streaming resource {} is waiting for buffer {{{}-{}}} to be available",
             self, &buffer.start, &buffer.end
         );
-        match pin!(self.torrent.prioritize_bytes(&buffer)).poll(cx) {
+        match pin!(self.prioritize_bytes(&buffer)).poll(cx) {
             Poll::Ready(_) => {}
             Poll::Pending => return Poll::Pending,
         }
@@ -832,9 +834,7 @@ impl FXTorrentStreamingResource {
         range_end.saturating_sub(cursor).min(DEFAULT_BUFFER_SIZE)
     }
 
-    /// Get the next buffer byte range.
-    ///
-    /// It returns the [Buffer] range.
+    /// Returns the next [Buffer] range for the stream.
     fn next_buffer(&self) -> Buffer {
         let mut buffer_end_byte = self.cursor + DEFAULT_BUFFER_SIZE;
         let stream_end = (self.offset() + self.content_length()) as usize;
@@ -846,24 +846,27 @@ impl FXTorrentStreamingResource {
         self.cursor..buffer_end_byte
     }
 
-    /// Retrieve the last byte for the given file.
-    fn file_bytes(file: &mut File) -> torrents::Result<u64> {
-        match file.seek(SeekFrom::End(0)) {
-            Ok(e) => Ok(e),
-            Err(e) => {
-                error!(
-                    "Torrent streaming resource failed to determine the file length, {}",
-                    e
-                );
-                Err(Error::Io(e.to_string()))
-            }
-        }
+    /// Returns the given buffer range relative to the torrent file.
+    fn as_torrent_range(&self, buffer: &Buffer) -> Buffer {
+        buffer.start + self.torrent_offset..buffer.end + self.torrent_offset
     }
 
     /// Normalize the given string slice value.
     /// It returns a normalized value lowercased and trimmed.
     fn normalize<S: AsRef<str>>(value: S) -> String {
         value.as_ref().trim().to_lowercase()
+    }
+
+    /// Returns `true` if all bytes within the given stream buffer are available.
+    async fn has_bytes(&self, bytes: &Buffer) -> bool {
+        let torrent_range = self.as_torrent_range(bytes);
+        self.torrent.has_bytes(&torrent_range).await
+    }
+
+    /// Prioritize the given stream buffer range within the torrent.
+    async fn prioritize_bytes(&self, bytes: &Buffer) {
+        let torrent_range = self.as_torrent_range(bytes);
+        self.torrent.prioritize_bytes(&torrent_range).await
     }
 }
 
@@ -914,9 +917,7 @@ impl Stream for FXTorrentStreamingResource {
 
         // get the next buffer to read from
         let buffer = self.next_buffer();
-        // calculate the actual range of bytes for the buffer within the torrent
-        let torrent_buffer = buffer.start + self.torrent_offset..buffer.end + self.torrent_offset;
-        let is_available = match pin!(self.torrent.has_bytes(&torrent_buffer)).poll(cx) {
+        let is_available = match pin!(self.has_bytes(&buffer)).poll(cx) {
             Poll::Ready(e) => e,
             Poll::Pending => return Poll::Pending,
         };
@@ -950,6 +951,7 @@ mod test {
     use super::*;
 
     use crate::core::torrents::{MockTorrent, StreamBytes};
+    use crate::create_torrent_file;
     use crate::testing::{copy_test_file, read_test_file_to_string};
     use crate::{assert_timeout, init_logger, recv_timeout};
 
@@ -973,7 +975,7 @@ mod test {
         let callbacks = MultiThreadedCallback::new();
         let subscription_callbacks = callbacks.clone();
         let (tx_ready, rx_ready) = channel();
-        let files = vec![create_file_from_temp_path(temp_path.clone())];
+        let files = vec![create_torrent_file!(temp_path.clone())];
         mock.expect_handle().return_const(torrent_handle);
         mock.expect_files().returning(move || files.clone());
         mock.expect_has_bytes().return_const(true);
@@ -1037,9 +1039,10 @@ mod test {
     async fn test_content_range() {
         init_logger!();
         let filename = "range.txt";
+        let expected_length = 1024;
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().join(filename);
-        let file_info = create_file_from_temp_path(temp_path.clone());
+        let file_info = create_torrent_file!(temp_path.clone());
         let mut torrent = MockTorrent::new();
         torrent.expect_handle().return_const(TorrentHandle::new());
         torrent
@@ -1054,8 +1057,7 @@ mod test {
         let stream = FXTorrentStreamingResource::new(torrent, filename)
             .await
             .unwrap();
-        let bytes = read_test_file_to_string(filename).as_bytes().len();
-        let expected_result = format!("bytes 0-{}/{}", bytes - 1, bytes);
+        let expected_result = format!("bytes 0-{}/{}", expected_length - 1, expected_length);
 
         let result = stream.content_range();
 
@@ -1068,7 +1070,7 @@ mod test {
         let filename = "simple.txt";
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().join(filename);
-        let files = vec![create_file_from_temp_path(temp_path.clone())];
+        let files = vec![create_torrent_file!(temp_path.clone())];
         let mut torrent = MockTorrent::new();
         torrent.expect_handle().return_const(TorrentHandle::new());
         torrent.expect_files().return_once(move || files);
@@ -1094,7 +1096,7 @@ mod test {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().join(filename);
         let mut a = Some(true);
-        let file = create_file_from_temp_path(temp_path.clone());
+        let file = create_torrent_file!(temp_path.clone(), 0, 30);
         let files = vec![file.clone()];
         let callbacks = MultiThreadedCallback::new();
         let callback_receiver = callbacks.subscribe();
@@ -1143,11 +1145,13 @@ mod test {
         let filename = "simple.txt";
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().join(filename);
-        let mut a = Some(true);
-        let file = create_file_from_temp_path(temp_path.clone());
+        let expected_result = read_test_file_to_string(filename);
+        let file =
+            create_torrent_file!(temp_path.clone(), 260, expected_result.bytes().len() as u64);
         let files = vec![file.clone()];
         let callback = MultiThreadedCallback::new();
         let callback_subscription = callback.subscribe();
+        let mut has_bytes = Some(true);
         let mut torrent = MockTorrent::new();
         torrent.expect_handle().return_const(TorrentHandle::new());
         torrent.expect_files().return_once(move || files);
@@ -1155,15 +1159,15 @@ mod test {
             .expect_absolute_file_path()
             .returning(move |_| temp_path.clone());
         torrent.expect_has_bytes().returning(move |_| {
-            if a.is_some() {
-                a.take();
+            if has_bytes.is_some() {
+                has_bytes.take();
                 callback.invoke(TorrentEvent::PieceCompleted(2));
                 return false;
             }
 
             true
         });
-        torrent.expect_prioritize_bytes().return_const(());
+        torrent.expect_prioritize_bytes().times(1).return_const(());
         torrent
             .expect_file_by_name()
             .times(1)
@@ -1174,7 +1178,6 @@ mod test {
             .return_once(move || callback_subscription);
         let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
-        let expected_result = read_test_file_to_string(filename);
 
         let stream = FXTorrentStreamingResource::new(torrent, filename)
             .await
@@ -1182,7 +1185,7 @@ mod test {
 
         let result = read_stream(stream).await;
 
-        assert_eq!(expected_result, result)
+        assert_eq!(expected_result, result);
     }
 
     #[tokio::test]
@@ -1196,7 +1199,7 @@ mod test {
         let (tx, mut rx) = unbounded_channel();
         let callbacks = MultiThreadedCallback::new();
         let subscribe_callbacks = callbacks.clone();
-        let files = vec![create_file_from_temp_path(temp_path.clone())];
+        let files = vec![create_torrent_file!(temp_path.clone())];
         torrent.expect_handle().return_const(TorrentHandle::new());
         torrent.expect_files().return_once(move || files);
         torrent.expect_has_bytes().return_const(true);
@@ -1270,7 +1273,7 @@ mod test {
         let callbacks = MultiThreadedCallback::new();
         let callback_subscription = callbacks.subscribe();
         let url = Url::parse("http://localhost").unwrap();
-        let files = vec![create_file_from_temp_path(temp_path.clone())];
+        let files = vec![create_torrent_file!(temp_path.clone())];
         mock.expect_handle().return_const(TorrentHandle::new());
         mock.expect_files().returning(move || files.clone());
         mock.expect_has_bytes().return_const(true);
@@ -1305,7 +1308,7 @@ mod test {
         let callbacks = MultiThreadedCallback::new();
         let callback_subscription = callbacks.subscribe();
         let url = Url::parse("http://localhost").unwrap();
-        let files = vec![create_file_from_temp_path(temp_path.clone())];
+        let files = vec![create_torrent_file!(temp_path.clone())];
         let metrics = Metrics::new();
         metrics.wanted_pieces.inc_by(15000);
         metrics.wanted_completed_pieces.inc_by(15000);
@@ -1345,7 +1348,7 @@ mod test {
         let callback_subscription = callbacks.subscribe();
         let mut torrent = MockTorrent::new();
         let url = Url::parse("http://localhost").unwrap();
-        let files = vec![create_file_from_temp_path(temp_path.clone())];
+        let files = vec![create_torrent_file!(temp_path.clone())];
         torrent.expect_handle().return_const(torrent_handle);
         torrent.expect_files().returning(move || files.clone());
         torrent.expect_has_bytes().return_const(true);
@@ -1390,6 +1393,83 @@ mod test {
         }
     }
 
+    mod fx_torrent_streaming_resource {
+        use super::*;
+
+        #[tokio::test]
+        async fn test_has_bytes() {
+            init_logger!();
+            let filename = "movie.mp4";
+            let temp_dir = tempdir().unwrap();
+            let temp_path = temp_dir.path().join(filename);
+            let absolute_filepath = PathBuf::from(copy_test_file(
+                temp_dir.path().to_str().unwrap(),
+                "huge.txt",
+                Some(filename),
+            ));
+            let buffer: Buffer = 200..600;
+            let files = vec![create_torrent_file!(temp_path.clone(), 2000)];
+            let mut torrent = MockTorrent::new();
+            torrent.expect_handle().return_const(TorrentHandle::new());
+            torrent
+                .expect_has_bytes()
+                .withf(|bytes| bytes.eq(&(2200..2600)))
+                .times(1)
+                .return_const(true);
+            torrent.expect_files().returning(move || files.clone());
+            torrent
+                .expect_absolute_file_path()
+                .returning(move |_| absolute_filepath.clone());
+            let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
+            let stream = FXTorrentStreamingResource::new(torrent, filename)
+                .await
+                .unwrap();
+
+            let result = stream.has_bytes(&buffer).await;
+
+            assert_eq!(true, result, "expected the bytes to have been present");
+        }
+
+        #[tokio::test]
+        async fn test_prioritize_bytes() {
+            init_logger!();
+            let filename = "myShowEpisode.mkv";
+            let temp_dir = tempdir().unwrap();
+            let temp_path = temp_dir.path().join(filename);
+            let absolute_filepath = PathBuf::from(copy_test_file(
+                temp_dir.path().to_str().unwrap(),
+                "huge.txt",
+                Some(filename),
+            ));
+            let buffer: Buffer = 650..980;
+            let files = vec![create_torrent_file!(temp_path.clone(), 3000)];
+            let (tx, mut rx) = unbounded_channel();
+            let mut torrent = MockTorrent::new();
+            torrent.expect_handle().return_const(TorrentHandle::new());
+            torrent
+                .expect_prioritize_bytes()
+                .times(1)
+                .returning(move |bytes| tx.send(bytes.clone()).unwrap());
+            torrent.expect_files().returning(move || files.clone());
+            torrent
+                .expect_absolute_file_path()
+                .returning(move |_| absolute_filepath.clone());
+            let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
+            let stream = FXTorrentStreamingResource::new(torrent, filename)
+                .await
+                .unwrap();
+
+            stream.prioritize_bytes(&buffer).await;
+
+            let result = recv_timeout!(&mut rx, Duration::from_millis(750));
+            assert_eq!(
+                3650..3980,
+                result,
+                "expected the torrent bytes to have been prioritized"
+            )
+        }
+    }
+
     async fn read_stream(mut stream: FXTorrentStreamingResource) -> String {
         let mut data: Option<StreamBytes>;
         let mut result: Vec<u8> = vec![];
@@ -1406,23 +1486,40 @@ mod test {
         String::from_utf8(result).expect("expected a valid string")
     }
 
-    fn create_file_from_temp_path(temp_path: PathBuf) -> torrent::File {
-        torrent::File {
-            index: 0,
-            torrent_path: temp_path.clone(),
-            torrent_offset: 0,
-            info: TorrentFileInfo {
-                length: 0,
-                path: None,
-                path_utf8: None,
-                md5sum: None,
-                attr: None,
-                symlink_path: None,
-                sha1: None,
-            },
-            priority: Default::default(),
-            pieces: 0..100,
-        }
+    #[macro_export]
+    macro_rules! create_torrent_file {
+        ($temp_path:expr) => {{
+            use crate::create_torrent_file;
+            create_torrent_file!($temp_path, 0)
+        }};
+        ($temp_path:expr, $torrent_offset:expr) => {{
+            use crate::create_torrent_file;
+            create_torrent_file!($temp_path, $torrent_offset, 1024)
+        }};
+        ($temp_path:expr, $torrent_offset:expr, $file_len:expr) => {{
+            use popcorn_fx_torrent::torrent::File;
+
+            let torrent_path: PathBuf = $temp_path;
+            let torrent_offset: usize = $torrent_offset;
+            let length: u64 = $file_len;
+
+            File {
+                index: 0,
+                torrent_path,
+                torrent_offset,
+                info: TorrentFileInfo {
+                    length,
+                    path: None,
+                    path_utf8: None,
+                    md5sum: None,
+                    attr: None,
+                    symlink_path: None,
+                    sha1: None,
+                },
+                priority: Default::default(),
+                pieces: 0..100,
+            }
+        }};
     }
 
     fn torrent_stats_not_completed() -> Metrics {

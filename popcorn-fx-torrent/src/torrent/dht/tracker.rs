@@ -33,7 +33,7 @@ const MAX_PACKET_SIZE: usize = 65_535;
 const SEND_PACKAGE_TIMEOUT: Duration = Duration::from_secs(6);
 const RESPONSE_TIMEOUT: Duration = Duration::from_secs(8);
 const REFRESH_INTERVAL: Duration = Duration::from_secs(60 * 15);
-const CLEANUP_INTERVAL: Duration = Duration::from_secs(3);
+const CLEANUP_INTERVAL: Duration = Duration::from_secs(5);
 const STATS_INTERVAL: Duration = Duration::from_secs(1);
 const DEFAULT_BUCKET_SIZE: usize = 8;
 const DEFAULT_ROUTING_NODE_SERVERS: fn() -> Vec<&'static str> = || {
@@ -1186,7 +1186,7 @@ impl InnerTracker {
         );
         let per_target_goal: usize = 64;
         let router_nodes_len = router_nodes.len();
-        let targets = Self::bootstrap_targets(tracker_id, 8);
+        let targets = Self::bootstrap_targets(tracker_id, 2);
 
         let futures: Vec<_> = router_nodes
             .into_iter()
@@ -1295,8 +1295,8 @@ impl InnerTracker {
         added
     }
 
-    fn send_reply(response: PendingRequestType, result: Result<Reply>) {
-        match response {
+    fn send_reply(pending_request: PendingRequestType, result: Result<Reply>) {
+        match pending_request {
             PendingRequestType::Ping(tx) => {
                 let _ = tx.send(Self::map_reply(result, "Ping", |r| match r {
                     Reply::Ping(node) => Some(node),
@@ -1310,7 +1310,10 @@ impl InnerTracker {
                 }));
             }
             PendingRequestType::GetPeers(tx) => {
+                // a GetPeers request might sometimes result in a FindNode response, this is due to the remote node not having any peers for the requested hash
+                // in such a case, we send an empty reply instead of an error
                 let _ = tx.send(Self::map_reply(result, "GetPeers", |r| match r {
+                    Reply::FindNode(_) => Some(vec![]),
                     Reply::GetPeers(peers) => Some(peers),
                     _ => None,
                 }));

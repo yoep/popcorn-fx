@@ -170,6 +170,8 @@ pub enum TrackerState {
     Active,
     /// Tracker is bad and disabled for further
     Disabled,
+    /// Tracker connection is closed
+    Closed,
 }
 
 impl TrackerState {
@@ -330,6 +332,10 @@ impl Tracker {
         }
     }
 
+    /// Advances the metric’s internal state by the provided time interval.
+    ///
+    /// This is typically called periodically (e.g. once per second) to update
+    /// rate counters, decay windows, or any other time-dependent metric logic.
     pub(crate) fn tick(&self, interval: Duration) {
         let metrics = self.metrics();
         let connection_metrics = self.inner.connection.metrics();
@@ -339,6 +345,12 @@ impl Tracker {
 
         metrics.tick(interval);
         connection_metrics.tick(interval);
+    }
+
+    /// Close the tracker connection.
+    pub(crate) async fn close(&self) {
+        self.inner.connection.close();
+        *self.inner.state.lock().await = TrackerState::Closed;
     }
 
     /// Confirm the last query made by the tracker.

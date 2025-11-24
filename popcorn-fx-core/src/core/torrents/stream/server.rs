@@ -462,7 +462,7 @@ mod test {
     use super::*;
 
     use crate::core::torrents::{MockTorrent, TorrentHandle, TorrentState, TorrentStreamState};
-    use crate::testing::{copy_test_file, read_test_file_to_string};
+    use crate::testing::{copy_test_file, read_test_file_to_bytes, read_test_file_to_string};
     use crate::{assert_timeout, assert_timeout_eq, init_logger};
 
     use fx_callback::MultiThreadedCallback;
@@ -479,7 +479,8 @@ mod test {
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_dir_path = temp_dir.path().to_path_buf();
         let file = temp_dir.path().join(filename);
-        let torrent_files = create_torrent_files(&file);
+        let file_len = read_test_file_to_bytes(filename).len() as u64;
+        let torrent_files = create_torrent_files(&file, file_len);
         let total_pieces = torrent_files[0].pieces.len();
         let client = Client::builder()
             .build()
@@ -602,6 +603,7 @@ mod test {
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_dir_path = temp_dir.path().to_path_buf();
         let file = temp_dir.path().join(filename);
+        let file_len = read_test_file_to_bytes(filename).len() as u64;
         let client = Client::builder()
             .build()
             .expect("Client should have been created");
@@ -617,7 +619,7 @@ mod test {
             .return_once(move || callback_receiver);
         torrent
             .expect_files()
-            .returning(move || create_torrent_files(&file));
+            .returning(move || create_torrent_files(&file, file_len));
         torrent
             .expect_absolute_file_path()
             .returning(move |file| temp_dir_path.join(&file.torrent_path));
@@ -684,10 +686,15 @@ mod test {
     async fn test_stop_stream() {
         init_logger!();
         let filename = "large-[123].txt";
-        let total_pieces = 15usize;
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_dir_path = temp_dir.path().to_path_buf();
-        let file = temp_dir.path().join(filename);
+        let file_len = read_test_file_to_bytes(filename).len() as u64;
+        let absolute_filepath = PathBuf::from(copy_test_file(
+            temp_dir.path().to_str().unwrap(),
+            filename,
+            None,
+        ));
+        let total_pieces = 15usize;
         let client = Client::builder()
             .build()
             .expect("Client should have been created");
@@ -698,7 +705,7 @@ mod test {
         torrent.expect_handle().return_const(TorrentHandle::new());
         torrent
             .expect_files()
-            .returning(move || create_torrent_files(&file));
+            .returning(move || create_torrent_files(&absolute_filepath, file_len));
         torrent
             .expect_absolute_file_path()
             .returning(move |file| temp_dir_path.join(&file.torrent_path));
@@ -715,7 +722,6 @@ mod test {
             .return_once(move || callback_receiver);
         torrent.expect_stats().return_const(Metrics::default());
         let torrent = Box::new(torrent) as Box<dyn Torrent>;
-        copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
 
         assert_timeout_eq!(
             Duration::from_millis(500),
@@ -779,13 +785,13 @@ mod test {
         )
     }
 
-    fn create_torrent_files(file: &PathBuf) -> Vec<torrent::File> {
+    fn create_torrent_files(file: &PathBuf, length: u64) -> Vec<torrent::File> {
         vec![torrent::File {
             index: 0,
             torrent_path: file.clone(),
             torrent_offset: 0,
             info: TorrentFileInfo {
-                length: 0,
+                length,
                 path: None,
                 path_utf8: None,
                 md5sum: None,

@@ -3,22 +3,22 @@ use crate::widget::{print_optional_string, print_string_len};
 use async_trait::async_trait;
 use crossterm::event::KeyCode;
 use fx_callback::{Callback, Subscription};
-use fx_handle::Handle;
-use log::warn;
+use log::{info, warn};
 use popcorn_fx_torrent::torrent::peer::{Peer, PeerClientInfo, PeerEvent, PeerHandle, PeerState};
 use popcorn_fx_torrent::torrent::{
-    format_bytes, File, FilePriority, InfoHash, PieceIndex, Torrent, TorrentEvent, TorrentPeer,
-    TorrentState,
+    format_bytes, File, FileIndex, FilePriority, InfoHash, PieceIndex, Torrent, TorrentEvent,
+    TorrentPeer, TorrentState,
 };
 use ratatui::buffer::Buffer;
-use ratatui::layout::Constraint::{Fill, Length, Min, Percentage};
+use ratatui::layout::Constraint::{Fill, Length, Percentage};
 use ratatui::layout::{Layout, Rect};
 use ratatui::prelude::{Alignment, Color, Style};
 use ratatui::style::Stylize;
 use ratatui::text::{Line, Span};
+use ratatui::widgets::block::{Position, Title};
 use ratatui::widgets::{
-    Block, Cell, Gauge, HighlightSpacing, List, ListItem, Paragraph, Row, Sparkline,
-    StatefulWidget, Table, TableState, Widget,
+    Block, Borders, Cell, Gauge, HighlightSpacing, List, ListItem, ListState, Paragraph, Row,
+    Sparkline, StatefulWidget, Table, TableState, Widget,
 };
 use ratatui::Frame;
 use std::collections::HashMap;
@@ -26,6 +26,7 @@ use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
 const REMOVE_CLOSED_PEER_AFTER: Duration = Duration::from_secs(3);
 
@@ -34,23 +35,62 @@ pub struct TorrentInfoWidget {
     name: String,
     torrent: Torrent,
     files_widget: TorrentFilesWidget,
+    priorities_widget: TorrentFilePriorityWidget,
     peers_widget: TorrentPeersWidget,
     event_receiver: Subscription<TorrentEvent>,
+    command_sender: UnboundedSender<TorrentInfoCommand>,
+    command_receiver: UnboundedReceiver<TorrentInfoCommand>,
     data: TorrentData,
+    state: Mutex<TorrentInfoState>,
 }
 
 impl TorrentInfoWidget {
-    pub fn new(name: &str, torrent: Torrent) -> Self {
+    pub async fn new(name: &str, torrent: Torrent) -> Self {
         let event_receiver = torrent.subscribe();
+        let (command_sender, command_receiver) = unbounded_channel();
+        let data = if let Some(metadata) = torrent.metadata().await.ok() {
+            TorrentData {
+                info_hash: Some(metadata.info_hash.clone()),
+                path: torrent.path().await,
+                state: None,
+                total_pieces: 0,
+                completed_pieces: 0,
+                wanted_size: metadata
+                    .info
+                    .as_ref()
+                    .map(|e| e.len() as u64)
+                    .unwrap_or_default(),
+                wanted_completed_size: 0,
+                total_files: 0,
+                peers: 0,
+                progress: 0.0,
+                wasted: 0,
+                down: vec![],
+                up: vec![],
+            }
+        } else {
+            Default::default()
+        };
 
         Self {
             name: name.to_string(),
             torrent,
-            files_widget: TorrentFilesWidget::new(),
+            files_widget: TorrentFilesWidget::new(command_sender.clone()),
+            priorities_widget: TorrentFilePriorityWidget::new(command_sender.clone()),
             peers_widget: TorrentPeersWidget::new(),
             event_receiver,
-            data: Default::default(),
+            command_sender,
+            command_receiver,
+            data,
+            state: Default::default(),
         }
+    }
+
+    fn state(&self) -> TorrentInfoState {
+        self.state
+            .lock()
+            .map(|e| *e)
+            .unwrap_or(TorrentInfoState::Files)
     }
 
     async fn handle_event(&mut self, event: &TorrentEvent) {
@@ -91,6 +131,16 @@ impl TorrentInfoWidget {
                 data.completed_pieces = self.torrent.total_completed_pieces().await as u64;
                 self.files_widget.on_piece_completed(piece);
             }
+            TorrentEvent::PiecePrioritiesChanged => {
+                let files = self.torrent.files().await;
+                self.files_widget.on_priorities_changed(
+                    files
+                        .into_iter()
+                        .map(|e| (e.index, e.priority))
+                        .collect::<Vec<_>>()
+                        .as_slice(),
+                )
+            }
             TorrentEvent::FilesChanged => {
                 data.total_files = self.torrent.total_files().await.unwrap_or(0);
                 self.files_widget
@@ -109,8 +159,37 @@ impl TorrentInfoWidget {
                 if data.up.len() > PERFORMANCE_HISTORY {
                     data.up.remove(0);
                 }
+                info!("Torrent {} stats {}", self.torrent, stats);
             }
             _ => {}
+        }
+    }
+
+    async fn handle_command(&mut self, command: TorrentInfoCommand) {
+        match command {
+            TorrentInfoCommand::ShowFiles => {
+                if let Ok(mut state) = self.state.lock() {
+                    *state = TorrentInfoState::Files
+                }
+            }
+            TorrentInfoCommand::ShowPriority(index, priority) => {
+                self.priorities_widget.set_file(index);
+                self.priorities_widget.select(priority);
+
+                if let Ok(mut state) = self.state.lock() {
+                    *state = TorrentInfoState::Priority
+                }
+            }
+            TorrentInfoCommand::UpdatePriority(index, priority) => {
+                self.torrent.prioritize_files(vec![(index, priority)]).await;
+            }
+            TorrentInfoCommand::TogglePaused => {
+                if self.torrent.is_paused().await {
+                    self.torrent.resume().await;
+                } else {
+                    self.torrent.pause().await;
+                }
+            }
         }
     }
 }
@@ -125,12 +204,24 @@ impl FXWidget for TorrentInfoWidget {
         while let Ok(event) = self.event_receiver.try_recv() {
             self.handle_event(&event).await;
         }
+        while let Ok(command) = self.command_receiver.try_recv() {
+            self.handle_command(command).await;
+        }
 
         self.peers_widget.tick().await;
     }
 
-    fn on_key_event(&mut self, key: FXKeyEvent) {
-        self.files_widget.on_key_event(key);
+    fn on_key_event(&mut self, mut key: FXKeyEvent) {
+        if key.code() == KeyCode::Char('p') {
+            key.consume();
+            let _ = self.command_sender.send(TorrentInfoCommand::TogglePaused);
+            return;
+        }
+
+        match self.state() {
+            TorrentInfoState::Files => self.files_widget.on_key_event(key),
+            TorrentInfoState::Priority => self.priorities_widget.on_key_event(key),
+        }
     }
 
     fn on_paste_event(&mut self, _: String) {
@@ -153,7 +244,7 @@ impl Widget for &TorrentInfoWidget {
         let [metadata_area, performance_area] = header.areas(header_area);
         let performance = Layout::vertical([Percentage(50), Percentage(50)]);
         let [down_performance, up_performance] = performance.areas(performance_area);
-        let details = Layout::horizontal([Percentage(70), Percentage(30)]);
+        let details = Layout::horizontal([Percentage(60), Percentage(40)]);
         let [files_area, peers_area] = details.areas(details_area);
 
         let data = &self.data;
@@ -199,7 +290,11 @@ impl Widget for &TorrentInfoWidget {
                 self.data.peers.to_string().into(),
             ]),
         ])
-        .block(Block::bordered().title(" Metadata "))
+        .block(
+            Block::bordered()
+                .title(" Metadata ")
+                .title(Title::from(" Press p to pause/resume ").position(Position::Bottom)),
+        )
         .render(metadata_area, buf);
 
         // render the performance
@@ -233,8 +328,11 @@ impl Widget for &TorrentInfoWidget {
             .label(format!("{:.1}%", self.data.progress * 100f32))
             .render(progress_area, buf);
 
-        // render the files
-        self.files_widget.render(files_area, buf);
+        // render the file details area
+        match self.state() {
+            TorrentInfoState::Files => self.files_widget.render(files_area, buf),
+            TorrentInfoState::Priority => self.priorities_widget.render(files_area, buf),
+        }
         // render the peers
         self.peers_widget.render(peers_area, buf);
     }
@@ -281,14 +379,28 @@ impl Default for TorrentData {
 struct TorrentFilesWidget {
     files: Vec<TorrentFileData>,
     state: Mutex<TableState>,
+    command_sender: UnboundedSender<TorrentInfoCommand>,
 }
 
 impl TorrentFilesWidget {
-    pub fn new() -> Self {
+    pub fn new(command_sender: UnboundedSender<TorrentInfoCommand>) -> Self {
         Self {
             files: vec![],
             state: Mutex::new(TableState::new().with_selected(0)),
+            command_sender,
         }
+    }
+
+    fn selected_index(&self) -> usize {
+        self.state
+            .lock()
+            .ok()
+            .and_then(|e| e.selected())
+            .unwrap_or(0)
+    }
+
+    fn selected(&self) -> &TorrentFileData {
+        &self.files[self.selected_index()]
     }
 
     fn on_key_event(&mut self, key: FXKeyEvent) {
@@ -310,6 +422,13 @@ impl TorrentFilesWidget {
                     state.select(Some(offset));
                 }
             }
+            KeyCode::Enter => {
+                let torrent_file = self.selected();
+                let _ = self.command_sender.send(TorrentInfoCommand::ShowPriority(
+                    torrent_file.index,
+                    torrent_file.priority,
+                ));
+            }
             _ => {}
         }
     }
@@ -324,9 +443,19 @@ impl TorrentFilesWidget {
         }
     }
 
+    fn on_priorities_changed(&mut self, priorities: &[(FileIndex, FilePriority)]) {
+        for priority in priorities {
+            if let Some(mut file) = self.files.iter_mut().find(|e| e.index == priority.0) {
+                file.priority = priority.1;
+            }
+        }
+    }
+
     fn on_files_changed(&mut self, files: Vec<File>) {
-        for file in files {
-            self.files.push(TorrentFileData {
+        self.files = files
+            .into_iter()
+            .map(|file| TorrentFileData {
+                index: file.index,
                 name: file.filename(),
                 size: file.len(),
                 priority: file.priority,
@@ -334,8 +463,8 @@ impl TorrentFilesWidget {
                 completed_percentage: 0.0,
                 completed_pieces: 0,
                 total_pieces: file.pieces.len(),
-            });
-        }
+            })
+            .collect()
     }
 }
 
@@ -345,7 +474,7 @@ impl Widget for &TorrentFilesWidget {
             .into_iter()
             .map(Cell::from)
             .collect::<Row>()
-            .style(Style::new().bg(Color::Yellow));
+            .style(Style::new().bg(Color::DarkGray).fg(Color::White));
         let rows = self
             .files
             .iter()
@@ -359,7 +488,7 @@ impl Widget for &TorrentFilesWidget {
 
                 Row::new(vec![
                     file.name.clone(),
-                    priority_text(file.priority).to_string(),
+                    priority_text(&file.priority).to_string(),
                     format_bytes(file.size),
                     format!("{:0.2}%", file.completed_percentage),
                     format!("{}/{}", file.completed_pieces, file.total_pieces),
@@ -368,11 +497,14 @@ impl Widget for &TorrentFilesWidget {
             })
             .collect::<Vec<Row>>();
 
-        let table = Table::new(rows, [Fill(1), Min(12), Min(16), Min(20), Min(16)])
-            .header(header)
-            .block(Block::bordered().title("Files"))
-            .row_highlight_style(Style::new().bg(Color::LightYellow))
-            .highlight_spacing(HighlightSpacing::Always);
+        let table = Table::new(
+            rows,
+            [Fill(1), Length(12), Length(16), Length(20), Length(16)],
+        )
+        .header(header)
+        .block(Block::bordered().title("Files"))
+        .row_highlight_style(Style::new().bg(Color::Yellow).fg(Color::DarkGray))
+        .highlight_spacing(HighlightSpacing::Always);
 
         if let Ok(mut state) = self.state.lock() {
             StatefulWidget::render(table, area, buf, &mut state);
@@ -381,7 +513,101 @@ impl Widget for &TorrentFilesWidget {
 }
 
 #[derive(Debug)]
+struct TorrentFilePriorityWidget {
+    file: FileIndex,
+    priorities: Vec<FilePriority>,
+    state: Mutex<ListState>,
+    command_sender: UnboundedSender<TorrentInfoCommand>,
+}
+
+impl TorrentFilePriorityWidget {
+    fn new(command_sender: UnboundedSender<TorrentInfoCommand>) -> Self {
+        Self {
+            file: FileIndex::default(),
+            priorities: FilePriority::iter().collect(),
+            state: Default::default(),
+            command_sender,
+        }
+    }
+
+    fn set_file(&mut self, file: FileIndex) {
+        self.file = file;
+    }
+
+    fn select(&mut self, priority: FilePriority) {
+        if let Ok(mut state) = self.state.lock() {
+            state.select(Some(
+                self.priorities
+                    .iter()
+                    .position(|e| *e == priority)
+                    .unwrap_or(0),
+            ));
+        }
+    }
+
+    fn selected(&self) -> FilePriority {
+        let offset = self
+            .state
+            .lock()
+            .ok()
+            .and_then(|e| e.selected())
+            .unwrap_or_default();
+        self.priorities[offset]
+    }
+
+    fn on_key_event(&mut self, key: FXKeyEvent) {
+        match key.code() {
+            KeyCode::Esc | KeyCode::Backspace => {
+                let _ = self.command_sender.send(TorrentInfoCommand::ShowFiles);
+            }
+            KeyCode::Enter => {
+                let _ = self.command_sender.send(TorrentInfoCommand::UpdatePriority(
+                    self.file,
+                    self.selected(),
+                ));
+                let _ = self.command_sender.send(TorrentInfoCommand::ShowFiles);
+            }
+            KeyCode::Up => {
+                if let Ok(mut state) = self.state.lock() {
+                    let offset = state.selected().unwrap_or(0).saturating_sub(1);
+                    state.select(Some(offset));
+                }
+            }
+            KeyCode::Down => {
+                if let Ok(mut state) = self.state.lock() {
+                    let selected = state.selected().unwrap_or(0).saturating_add(1);
+                    if selected <= self.priorities.len() - 1 {
+                        state.select(Some(selected));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+impl Widget for &TorrentFilePriorityWidget {
+    fn render(self, area: Rect, buf: &mut Buffer)
+    where
+        Self: Sized,
+    {
+        let items = self
+            .priorities
+            .iter()
+            .map(|e| priority_text(e))
+            .collect::<Vec<_>>();
+        let menu_list = List::new(items)
+            .block(Block::new().title("File priority").borders(Borders::ALL))
+            .highlight_style(Style::new().bg(Color::DarkGray));
+
+        let mut state = self.state.lock().expect("Mutex poisoned");
+        StatefulWidget::render(menu_list, area, buf, &mut state);
+    }
+}
+
+#[derive(Debug)]
 struct TorrentFileData {
+    index: FileIndex,
     name: String,
     size: usize,
     priority: FilePriority,
@@ -391,8 +617,8 @@ struct TorrentFileData {
     total_pieces: usize,
 }
 
-fn priority_text(priority: FilePriority) -> &'static str {
-    match priority {
+fn priority_text(priority: &FilePriority) -> &'static str {
+    match *priority {
         FilePriority::None => "None",
         FilePriority::Normal => "Normal",
         FilePriority::High => "High",
@@ -583,4 +809,24 @@ fn peer_state_as_str(state: &PeerState) -> &'static str {
         PeerState::Error => "Error",
         PeerState::Closed => "Closed",
     }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+enum TorrentInfoState {
+    Files,
+    Priority,
+}
+
+impl Default for TorrentInfoState {
+    fn default() -> Self {
+        Self::Files
+    }
+}
+
+#[derive(Debug)]
+enum TorrentInfoCommand {
+    ShowFiles,
+    ShowPriority(FileIndex, FilePriority),
+    UpdatePriority(FileIndex, FilePriority),
+    TogglePaused,
 }

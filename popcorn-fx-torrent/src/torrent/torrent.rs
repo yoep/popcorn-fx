@@ -870,6 +870,15 @@ impl Torrent {
         false
     }
 
+    /// Returns `true` when the torrent is currently paused.
+    pub async fn is_paused(&self) -> bool {
+        if let Some(inner) = self.instance() {
+            return inner.is_paused().await;
+        }
+
+        false
+    }
+
     /// Announce this torrent to the known trackers.
     /// This will retrieve the announcement information from the trackers.
     ///
@@ -1546,17 +1555,26 @@ impl TorrentContext {
     /// Get if the given bytes have been completed downloading.
     /// It returns true if all bytes are completed, validated and written to the storage, else false.
     pub async fn has_bytes(&self, range: &std::ops::Range<usize>) -> bool {
-        self.pieces
+        let pieces = self
+            .pieces
             .pieces()
             .await
-            .iter()
+            .into_iter()
             .filter(|e| {
                 let piece_range = e.torrent_range();
 
                 // check if there is any overlap with the given byte range and piece range
                 piece_range.start < range.end && range.start < piece_range.end
             })
-            .all(|e| e.is_completed())
+            .collect::<Vec<_>>();
+
+        for piece in pieces {
+            if !self.pieces.is_piece_completed(&piece.index).await {
+                return false;
+            }
+        }
+
+        true
     }
 
     /// Prioritize the given pieces within this torrent.
@@ -1660,12 +1678,20 @@ impl TorrentContext {
     /// It returns a number of additionally wanted connection, ensuring the total
     /// stays within the configured peer connection limits.
     pub async fn remaining_peer_connections_needed(&self) -> usize {
+        let state = *self.state.read().await;
         let options = self.options.read().await;
+        let config = self.config.read().await;
+
+        // if the torrent is trying to retrieve the metadata,
+        // then allow at least the lower limit during paused state
         if options.contains(TorrentFlags::Paused) {
-            return 0;
+            return if state == TorrentState::RetrievingMetadata {
+                config.peers_lower_limit
+            } else {
+                0
+            };
         }
 
-        let state = *self.state.read().await;
         // if the torrent is validating files, then don't open any new peer connections during the process
         // if the torrent is finished, then don't actively reach out to new peers
         if matches!(
@@ -1676,7 +1702,6 @@ impl TorrentContext {
         }
 
         let currently_active_peers = self.active_peer_connections().await;
-        let config = self.config.read().await;
 
         let is_retrieving_data = options.contains(TorrentFlags::DownloadMode);
         let is_retrieving_metadata =
@@ -2027,8 +2052,6 @@ impl TorrentContext {
 
     async fn update_stats(&self) {
         self.invoke_event(TorrentEvent::Stats(self.metrics.snapshot()));
-        info!("Torrent {} stats {}", self, self.metrics);
-
         self.metrics.tick(OPERATIONS_INTERVAL)
     }
 

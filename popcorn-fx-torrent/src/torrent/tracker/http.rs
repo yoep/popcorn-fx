@@ -620,11 +620,9 @@ mod tests {
 
     use crate::init_logger;
     use crate::torrent::peer::PeerId;
-    use crate::torrent::tests::create_metadata;
     use crate::torrent::tracker::{AnnounceEvent, TrackerServer};
 
     use log::info;
-    use tokio::runtime::Runtime;
 
     #[tokio::test]
     async fn test_start() {

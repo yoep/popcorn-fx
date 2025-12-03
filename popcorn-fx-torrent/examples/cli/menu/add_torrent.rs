@@ -55,7 +55,7 @@ impl MenuSectionWidget for MenuAddTorrent {
     }
 
     fn on_key_event(&mut self, mut key: FXKeyEvent) {
-        match key.code() {
+        match key.key_code() {
             KeyCode::Esc => {
                 key.consume();
                 self.reset();

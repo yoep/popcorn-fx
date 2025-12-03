@@ -6,7 +6,9 @@ use crate::torrent::operation::{
     TorrentDhtNodesOperation, TorrentDhtPeersOperation, TorrentFileValidationOperation,
     TorrentMetadataOperation, TorrentTrackersOperation,
 };
-use crate::torrent::peer::{ProtocolExtensionFlags, TcpPeerDiscovery, UtpPeerDiscovery};
+use crate::torrent::peer::{
+    PeerDiscovery, ProtocolExtensionFlags, TcpPeerDiscovery, UtpPeerDiscovery,
+};
 use crate::torrent::session_cache::{FxSessionCache, SessionCache};
 use crate::torrent::storage::{DiskStorage, MemoryStorage, Storage, StorageParams};
 use crate::torrent::torrent::Torrent;
@@ -420,8 +422,7 @@ impl FxTorrentSession {
             self,
             info_hash
         );
-        let tcp_peer_discovery = self.inner.create_tcp_peer_discovery().await?;
-        let utp_peer_discovery = self.inner.create_utp_peer_discovery().await?;
+        let (tcp_peer_discovery, utp_peer_discovery) = self.inner.create_discoveries().await?;
         let dht_tracker = self.inner.dht.lock().await.clone();
         let storage = self.inner.storage_factory.clone();
         let torrent = Torrent::request()
@@ -1043,28 +1044,15 @@ impl InnerSession {
         }
     }
 
-    /// Try to create a TCP peer discovery which listens for incoming connections within the configured port range of the session.
-    /// This function might try multiple times to find a free port and return an error if none is available.
-    ///
-    /// # Returns
-    ///
-    /// It returns a [TcpPeerDiscovery] on success, else the underlying `bind` failure.
-    async fn create_tcp_peer_discovery(&self) -> Result<TcpPeerDiscovery> {
-        TcpPeerDiscovery::new()
+    async fn create_discoveries(&self) -> Result<(TcpPeerDiscovery, UtpPeerDiscovery)> {
+        let tcp_discovery = TcpPeerDiscovery::new()
             .await
-            .map_err(|e| TorrentError::Peer(e))
-    }
+            .map_err(|e| TorrentError::Peer(e))?;
+        let utp_discovery = UtpPeerDiscovery::new_with_port(tcp_discovery.port())
+            .await
+            .map_err(|e| TorrentError::Peer(e))?;
 
-    /// Try to create a uTP peer discovery which listens for incoming connections within the configured port range of the session.
-    /// This function might try multiple times to find a free port and return an error if none is available.
-    ///
-    /// # Returns
-    ///
-    /// It returns a [UtpPeerDiscovery] on success, else the underlying `bind` failure.
-    async fn create_utp_peer_discovery(&self) -> Result<UtpPeerDiscovery> {
-        UtpPeerDiscovery::new()
-            .await
-            .map_err(|e| TorrentError::Peer(e))
+        Ok((tcp_discovery, utp_discovery))
     }
 }
 

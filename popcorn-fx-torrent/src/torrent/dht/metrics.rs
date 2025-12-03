@@ -5,7 +5,6 @@ use std::time::Duration;
 #[derive(Debug, Default, Clone)]
 pub struct DhtMetrics {
     pub nodes: Gauge,
-    pub router_nodes: Gauge,
     pub pending_queries: Gauge,
     pub errors: Counter,
     pub discovered_peers: Counter,
@@ -27,7 +26,6 @@ impl Metric for DhtMetrics {
     fn snapshot(&self) -> Self {
         Self {
             nodes: self.nodes.snapshot(),
-            router_nodes: self.router_nodes.snapshot(),
             pending_queries: self.pending_queries.snapshot(),
             errors: self.errors.snapshot(),
             discovered_peers: self.discovered_peers.snapshot(),
@@ -38,7 +36,6 @@ impl Metric for DhtMetrics {
 
     fn tick(&self, interval: Duration) {
         self.nodes.tick(interval);
-        self.router_nodes.tick(interval);
         self.pending_queries.tick(interval);
         self.errors.tick(interval);
         self.discovered_peers.tick(interval);
@@ -53,7 +50,7 @@ pub struct NodeMetrics {
     /// The amount of times the node has successfully responded to a query.
     pub confirmed_queries: Counter,
     /// The number of times the node failed to respond to a query.
-    pub timeouts: Counter,
+    pub errors: Counter,
 }
 
 impl NodeMetrics {
@@ -70,12 +67,12 @@ impl Metric for NodeMetrics {
     fn snapshot(&self) -> Self {
         Self {
             confirmed_queries: self.confirmed_queries.snapshot(),
-            timeouts: self.timeouts.snapshot(),
+            errors: self.errors.snapshot(),
         }
     }
 
     fn tick(&self, interval: Duration) {
         self.confirmed_queries.tick(interval);
-        self.timeouts.tick(interval);
+        self.errors.tick(interval);
     }
 }

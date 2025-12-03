@@ -1,8 +1,9 @@
 use crate::torrent::{TorrentContext, TorrentOperation, TorrentOperationResult};
 use async_trait::async_trait;
-use log::{debug, trace, warn};
+use log::{debug, trace};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use tokio::net::lookup_host;
 
 /// Connect to the DHT nodes defined within the torrent metadata.
 #[derive(Debug)]
@@ -76,12 +77,18 @@ impl InnerDhtNodesOperation {
                 let mut futures: Vec<_> = vec![];
 
                 for node in nodes.iter() {
+                    // try to parse the host of the node as an IP address
+                    // if it fails, we assume it's a DNS name and try to resolve it
                     match node.socket_addr() {
-                        Ok(addr) => {
-                            futures.push(dht.ping(addr));
-                        }
-                        Err(e) => {
-                            warn!("Torrent {} contains invalid DHT node, {}", context, e);
+                        Ok(addr) => futures.push(dht.ping(addr)),
+                        Err(_) => {
+                            if let Ok(addrs) =
+                                lookup_host(format!("{}:{}", node.host.as_str(), node.port)).await
+                            {
+                                for addr in addrs {
+                                    futures.push(dht.ping(addr));
+                                }
+                            }
                         }
                     }
                 }

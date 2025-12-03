@@ -219,7 +219,7 @@ impl MenuSettings {
     }
 
     fn handle_menu_key_event(&mut self, mut key: FXKeyEvent) {
-        match key.code() {
+        match key.key_code() {
             KeyCode::Up => {
                 key.consume();
                 self.previous_item();
@@ -376,7 +376,7 @@ impl Setting for StorageSetting {
 
 impl SettingWidget for StorageSetting {
     fn on_key_event(&mut self, mut key: FXKeyEvent) {
-        match key.code() {
+        match key.key_code() {
             KeyCode::Esc => {
                 key.consume();
                 self.input.reset();

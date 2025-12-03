@@ -30,8 +30,8 @@ pub enum Error {
     Closed,
 }
 
-impl From<&ErrorMessage> for Error {
-    fn from(value: &ErrorMessage) -> Self {
+impl From<ErrorMessage> for Error {
+    fn from(value: ErrorMessage) -> Self {
         Self::Response(value.code(), value.description().to_string())
     }
 }
@@ -76,7 +76,7 @@ mod tests {
         let error = ErrorMessage::Generic(msg.to_string());
         let expected_result = Error::Response(201, msg.to_string());
 
-        let result = Error::from(&error);
+        let result = Error::from(error);
 
         assert_eq!(expected_result, result);
     }

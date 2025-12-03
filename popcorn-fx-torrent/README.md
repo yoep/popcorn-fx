@@ -26,6 +26,7 @@ and is based on the `libtorrent` library for functionality and naming convention
 - [ ] [BEP44](https://www.bittorrent.org/beps/bep_0044.html) - Storing arbitrary data in the DHT
 - [x] [BEP47](https://www.bittorrent.org/beps/bep_0047.html) - Padding files and extended file attributes
 - [x] [BEP48](https://www.bittorrent.org/beps/bep_0048.html) - Tracker Protocol Extension: Scrape
+- [ ] [BEP51](https://www.bittorrent.org/beps/bep_0051.html) - DHT Infohash Indexing
 - [ ] [BEP52](https://www.bittorrent.org/beps/bep_0052.html) - The BitTorrent Protocol Specification v2 (WIP)
 - [x] [BEP53](https://www.bittorrent.org/beps/bep_0053.html) - Magnets
 - [x] [BEP54](https://www.bittorrent.org/beps/bep_0054.html) - The lt_donthave extension

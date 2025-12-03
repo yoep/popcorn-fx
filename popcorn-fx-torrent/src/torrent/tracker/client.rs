@@ -21,7 +21,7 @@ use tokio::{select, time};
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
-const DEFAULT_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(30);
+const DEFAULT_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(60);
 const STATS_INTERVAL: Duration = Duration::from_secs(1);
 
 /// Aggregated announcement result returned by one or more trackers.
@@ -607,7 +607,8 @@ impl InnerClient {
             debug!("Tracker {} has been added to {}", tracker_info, self);
         }
 
-        self.send_event(TrackerClientEvent::TrackerAdded(handle));
+        self.callbacks
+            .invoke(TrackerClientEvent::TrackerAdded(handle));
         Ok(handle)
     }
 
@@ -641,7 +642,7 @@ impl InnerClient {
         );
         let total_peers = unique_new_peer_addrs.len();
         if total_peers > 0 {
-            self.send_event(TrackerClientEvent::PeersDiscovered(
+            self.callbacks.invoke(TrackerClientEvent::PeersDiscovered(
                 info_hash.clone(),
                 unique_new_peer_addrs,
             ));
@@ -812,10 +813,6 @@ impl InnerClient {
         }
     }
 
-    fn send_event(&self, event: TrackerClientEvent) {
-        self.callbacks.invoke(event);
-    }
-
     /// Performs automatic announcements to all trackers periodically.
     ///
     /// This method is called by the periodic task loop and respects the
@@ -825,7 +822,7 @@ impl InnerClient {
         let torrents = self.torrents.lock().await;
         let now = Instant::now();
 
-        for (info_hash, torrent) in torrents.iter() {
+        for (info_hash, torrent) in torrents.iter().filter(|(_, torrent)| torrent.is_announcing) {
             for tracker in self.active_trackers(&trackers).await {
                 let interval = tracker.announcement_interval().await;
                 let last_announcement = tracker.last_announcement().await;
@@ -844,7 +841,7 @@ impl InnerClient {
                         )
                         .await
                     {
-                        warn!("Failed make an announcement for {}, {}", tracker, err);
+                        debug!("Tracker {} failed to make announcement, {}", tracker, err);
                     }
                 }
             }
@@ -867,7 +864,8 @@ impl InnerClient {
             tracker.tick(STATS_INTERVAL);
         }
 
-        self.send_event(TrackerClientEvent::Stats(self.metrics.snapshot()));
+        self.callbacks
+            .invoke(TrackerClientEvent::Stats(self.metrics.snapshot()));
         self.metrics.tick(STATS_INTERVAL);
     }
 

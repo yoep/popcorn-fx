@@ -584,6 +584,22 @@ impl Torrent {
         vec![]
     }
 
+    /// Add a new peer address for this torrent.
+    ///
+    /// The address is added to the peer pool. A new connection may be established
+    /// when additional peers are needed.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TorrentError::InvalidHandle`] if the torrent is no longer valid.
+    pub async fn add_peer(&self, addr: SocketAddr) -> Result<()> {
+        let inner = self
+            .instance()
+            .ok_or(TorrentError::InvalidHandle(self.handle))?;
+        inner.add_peer_addresses(vec![addr]).await;
+        Ok(())
+    }
+
     /// Check if this torrent handle is still valid.
     ///
     /// # Returns

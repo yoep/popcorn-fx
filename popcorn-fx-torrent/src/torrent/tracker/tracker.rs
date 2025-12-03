@@ -25,8 +25,10 @@ const DEFAULT_CONNECTION_TIMEOUT_SECONDS: u64 = 10;
 const DEFAULT_ANNOUNCEMENT_INTERVAL_SECONDS: u64 = 120;
 const DISABLE_TRACKER_AFTER_FAILURES: usize = 6;
 
-/// Kinds of tracker announces. This is typically indicated as the ``&event=``
-/// HTTP query string parameter to HTTP trackers.
+/// Kinds of tracker announce events.
+///
+/// For HTTP trackers, this usually maps to the `&event=` query-string
+/// parameter in the announce URL.
 #[repr(u8)]
 #[derive(Debug, Display, Copy, Clone, PartialEq)]
 pub enum AnnounceEvent {
@@ -57,8 +59,10 @@ impl FromStr for AnnounceEvent {
     }
 }
 
-/// The announcement information for a tracker.
-/// This is the most recent torrent information that should be shared with the tracker.
+/// Announcement payload sent to a tracker.
+///
+/// This represents the most recent torrent state that should be shared with
+/// the tracker when making an announce request.
 #[derive(Debug, Clone)]
 pub struct Announcement {
     /// The info hash of the torrent
@@ -254,11 +258,9 @@ impl Tracker {
         *self.inner.state.lock().await
     }
 
-    /// Get the expected announcement interval in seconds.
+    /// Returns the expected announcement interval in seconds.
     ///
-    /// # Returns
-    ///
-    /// Returns the interval in seconds for the announcements.
+    /// This value is updated based on tracker responses.
     pub async fn announcement_interval(&self) -> u64 {
         self.inner
             .announcement_interval_seconds
@@ -267,25 +269,38 @@ impl Tracker {
             .clone()
     }
 
-    /// Retrieve the last time this tracker made an announcement.
-    ///
-    /// # Returns
-    ///
-    /// Returns the last time this tracker made an announcement.
+    /// Returns the time of the last successful announcement to this tracker.
     pub async fn last_announcement(&self) -> Instant {
         self.inner.last_announcement.read().await.clone()
     }
 
-    /// Announce the given event to this tracker for the given torrent info hash.
+    /// Announces the given torrent state to this tracker.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use popcorn_fx_torrent::torrent::InfoHash;
+    /// use popcorn_fx_torrent::torrent::peer::PeerId;
+    /// use popcorn_fx_torrent::torrent::tracker::{Announcement, Tracker};
+    ///
+    /// let tracker = Tracker::new();
+    /// tracker.announce(Announcement {
+    ///     info_hash: InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap(),
+    ///     peer_id: PeerId::new(),
+    ///     peer_port: 6881,
+    ///     event: AnnounceEvent::Started,
+    ///     bytes_completed: 0,
+    ///     bytes_remaining: 0,
+    /// }).await
+    /// ```
     ///
     /// # Arguments
     ///
-    /// * `info_hash` - The torrent info hash to make the announcement for
-    /// * `event` - The announcement event
+    /// * `announce` - The announcement payload describing the torrent and event.
     ///
     /// # Returns
     ///
-    /// It returns the announcement response from the tracker.
+    /// The announcement response from the tracker.
     pub async fn announce(&self, announce: Announcement) -> Result<AnnounceEntryResponse> {
         trace!("Tracker {} is announcing {:?}", self, announce);
         match self.inner.connection.announce(announce).await {
@@ -300,6 +315,9 @@ impl Tracker {
                 }
 
                 self.confirm().await;
+                self.inner.metrics.peers.set(e.peers.len() as u64);
+                self.inner.metrics.seeders.set(e.seeders);
+                self.inner.metrics.leechers.set(e.leechers);
                 Ok(e)
             }
             Err(e) => {

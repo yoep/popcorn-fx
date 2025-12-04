@@ -342,17 +342,7 @@ pub enum MessagePayload {
     Error(ErrorMessage),
 }
 
-impl MessagePayload {
-    /// Get the payload type of the message.
-    pub fn payload_type(&self) -> &str {
-        match &self {
-            MessagePayload::Query(_) => "query",
-            MessagePayload::Response(_) => "response",
-            MessagePayload::Error(_) => "error",
-        }
-    }
-}
-
+/// The version info of the DHT node.
 #[derive(Debug, PartialEq)]
 pub struct Version {
     raw: Vec<u8>,

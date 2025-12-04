@@ -12,14 +12,14 @@ pub(crate) const COMPACT_IPV4_ADDR_LEN: usize = 6;
 pub(crate) const COMPACT_IPV6_ADDR_LEN: usize = 18;
 
 #[derive(Debug, Error)]
-pub enum Error {
+pub enum CompactError {
     #[error("invalid compact ip address byte slice")]
     InvalidLength,
     #[error("failed to parse compact ip address, {0}")]
     AddressParse(String),
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub type CompactResult<T> = Result<T, CompactError>;
 
 /// A list of compact IPv4 addresses
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -112,11 +112,11 @@ impl From<Vec<CompactIpv4Addr>> for CompactIpv4Addrs {
 }
 
 impl TryFrom<&[u8]> for CompactIpv4Addrs {
-    type Error = Error;
+    type Error = CompactError;
 
-    fn try_from(bytes: &[u8]) -> Result<Self> {
+    fn try_from(bytes: &[u8]) -> CompactResult<Self> {
         if bytes.len() % COMPACT_IPV4_ADDR_LEN != 0 {
-            return Err(Error::InvalidLength);
+            return Err(CompactError::InvalidLength);
         }
 
         let mut addrs = Vec::new();
@@ -180,24 +180,24 @@ impl From<&CompactIpv4Addr> for SocketAddr {
 }
 
 impl TryFrom<&[u8]> for CompactIpv4Addr {
-    type Error = Error;
+    type Error = CompactError;
 
-    fn try_from(bytes: &[u8]) -> Result<Self> {
+    fn try_from(bytes: &[u8]) -> CompactResult<Self> {
         CompactIpv4AddrVisitor::parse_bytes(bytes)
     }
 }
 
 impl TryFrom<SocketAddr> for CompactIpv4Addr {
-    type Error = Error;
+    type Error = CompactError;
 
-    fn try_from(addr: SocketAddr) -> Result<Self> {
+    fn try_from(addr: SocketAddr) -> CompactResult<Self> {
         if let IpAddr::V4(ip) = addr.ip() {
             Ok(Self {
                 ip,
                 port: addr.port(),
             })
         } else {
-            Err(Error::AddressParse(
+            Err(CompactError::AddressParse(
                 "IPv6 is not supported for CompactIpv4Addr".to_string(),
             ))
         }
@@ -240,9 +240,9 @@ struct CompactIpv4AddrVisitor;
 
 impl CompactIpv4AddrVisitor {
     /// Parse a single compact IPv4 address from the given bytes.
-    fn parse_bytes(bytes: &[u8]) -> Result<CompactIpv4Addr> {
+    fn parse_bytes(bytes: &[u8]) -> CompactResult<CompactIpv4Addr> {
         if bytes.len() != COMPACT_IPV4_ADDR_LEN {
-            return Err(Error::AddressParse(
+            return Err(CompactError::AddressParse(
                 "expected a byte slice of a compact ipv4 address".to_string(),
             ));
         }
@@ -364,11 +364,11 @@ impl From<Vec<CompactIpv6Addr>> for CompactIpv6Addrs {
 }
 
 impl TryFrom<&[u8]> for CompactIpv6Addrs {
-    type Error = Error;
+    type Error = CompactError;
 
     fn try_from(bytes: &[u8]) -> std::result::Result<Self, Self::Error> {
         if bytes.len() % COMPACT_IPV6_ADDR_LEN != 0 {
-            return Err(Error::InvalidLength);
+            return Err(CompactError::InvalidLength);
         }
 
         let mut addrs = Vec::new();
@@ -421,9 +421,9 @@ impl Into<IpAddr> for CompactIpv6Addr {
 }
 
 impl TryInto<CompactIpv6Addr> for SocketAddr {
-    type Error = Error;
+    type Error = CompactError;
 
-    fn try_into(self) -> Result<CompactIpv6Addr> {
+    fn try_into(self) -> CompactResult<CompactIpv6Addr> {
         let ip_addr = self.ip();
 
         match ip_addr {
@@ -431,7 +431,7 @@ impl TryInto<CompactIpv6Addr> for SocketAddr {
                 ip: addr,
                 port: self.port(),
             }),
-            IpAddr::V4(_) => Err(Error::AddressParse(
+            IpAddr::V4(_) => Err(CompactError::AddressParse(
                 "expected ipv6, but got ipv4 instead".to_string(),
             )),
         }
@@ -451,9 +451,9 @@ impl From<&CompactIpv6Addr> for SocketAddr {
 }
 
 impl TryFrom<&[u8]> for CompactIpv6Addr {
-    type Error = Error;
+    type Error = CompactError;
 
-    fn try_from(bytes: &[u8]) -> Result<Self> {
+    fn try_from(bytes: &[u8]) -> CompactResult<Self> {
         CompactIpv6AddrVisitor::parse_bytes(bytes)
     }
 }
@@ -499,15 +499,16 @@ impl<'de> Deserialize<'de> for CompactIpv6Addr {
 struct CompactIpv6AddrVisitor;
 
 impl CompactIpv6AddrVisitor {
-    fn parse_bytes(bytes: &[u8]) -> Result<CompactIpv6Addr> {
+    fn parse_bytes(bytes: &[u8]) -> CompactResult<CompactIpv6Addr> {
         if bytes.len() != COMPACT_IPV6_ADDR_LEN {
-            return Err(Error::AddressParse(
+            return Err(CompactError::AddressParse(
                 "expected a byte slice of a compact ipv6 address".to_string(),
             ));
         }
 
-        let ip_bytes: [u8; 16] = <[u8; 16]>::try_from(&bytes[0..16])
-            .map_err(|_| Error::AddressParse("failed to convert slice to [u8; 16]".to_string()))?;
+        let ip_bytes: [u8; 16] = <[u8; 16]>::try_from(&bytes[0..16]).map_err(|_| {
+            CompactError::AddressParse("failed to convert slice to [u8; 16]".to_string())
+        })?;
         let ip = Ipv6Addr::from(ip_bytes);
         let port = u16::from_be_bytes([bytes[16], bytes[17]]);
         Ok(CompactIpv6Addr { ip, port })
@@ -590,7 +591,7 @@ impl<'de> Visitor<'de> for CompactIpVisitor {
                 .map(|e| Ipv6Addr::from(e))
                 .map(|e| IpAddr::V6(e))
                 .map_err(|_| {
-                    serde::de::Error::custom(Error::AddressParse(
+                    serde::de::Error::custom(CompactError::AddressParse(
                         "failed to convert slice to [u8; 16]".to_string(),
                     ))
                 })?;
@@ -609,8 +610,18 @@ pub enum CompactIpAddr {
     IPv6(CompactIpv6Addr),
 }
 
+impl CompactIpAddr {
+    /// Returns the bytes representing this compact ip address.
+    pub fn as_bytes(&self) -> Vec<u8> {
+        match self {
+            CompactIpAddr::IPv4(e) => e.as_bytes(),
+            CompactIpAddr::IPv6(e) => e.as_bytes(),
+        }
+    }
+}
+
 impl Serialize for CompactIpAddr {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -622,7 +633,7 @@ impl Serialize for CompactIpAddr {
 }
 
 impl<'de> Deserialize<'de> for CompactIpAddr {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -634,7 +645,7 @@ impl<'de> Deserialize<'de> for CompactIpAddr {
                 write!(f, "expected a compact ip address as bytes")
             }
 
-            fn visit_bytes<E>(self, bytes: &[u8]) -> std::result::Result<Self::Value, E>
+            fn visit_bytes<E>(self, bytes: &[u8]) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
@@ -727,7 +738,7 @@ mod tests {
         #[test]
         fn test_try_into_compact_addr() {
             let socket = SocketAddr::new(IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)), 6881);
-            let result: Result<CompactIpv4Addr> = socket.try_into();
+            let result: CompactResult<CompactIpv4Addr> = socket.try_into();
             assert!(result.is_err(), "expected an error to be returned");
 
             let expected_result = CompactIpv4Addr {

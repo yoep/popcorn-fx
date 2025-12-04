@@ -258,11 +258,11 @@ pub trait Session: Debug + Callback<SessionEvent> + Send + Sync {
 /// # Example
 ///
 /// ```rust,no_run
-/// use popcorn_fx_torrent::torrent::{FxTorrentSession, Result};
+/// use popcorn_fx_torrent::torrent::{FxTorrentSession, CompactResult};
 /// use popcorn_fx_torrent::torrent::peer::extension::metadata::MetadataExtension;
 /// use popcorn_fx_torrent::torrent::peer::ProtocolExtensionFlags;
 ///
-/// fn getting_started() -> Result<FxTorrentSession> {
+/// fn getting_started() -> CompactResult<FxTorrentSession> {
 ///     FxTorrentSession::builder()
 ///         .path("/torrent/location/directory")
 ///         .client_name("MyClient")
@@ -284,11 +284,11 @@ impl FxTorrentSession {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use popcorn_fx_torrent::torrent::{FxTorrentSession, Result};
+    /// use popcorn_fx_torrent::torrent::{FxTorrentSession, CompactResult};
     /// use popcorn_fx_torrent::torrent::peer::extension::metadata::MetadataExtension;
     /// use popcorn_fx_torrent::torrent::peer::ProtocolExtensionFlags;
     ///
-    /// fn new_torrent_session() -> Result<FxTorrentSession> {
+    /// fn new_torrent_session() -> CompactResult<FxTorrentSession> {
     ///     FxTorrentSession::builder()
     ///         .path("/torrent/location/directory")
     ///         .client_name("MyClient")

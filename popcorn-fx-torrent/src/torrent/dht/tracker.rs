@@ -15,10 +15,11 @@ use crate::torrent::dht::{
 };
 use crate::torrent::metrics::Metric;
 use crate::torrent::{
-    CompactIpv4Addr, CompactIpv4Addrs, CompactIpv6Addr, CompactIpv6Addrs, InfoHash,
+    CompactIpAddr, CompactIpv4Addr, CompactIpv4Addrs, CompactIpv6Addr, CompactIpv6Addrs, InfoHash,
 };
 use derive_more::Display;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use itertools::Itertools;
 use log::{debug, trace, warn};
 use socket2::Socket;
 use std::collections::{HashMap, HashSet};
@@ -203,7 +204,7 @@ impl DhtTracker {
     /// ```
     pub async fn ping(&self, addr: SocketAddr) -> Result<()> {
         let response = self.inner.ping(&addr).await;
-        let _ = response.await.map_err(|_| Error::Closed)?;
+        let _ = response.await?;
         Ok(())
     }
 
@@ -707,7 +708,12 @@ impl TrackerContext {
             }
         }
 
-        peers.peers(&request.info_hash);
+        let values = peers
+            .peers(&request.info_hash)
+            .filter(|e| e.addr.is_ipv4() == self.socket_addr.is_ipv4())
+            .map(|e| CompactIpAddr::from(e.addr))
+            .map(|e| e.as_bytes())
+            .concat();
 
         self.send_response(
             transaction_id,
@@ -715,7 +721,7 @@ impl TrackerContext {
                 response: GetPeersResponse {
                     id,
                     token: token.to_vec(),
-                    values: None,
+                    values: Some(values).filter(|e| !e.is_empty()),
                     nodes: nodes.into(),
                     nodes6: nodes6.into(),
                 },
@@ -744,46 +750,44 @@ impl TrackerContext {
             .await
         {
             return Some(Err(e));
-        } else {
-            let nodes = response
-                .nodes
-                .as_slice()
-                .into_iter()
-                .map(|e| Node::new(e.id, e.addr.clone().into()))
-                .chain(
-                    response
-                        .nodes6
-                        .as_slice()
-                        .into_iter()
-                        .map(|e| Node::new(e.id, e.addr.clone().into())),
-                )
-                .collect::<Vec<_>>();
-            for node in nodes {
-                let _ = self
-                    .command_sender
-                    .send(TrackerCommand::AddTraversalNode((*node.id(), *node.addr())));
-            }
-
-            let peers: Vec<SocketAddr> = if let Some(values) = response.values {
-                match addr.ip() {
-                    IpAddr::V4(_) => match CompactIpv4Addrs::try_from(values.as_slice()) {
-                        Ok(addrs) => addrs.into_iter().map(|e| e.into()).collect::<Vec<_>>(),
-                        Err(e) => return Some(Err(Error::Parse(e.to_string()))),
-                    },
-                    IpAddr::V6(_) => match CompactIpv6Addrs::try_from(values.as_slice()) {
-                        Ok(addrs) => addrs.into_iter().map(|e| e.into()).collect::<Vec<_>>(),
-                        Err(e) => return Some(Err(Error::Parse(e.to_string()))),
-                    },
-                }
-            } else {
-                vec![]
-            };
-
-            self.metrics.discovered_peers.inc_by(peers.len() as u64);
-            return Some(Ok(Reply::GetPeers(peers)));
         }
 
-        None
+        let nodes = response
+            .nodes
+            .as_slice()
+            .into_iter()
+            .map(|e| Node::new(e.id, e.addr.clone().into()))
+            .chain(
+                response
+                    .nodes6
+                    .as_slice()
+                    .into_iter()
+                    .map(|e| Node::new(e.id, e.addr.clone().into())),
+            )
+            .collect::<Vec<_>>();
+        for node in nodes {
+            let _ = self
+                .command_sender
+                .send(TrackerCommand::AddTraversalNode((*node.id(), *node.addr())));
+        }
+
+        let peers: Vec<SocketAddr> = if let Some(values) = response.values {
+            match addr.ip() {
+                IpAddr::V4(_) => match CompactIpv4Addrs::try_from(values.as_slice()) {
+                    Ok(addrs) => addrs.into_iter().map(|e| e.into()).collect::<Vec<_>>(),
+                    Err(e) => return Some(Err(Error::Parse(e.to_string()))),
+                },
+                IpAddr::V6(_) => match CompactIpv6Addrs::try_from(values.as_slice()) {
+                    Ok(addrs) => addrs.into_iter().map(|e| e.into()).collect::<Vec<_>>(),
+                    Err(e) => return Some(Err(Error::Parse(e.to_string()))),
+                },
+            }
+        } else {
+            vec![]
+        };
+
+        self.metrics.discovered_peers.inc_by(peers.len() as u64);
+        return Some(Ok(Reply::GetPeers(peers)));
     }
 
     /// Process a received tracker command.
@@ -1123,23 +1127,6 @@ impl TrackerContext {
         Ok(())
     }
 
-    /// Try to add the given node to the routing table.
-    /// The node will be pinged before it's being added to the routing table.
-    async fn add_node(&self, node: Node) {
-        let response = self.ping(node.addr()).await;
-
-        let tracker_info = self.to_string();
-        tokio::spawn(async move {
-            let addr = node.addr();
-            match timeout(Duration::from_secs(3), response).await {
-                Ok(_) => {
-                    node.confirmed().await;
-                }
-                Err(e) => trace!("{} failed to ping {}, {}", tracker_info, addr, e),
-            }
-        });
-    }
-
     /// Update the nodes information of the given node.
     async fn update_node(&self, id: NodeId, addr: SocketAddr) {
         let mut routing_table = self.routing_table.lock().await;
@@ -1283,21 +1270,6 @@ impl TrackerContext {
                 Ok(prev) => return prev,
                 Err(current) => old = current,
             }
-        }
-    }
-
-    /// Parse the given compact nodes byte slice into nodes.
-    fn parse_compact_nodes(
-        &self,
-        source_addr: &SocketAddr,
-        compact_nodes_bytes: &[u8],
-    ) -> Result<Vec<Node>> {
-        if source_addr.is_ipv4() {
-            CompactIPv4Nodes::try_from(compact_nodes_bytes)
-                .map(|nodes| nodes.into_iter().map(Node::from).collect())
-        } else {
-            CompactIPv6Nodes::try_from(compact_nodes_bytes)
-                .map(|nodes| nodes.into_iter().map(Node::from).collect())
         }
     }
 
@@ -1591,37 +1563,42 @@ mod tests {
             init_logger!();
             let (incoming, outgoing) = create_node_server_pair!();
 
-            let _ = timeout!(
+            let result = timeout!(
                 outgoing.ping((Ipv4Addr::LOCALHOST, incoming.port()).into()),
                 Duration::from_millis(750),
                 "failed to ping node"
-            )
-            .expect("expected the ping to have been succeeded");
+            );
+            assert_eq!(Ok(()), result);
 
             // check if the incoming server has added the node that pinged it
-            let routing_table = incoming.inner.routing_table.lock().await;
-            let result = routing_table.find_node(&outgoing.id().await);
-            assert_ne!(
-                None, result,
-                "expected the incoming ping node to have been added to the routing table"
-            );
+            {
+                let routing_table = incoming.inner.routing_table.lock().await;
+                let result = routing_table.find_node(&outgoing.id().await);
+                assert_ne!(
+                    None, result,
+                    "expected the incoming ping node to have been added to the routing table"
+                );
+            }
 
             // check if the outgoing server has added the pinged target node
-            let routing_table = outgoing.inner.routing_table.lock().await;
-            let result = routing_table.find_node(&incoming.id().await);
-            assert_ne!(
-                None, result,
-                "expected the pinged target node to have been added to the outgoing server"
-            );
+            {
+                let routing_table = outgoing.inner.routing_table.lock().await;
+                let result = routing_table.find_node(&incoming.id().await);
+                assert_ne!(
+                    None, result,
+                    "expected the pinged target node to have been added to the outgoing server"
+                );
+            }
         }
 
         #[tokio::test]
         async fn test_ping_invalid_address() {
             init_logger!();
-            let (incoming, outgoing) = create_node_server_pair!();
+            let addr = SocketAddr::from(([0, 0, 0, 0], 9000));
+            let tracker = DhtTracker::new(NodeId::new(), Vec::new()).await.unwrap();
 
             let result = timeout!(
-                outgoing.ping(incoming.addr()), // this will try to send to 0.0.0.0:X
+                tracker.ping(addr),
                 Duration::from_millis(750),
                 "failed to ping node"
             );

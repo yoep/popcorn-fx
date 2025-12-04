@@ -303,7 +303,7 @@ pub mod tests {
                         params.files,
                     ))
                 },
-                DhtTracker::builder().build().await.unwrap()
+                Some(DhtTracker::builder().build().await.unwrap())
             )
         }};
         ($uri:expr, $temp_dir:expr, $options:expr, $config:expr, $operations:expr, $discoveries:expr, $storage:expr, $dht:expr) => {{
@@ -318,7 +318,7 @@ pub mod tests {
             let config: TorrentConfig = $config;
             let operations: Vec<TorrentOperationFactory> = $operations;
             let discoveries: Vec<Box<dyn PeerDiscovery>> = $discoveries;
-            let dht: DhtTracker = $dht;
+            let dht: Option<DhtTracker> = $dht;
             let torrent_info = create_metadata(uri);
             let tracker_manager = TrackerClient::new(Duration::from_secs(2));
             let config = TorrentConfig::builder()
@@ -337,7 +337,7 @@ pub mod tests {
                 .operations(operations.iter().map(|e| e()).collect())
                 .storage($storage)
                 .tracker_manager(tracker_manager)
-                .dht(dht)
+                .dht_option(dht)
                 .build()
                 .unwrap()
         }};

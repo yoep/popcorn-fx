@@ -121,7 +121,7 @@ impl Default for TorrentState {
 /// # Examples
 ///
 /// ```rust,no_run
-/// use popcorn_fx_torrent::torrent::{Torrent, TorrentFlags, TorrentMetadata, TorrentRequest, MagnetResult, ExtensionFactories, Result};
+/// use popcorn_fx_torrent::torrent::{Torrent, TorrentFlags, TorrentMetadata, TorrentRequest, MagnetResult, ExtensionFactories, CompactResult};
 /// use popcorn_fx_torrent::torrent::storage::{DiskStorage};
 /// use popcorn_fx_torrent::torrent::peer::extension::Extensions;
 /// use popcorn_fx_torrent::torrent::peer::{PeerDiscovery, TcpPeerDiscovery};
@@ -129,7 +129,7 @@ impl Default for TorrentState {
 /// fn create_new_torrent(
 ///     metadata: TorrentMetadata,
 ///     extensions: ExtensionFactories,
-/// ) -> Result<Torrent> {
+/// ) -> CompactResult<Torrent> {
 ///     // create a tcp peer discovery for dialing and accepting tpc connections
 ///     let peer_discovery = TcpPeerDiscovery::new();
 ///
@@ -3007,15 +3007,18 @@ impl Drop for TorrentContext {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::net::Ipv4Addr;
 
     use crate::init_logger;
     use crate::torrent::operation::{
         TorrentConnectPeersOperation, TorrentCreateFilesOperation, TorrentCreatePiecesOperation,
         TorrentFileValidationOperation,
     };
-    use crate::torrent::InfoHash;
+    use crate::torrent::{InfoHash, Magnet};
     use crate::{create_torrent, timeout};
 
+    use crate::torrent::peer::TcpPeerDiscovery;
+    use crate::torrent::storage::MemoryStorage;
     use crate::torrent::tests::{copy_test_file, read_test_file_to_bytes};
     use std::ops::Sub;
     use std::str::FromStr;
@@ -3066,29 +3069,54 @@ mod tests {
     #[tokio::test]
     async fn test_torrent_retrieve_metadata() {
         init_logger!();
+        let filename = "debian.torrent";
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
+        copy_test_file(temp_path, filename, None);
+        let info = TorrentMetadata::try_from(read_test_file_to_bytes(filename).as_slice()).unwrap();
+        let magnet_uri = Magnet::try_from(&info).unwrap().to_string();
         let (tx, mut rx) = unbounded_channel();
-        let uri = "magnet:?xt=urn:btih:2C6B6858D61DA9543D4231A71DB4B1C9264B0685&dn=Ubuntu%2022.04%20LTS&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
-        let torrent = create_torrent!(uri, temp_path, TorrentFlags::Metadata);
+        let source_torrent = create_torrent!(
+            filename,
+            temp_path,
+            TorrentFlags::none(),
+            TorrentConfig::default(),
+            vec![]
+        );
+        let torrent = create_torrent!(
+            magnet_uri.as_str(),
+            temp_path,
+            TorrentFlags::Metadata,
+            TorrentConfig::default(),
+            vec![|| Box::new(TorrentConnectPeersOperation::new()), || {
+                Box::new(TorrentMetadataOperation::new())
+            }],
+            vec![Box::new(TcpPeerDiscovery::new().await.unwrap())],
+            |_| { Box::new(MemoryStorage::new()) },
+            None
+        );
 
+        // listen for the metadata changed event
         let mut receiver = torrent.subscribe();
         tokio::spawn(async move {
-            loop {
-                if let Some(event) = receiver.recv().await {
-                    if let TorrentEvent::MetadataChanged(_) = *event {
-                        tx.send(()).unwrap();
-                        break;
-                    }
-                } else {
+            while let Some(event) = receiver.recv().await {
+                if let TorrentEvent::MetadataChanged(_) = *event {
+                    tx.send(()).unwrap();
                     break;
                 }
             }
         });
 
+        // connect the torrent to the source torrent, which has the metadata
+        let port = source_torrent.peer_port().unwrap();
+        torrent
+            .add_peer((Ipv4Addr::LOCALHOST, port).into())
+            .await
+            .unwrap();
+
         timeout!(
             rx.recv(),
-            Duration::from_secs(30),
+            Duration::from_secs(3),
             "expected to receive a MetadataChanged event"
         )
         .unwrap();

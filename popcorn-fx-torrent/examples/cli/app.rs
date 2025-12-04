@@ -8,7 +8,6 @@ use crossterm::event::{Event, EventStream, KeyCode, KeyEvent};
 use futures::StreamExt;
 use futures::{future, FutureExt};
 use fx_callback::{Callback, Subscription};
-use fx_handle::Handle;
 use log::{error, warn};
 use popcorn_fx_torrent::torrent::dht::DhtTracker;
 use popcorn_fx_torrent::torrent::operation::{
@@ -18,7 +17,7 @@ use popcorn_fx_torrent::torrent::operation::{
 };
 use popcorn_fx_torrent::torrent::{
     FxSessionCache, FxTorrentSession, Session, SessionEvent, SessionState, TorrentFlags,
-    TorrentOperation, TorrentOperationFactory,
+    TorrentOperationFactory,
 };
 use ratatui::layout::Constraint::{Length, Min};
 use ratatui::layout::{Alignment, Layout, Rect};
@@ -56,7 +55,7 @@ pub trait FXWidget: Debug {
     async fn tick(&mut self);
 
     /// Handle the specified key event within this widget.
-    fn on_key_event(&mut self, key: FXKeyEvent);
+    fn on_key_event(&mut self, event: FXKeyEvent);
 
     /// Handle a paste event within this widget.
     fn on_paste_event(&mut self, text: String);
@@ -65,18 +64,27 @@ pub trait FXWidget: Debug {
     fn render(&self, frame: &mut Frame, area: Rect);
 }
 
+/// A key event that can be marked as *consumed* to stop further propagation.
+///
+/// This type wraps a [`KeyEvent`] and tracks whether the event has already
+/// been handled by some part of the system.
 #[derive(Debug, Clone)]
 pub struct FXKeyEvent {
     inner: Arc<InnerFxKeyEvent>,
 }
 
 impl FXKeyEvent {
-    pub fn code(&self) -> KeyCode {
+    /// Returns the key code associated with this event.
+    ///
+    /// This is a convenience accessor for the underlying [`KeyEvent`]'s code.
+    pub fn key_code(&self) -> KeyCode {
         self.inner.event.code
     }
 
-    /// Check if the event is consumed.
-    /// If not, propagation is allowed, else stop.
+    /// Returns `true` if this event has been consumed.
+    ///
+    /// A consumed event should not be propagated to additional handlers.
+    /// If the internal lock is poisoned, this method will return `false`.
     pub fn is_consumed(&self) -> bool {
         if let Ok(consumed) = self.inner.consumed.lock() {
             *consumed
@@ -85,7 +93,9 @@ impl FXKeyEvent {
         }
     }
 
-    /// Marks this event as consumed. This stops its further propagation.
+    /// Marks this event as consumed.
+    ///
+    /// Once consumed, the event should not be propagated to further handlers.
     pub fn consume(&mut self) {
         if let Ok(mut consumed) = self.inner.consumed.lock() {
             *consumed = true;
@@ -255,7 +265,7 @@ impl App {
 
                     // check if the event was consumed
                     if !event.is_consumed() {
-                        match event.code() {
+                        match event.key_code() {
                             KeyCode::Char(APP_QUIT_KEY) => self.cancellation_token.cancel(),
                             KeyCode::Left => {
                                 self.select_visible_tab(-1);
@@ -324,6 +334,7 @@ impl App {
         match Self::create_session(&self.settings).await {
             Ok(session) => {
                 self.session = session;
+                self.session_event_receiver = self.session.subscribe();
                 self.create_session_tabs().await;
             }
             Err(e) => error!("Failed to create new session: {}", e),

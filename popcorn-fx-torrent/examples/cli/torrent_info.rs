@@ -1,9 +1,9 @@
 use crate::app::{FXKeyEvent, FXWidget, PERFORMANCE_HISTORY};
-use crate::widget::{print_optional_string, print_string_len};
+use crate::widget::{print_optional_string, print_string_len, InputWidget};
 use async_trait::async_trait;
 use crossterm::event::KeyCode;
 use fx_callback::{Callback, Subscription};
-use log::{info, warn};
+use log::{error, info, warn};
 use popcorn_fx_torrent::torrent::peer::{Peer, PeerClientInfo, PeerEvent, PeerHandle, PeerState};
 use popcorn_fx_torrent::torrent::{
     format_bytes, File, FileIndex, FilePriority, InfoHash, PieceIndex, Torrent, TorrentEvent,
@@ -12,18 +12,20 @@ use popcorn_fx_torrent::torrent::{
 use ratatui::buffer::Buffer;
 use ratatui::layout::Constraint::{Fill, Length, Percentage};
 use ratatui::layout::{Layout, Rect};
-use ratatui::prelude::{Alignment, Color, Style};
+use ratatui::prelude::{Alignment, Color, Style, Text};
 use ratatui::style::Stylize;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::block::{Position, Title};
+use ratatui::widgets::block::Title;
 use ratatui::widgets::{
     Block, Borders, Cell, Gauge, HighlightSpacing, List, ListItem, ListState, Paragraph, Row,
     Sparkline, StatefulWidget, Table, TableState, Widget,
 };
 use ratatui::Frame;
 use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::ops::Range;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
@@ -36,6 +38,7 @@ pub struct TorrentInfoWidget {
     torrent: Torrent,
     files_widget: TorrentFilesWidget,
     priorities_widget: TorrentFilePriorityWidget,
+    add_peer_widget: TorrentAddPeerWidget,
     peers_widget: TorrentPeersWidget,
     event_receiver: Subscription<TorrentEvent>,
     command_sender: UnboundedSender<TorrentInfoCommand>,
@@ -77,6 +80,7 @@ impl TorrentInfoWidget {
             torrent,
             files_widget: TorrentFilesWidget::new(command_sender.clone()),
             priorities_widget: TorrentFilePriorityWidget::new(command_sender.clone()),
+            add_peer_widget: TorrentAddPeerWidget::new(command_sender.clone()),
             peers_widget: TorrentPeersWidget::new(),
             event_receiver,
             command_sender,
@@ -183,6 +187,12 @@ impl TorrentInfoWidget {
             TorrentInfoCommand::UpdatePriority(index, priority) => {
                 self.torrent.prioritize_files(vec![(index, priority)]).await;
             }
+            TorrentInfoCommand::ShowAddPeer => {
+                if let Ok(mut state) = self.state.lock() {
+                    *state = TorrentInfoState::AddPeer
+                }
+            }
+            TorrentInfoCommand::AddPeer(peer) => self.add_torrent_peer(peer).await,
             TorrentInfoCommand::TogglePaused => {
                 if self.torrent.is_paused().await {
                     self.torrent.resume().await;
@@ -190,6 +200,12 @@ impl TorrentInfoWidget {
                     self.torrent.pause().await;
                 }
             }
+        }
+    }
+
+    async fn add_torrent_peer(&self, addr: SocketAddr) {
+        if let Err(e) = self.torrent.add_peer(addr).await {
+            error!("Failed to add peer {}, {}", addr, e);
         }
     }
 }
@@ -211,33 +227,38 @@ impl FXWidget for TorrentInfoWidget {
         self.peers_widget.tick().await;
     }
 
-    fn on_key_event(&mut self, mut key: FXKeyEvent) {
-        if key.code() == KeyCode::Char('p') {
-            key.consume();
-            let _ = self.command_sender.send(TorrentInfoCommand::TogglePaused);
-            return;
+    fn on_key_event(&mut self, mut event: FXKeyEvent) {
+        let state = self.state();
+        if state != TorrentInfoState::AddPeer {
+            match event.key_code() {
+                KeyCode::Char('a') => {
+                    event.consume();
+                    let _ = self.command_sender.send(TorrentInfoCommand::ShowAddPeer);
+                    return;
+                }
+                KeyCode::Char('p') => {
+                    event.consume();
+                    let _ = self.command_sender.send(TorrentInfoCommand::TogglePaused);
+                    return;
+                }
+                _ => {}
+            }
         }
 
-        match self.state() {
-            TorrentInfoState::Files => self.files_widget.on_key_event(key),
-            TorrentInfoState::Priority => self.priorities_widget.on_key_event(key),
+        match state {
+            TorrentInfoState::Files => self.files_widget.on_key_event(event),
+            TorrentInfoState::Priority => self.priorities_widget.on_key_event(event),
+            TorrentInfoState::AddPeer => self.add_peer_widget.on_key_event(event),
         }
     }
 
-    fn on_paste_event(&mut self, _: String) {
-        // no-op
+    fn on_paste_event(&mut self, text: String) {
+        if let TorrentInfoState::AddPeer = self.state() {
+            self.add_peer_widget.on_paste_event(text);
+        }
     }
 
     fn render(&self, frame: &mut Frame, area: Rect) {
-        Widget::render(self, area, frame.buffer_mut());
-    }
-}
-
-impl Widget for &TorrentInfoWidget {
-    fn render(self, area: Rect, buf: &mut Buffer)
-    where
-        Self: Sized,
-    {
         let main = Layout::vertical([Length(12), Length(4), Fill(1)]);
         let [header_area, progress_area, details_area] = main.areas(area);
         let header = Layout::horizontal([Percentage(50), Percentage(50)]);
@@ -293,9 +314,9 @@ impl Widget for &TorrentInfoWidget {
         .block(
             Block::bordered()
                 .title(" Metadata ")
-                .title(Title::from(" Press p to pause/resume ").position(Position::Bottom)),
+                .title_bottom(" Press P to pause/resume, A to add peer "),
         )
-        .render(metadata_area, buf);
+        .render(metadata_area, frame.buffer_mut());
 
         // render the performance
         Sparkline::default()
@@ -305,7 +326,7 @@ impl Widget for &TorrentInfoWidget {
             )))
             .data(&self.data.down)
             .style(Style::default().fg(Color::Yellow))
-            .render(down_performance, buf);
+            .render(down_performance, frame.buffer_mut());
 
         Sparkline::default()
             .block(Block::bordered().title(format!(
@@ -314,7 +335,7 @@ impl Widget for &TorrentInfoWidget {
             )))
             .data(&self.data.up)
             .style(Style::default().fg(Color::Yellow))
-            .render(up_performance, buf);
+            .render(up_performance, frame.buffer_mut());
 
         // render the progress
         Gauge::default()
@@ -326,15 +347,18 @@ impl Widget for &TorrentInfoWidget {
             .gauge_style(Style::default().fg(Color::Yellow))
             .ratio(self.data.progress as f64)
             .label(format!("{:.1}%", self.data.progress * 100f32))
-            .render(progress_area, buf);
+            .render(progress_area, frame.buffer_mut());
 
         // render the file details area
         match self.state() {
-            TorrentInfoState::Files => self.files_widget.render(files_area, buf),
-            TorrentInfoState::Priority => self.priorities_widget.render(files_area, buf),
+            TorrentInfoState::Files => self.files_widget.render(files_area, frame.buffer_mut()),
+            TorrentInfoState::Priority => self
+                .priorities_widget
+                .render(files_area, frame.buffer_mut()),
+            TorrentInfoState::AddPeer => self.add_peer_widget.render(frame, files_area),
         }
         // render the peers
-        self.peers_widget.render(peers_area, buf);
+        self.peers_widget.render(peers_area, frame.buffer_mut());
     }
 }
 
@@ -403,8 +427,8 @@ impl TorrentFilesWidget {
         &self.files[self.selected_index()]
     }
 
-    fn on_key_event(&mut self, key: FXKeyEvent) {
-        match key.code() {
+    fn on_key_event(&mut self, event: FXKeyEvent) {
+        match event.key_code() {
             KeyCode::Up => {
                 if let Ok(mut state) = self.state.lock() {
                     let offset = state.selected().unwrap_or(0).saturating_sub(1);
@@ -555,8 +579,8 @@ impl TorrentFilePriorityWidget {
         self.priorities[offset]
     }
 
-    fn on_key_event(&mut self, key: FXKeyEvent) {
-        match key.code() {
+    fn on_key_event(&mut self, event: FXKeyEvent) {
+        match event.key_code() {
             KeyCode::Esc | KeyCode::Backspace => {
                 let _ = self.command_sender.send(TorrentInfoCommand::ShowFiles);
             }
@@ -602,6 +626,103 @@ impl Widget for &TorrentFilePriorityWidget {
 
         let mut state = self.state.lock().expect("Mutex poisoned");
         StatefulWidget::render(menu_list, area, buf, &mut state);
+    }
+}
+
+#[derive(Debug)]
+struct TorrentAddPeerWidget {
+    input: InputWidget,
+    error: Option<String>,
+    command_sender: UnboundedSender<TorrentInfoCommand>,
+}
+
+impl TorrentAddPeerWidget {
+    fn new(command_sender: UnboundedSender<TorrentInfoCommand>) -> Self {
+        Self {
+            input: InputWidget::new_with_opts("", true),
+            error: None,
+            command_sender,
+        }
+    }
+
+    fn try_parse_addr(&mut self) -> Option<SocketAddr> {
+        let addr_value = self.input.as_str();
+
+        match SocketAddr::from_str(addr_value) {
+            Ok(addr) => Some(addr),
+            Err(e) => {
+                self.error = Some(format!("Address is invalid, {}", e));
+                None
+            }
+        }
+    }
+
+    fn reset(&mut self) {
+        self.input.reset();
+        self.error = None;
+    }
+
+    fn on_key_event(&mut self, mut event: FXKeyEvent) {
+        match event.key_code() {
+            KeyCode::Esc => {
+                event.consume();
+                self.reset();
+                let _ = self.command_sender.send(TorrentInfoCommand::ShowFiles);
+            }
+            KeyCode::Backspace => {
+                event.consume();
+                self.input.backspace();
+            }
+            KeyCode::Enter => {
+                event.consume();
+                if let Some(addr) = self.try_parse_addr() {
+                    self.reset();
+                    let _ = self.command_sender.send(TorrentInfoCommand::AddPeer(addr));
+                    let _ = self.command_sender.send(TorrentInfoCommand::ShowFiles);
+                }
+            }
+            KeyCode::Char(ch) => {
+                event.consume();
+                self.input.insert(ch);
+            }
+            KeyCode::Left => {
+                event.consume();
+                self.input.cursor_left();
+            }
+            KeyCode::Right => {
+                event.consume();
+                self.input.cursor_right();
+            }
+            _ => {}
+        }
+    }
+
+    fn on_paste_event(&mut self, text: String) {
+        self.input.append(text.as_str());
+    }
+
+    fn render(&self, frame: &mut Frame, area: Rect) {
+        let layout = Layout::vertical([Fill(1), Length(1), Length(1)]);
+        let [input_area, help_area, invalid_area] = layout.areas(area);
+
+        // render the input widget
+        let block = Block::new()
+            .title("Enter peer address")
+            .borders(Borders::ALL);
+        self.input.render(frame, block.inner(input_area));
+        frame.render_widget(block, input_area);
+
+        // render the help info
+        Text::from("Press Esc to return, Enter to add new peer")
+            .style(Style::new().italic())
+            .render(help_area, frame.buffer_mut());
+
+        // render the error message
+        if let Some(error) = &self.error {
+            Text::from(error.as_str())
+                .style(Style::new().fg(Color::Red))
+                .render(invalid_area, frame.buffer_mut());
+        }
     }
 }
 
@@ -815,6 +936,7 @@ fn peer_state_as_str(state: &PeerState) -> &'static str {
 enum TorrentInfoState {
     Files,
     Priority,
+    AddPeer,
 }
 
 impl Default for TorrentInfoState {
@@ -828,5 +950,7 @@ enum TorrentInfoCommand {
     ShowFiles,
     ShowPriority(FileIndex, FilePriority),
     UpdatePriority(FileIndex, FilePriority),
+    ShowAddPeer,
+    AddPeer(SocketAddr),
     TogglePaused,
 }

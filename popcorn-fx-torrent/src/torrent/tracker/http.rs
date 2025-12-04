@@ -50,7 +50,7 @@ pub struct HttpResponse {
     /// The total number of peers which have not yet completed the torrent
     #[serde(default)]
     pub incomplete: Option<u64>,
-    #[serde(default, with = "crate::torrent::compact::compact_ipv4")]
+    #[serde(default)]
     pub peers: CompactIpv4Addrs,
 }
 
@@ -313,7 +313,8 @@ impl HttpServer {
                                 .peers
                                 .into_iter()
                                 .filter_map(|e| CompactIpv4Addr::try_from(e).ok())
-                                .collect(),
+                                .collect::<Vec<_>>()
+                                .into(),
                         };
                     }
                     Err(e) => {
@@ -324,7 +325,7 @@ impl HttpServer {
                             tracker_id: None,
                             complete: None,
                             incomplete: None,
-                            peers: Vec::with_capacity(0),
+                            peers: Vec::with_capacity(0).into(),
                         }
                     }
                 },
@@ -340,7 +341,7 @@ impl HttpServer {
                         tracker_id: None,
                         complete: None,
                         incomplete: None,
-                        peers: Vec::with_capacity(0),
+                        peers: Vec::with_capacity(0).into(),
                     }
                 }
             }
@@ -352,7 +353,7 @@ impl HttpServer {
                 tracker_id: None,
                 complete: None,
                 incomplete: None,
-                peers: Vec::with_capacity(0),
+                peers: Vec::with_capacity(0).into(),
             }
         }
 

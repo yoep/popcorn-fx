@@ -49,7 +49,7 @@ impl MenuLogging {
     }
 
     fn on_key_event_overview(&mut self, mut key: FXKeyEvent) {
-        match key.code() {
+        match key.key_code() {
             KeyCode::Up => {
                 key.consume();
                 let selected = self.selected();
@@ -83,11 +83,15 @@ impl MenuLogging {
         }
     }
 
-    fn on_key_event_logger(&mut self, mut key: FXKeyEvent) -> Option<()> {
+    fn on_key_event_logger(&mut self, mut key: FXKeyEvent) {
         let selected = self.selected();
-        let combo = self.loggers.get_mut(selected)?;
+        let combo = if let Some(e) = self.loggers.get_mut(selected) {
+            e
+        } else {
+            return;
+        };
 
-        match key.code() {
+        match key.key_code() {
             KeyCode::Up => {
                 key.consume();
                 combo.previous();
@@ -111,8 +115,6 @@ impl MenuLogging {
             }
             _ => {}
         }
-
-        None
     }
 
     fn render_overview(&self, frame: &mut Frame, area: Rect) {

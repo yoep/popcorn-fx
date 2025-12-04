@@ -59,6 +59,17 @@ impl Counter {
             InnerCounter::Snapshot { .. } => {}
         }
     }
+
+    /// Reset the counter to 0.
+    pub fn reset(&self) {
+        match &*self.inner {
+            InnerCounter::Mutable { total, counter, .. } => {
+                counter.store(0, Ordering::Relaxed);
+                total.store(0, Ordering::Relaxed);
+            }
+            InnerCounter::Snapshot { .. } => {}
+        }
+    }
 }
 
 impl Metric for Counter {

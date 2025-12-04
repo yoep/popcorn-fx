@@ -72,7 +72,7 @@ impl MenuSectionWidget for MenuOverview {
     }
 
     fn on_key_event(&mut self, mut key: FXKeyEvent) {
-        match key.code() {
+        match key.key_code() {
             KeyCode::Up => {
                 if let Ok(mut state) = self.state.lock() {
                     key.consume();

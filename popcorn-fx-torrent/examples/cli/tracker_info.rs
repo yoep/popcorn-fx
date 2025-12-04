@@ -6,7 +6,7 @@ use popcorn_fx_torrent::torrent::format_bytes;
 use popcorn_fx_torrent::torrent::tracker::{
     Tracker, TrackerClient, TrackerClientEvent, TrackerState,
 };
-use ratatui::layout::Constraint::{Fill, Length, Min, Percentage};
+use ratatui::layout::Constraint::{Fill, Length, Percentage};
 use ratatui::layout::{Layout, Rect};
 use ratatui::prelude::{Color, StatefulWidget, Style};
 use ratatui::style::Stylize;
@@ -168,6 +168,9 @@ impl TrackerDetailsWidget {
             let metrics = tracker.metrics();
 
             data.state = tracker.state().await;
+            data.peers = metrics.peers.get();
+            data.seeders = metrics.seeders.get();
+            data.leechers = metrics.leechers.get();
             data.confirmed = metrics.confirmed.total();
             data.errors = metrics.errors.total();
             data.bytes_in = metrics.bytes_in.total();
@@ -178,7 +181,7 @@ impl TrackerDetailsWidget {
     }
 
     fn on_key_event(&mut self, mut key: FXKeyEvent) {
-        match key.code() {
+        match key.key_code() {
             KeyCode::Up => {
                 key.consume();
                 if let Ok(mut state) = self.state.lock() {
@@ -203,11 +206,21 @@ impl TrackerDetailsWidget {
     }
 
     fn render(&self, frame: &mut Frame, area: Rect) {
-        let header = vec!["Url", "State", "Sent", "Received", "Confirmed", "Error"]
-            .into_iter()
-            .map(Cell::from)
-            .collect::<Row>()
-            .style(Style::new().bg(Color::DarkGray).fg(Color::White));
+        let header = vec![
+            "Url",
+            "State",
+            "Peers",
+            "Seeds",
+            "Leeches",
+            "Sent",
+            "Received",
+            "Confirmed",
+            "Error",
+        ]
+        .into_iter()
+        .map(Cell::from)
+        .collect::<Row>()
+        .style(Style::new().bg(Color::DarkGray).fg(Color::White));
         let rows = self
             .trackers
             .iter()
@@ -227,6 +240,9 @@ impl TrackerDetailsWidget {
                 Row::new(vec![
                     data.url.clone(),
                     state.to_string(),
+                    data.peers.to_string(),
+                    data.seeders.to_string(),
+                    data.leechers.to_string(),
                     format_bytes(data.bytes_out as usize).to_string(),
                     format_bytes(data.bytes_in as usize).to_string(),
                     data.confirmed.to_string(),
@@ -240,6 +256,9 @@ impl TrackerDetailsWidget {
             rows,
             [
                 Fill(1),
+                Length(10),
+                Length(10),
+                Length(10),
                 Length(10),
                 Length(10),
                 Length(10),
@@ -272,6 +291,9 @@ struct TrackerData {
     state: TrackerState,
     confirmed: u64,
     errors: u64,
+    peers: u64,
+    seeders: u64,
+    leechers: u64,
     bytes_in: u64,
     bytes_out: u64,
 }
@@ -283,6 +305,9 @@ impl TrackerData {
             state: TrackerState::Active,
             confirmed: 0,
             errors: 0,
+            peers: 0,
+            seeders: 0,
+            leechers: 0,
             bytes_in: 0,
             bytes_out: 0,
         }

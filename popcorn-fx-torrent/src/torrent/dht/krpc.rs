@@ -1,9 +1,14 @@
+use crate::torrent::dht::compact::{CompactIPv4Nodes, CompactIPv6Nodes};
 use crate::torrent::dht::{Error, NodeId, Result};
 use crate::torrent::{CompactIpAddr, InfoHash};
+use bitmask_enum::bitmask;
+use serde::de::SeqAccess;
+use serde::ser::SerializeSeq;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
-use serde_bytes::ByteBuf;
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use std::result;
+use std::str::FromStr;
 
 /// The unique transaction ID of a message.
 pub type TransactionId = [u8; 2];
@@ -28,17 +33,30 @@ pub enum QueryMessage {
         request: GetPeersRequest,
     },
     #[serde(rename = "announce_peer")]
-    AnnouncePeer,
+    AnnouncePeer {
+        #[serde(rename = "a")]
+        request: AnnouncePeerRequest,
+    },
 }
 
 impl QueryMessage {
-    /// Get the name/type of the query message.
+    /// Returns the node ID of the sender.
+    pub fn id(&self) -> &NodeId {
+        match self {
+            QueryMessage::Ping { request } => &request.id,
+            QueryMessage::FindNode { request } => &request.id,
+            QueryMessage::GetPeers { request } => &request.id,
+            QueryMessage::AnnouncePeer { request } => &request.id,
+        }
+    }
+
+    /// Returns the name/type of the query message.
     pub fn name(&self) -> &str {
         match self {
             QueryMessage::Ping { .. } => "ping",
             QueryMessage::FindNode { .. } => "find_node",
             QueryMessage::GetPeers { .. } => "get_peers",
-            QueryMessage::AnnouncePeer => "announce_peer",
+            QueryMessage::AnnouncePeer { .. } => "announce_peer",
         }
     }
 }
@@ -58,15 +76,30 @@ pub enum ResponseMessage {
         #[serde(rename = "r")]
         response: PingMessage,
     },
+    Announce {
+        #[serde(rename = "r")]
+        response: AnnouncePeerResponse,
+    },
 }
 
 impl ResponseMessage {
-    /// Get the name/type of the response message.
+    /// Returns the node ID of the sender.
+    pub fn id(&self) -> &NodeId {
+        match self {
+            ResponseMessage::GetPeers { response } => &response.id,
+            ResponseMessage::FindNode { response } => &response.id,
+            ResponseMessage::Ping { response } => &response.id,
+            ResponseMessage::Announce { response } => &response.id,
+        }
+    }
+
+    /// Returns the name/type of the response message.
     pub fn name(&self) -> &str {
         match self {
             ResponseMessage::GetPeers { .. } => "get_peers",
             ResponseMessage::FindNode { .. } => "find_node",
             ResponseMessage::Ping { .. } => "ping",
+            ResponseMessage::Announce { .. } => "announce_peer",
         }
     }
 }
@@ -81,24 +114,124 @@ pub struct PingMessage {
 pub struct FindNodeRequest {
     pub id: NodeId,
     pub target: NodeId,
+    #[serde(default, skip_serializing_if = "WantFamily::is_none")]
+    pub want: WantFamily,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct FindNodeResponse {
     /// The id of the node that was queried.
     pub id: NodeId,
-    /// The compact node info or the closest good nodes.
-    #[serde(with = "serde_bytes")]
-    pub nodes: Vec<u8>,
+    #[serde(skip_serializing_if = "CompactIPv4Nodes::is_empty")]
+    pub nodes: CompactIPv4Nodes,
+    #[serde(default, skip_serializing_if = "CompactIPv6Nodes::is_empty")]
+    pub nodes6: CompactIPv6Nodes,
+    #[serde(default, skip_serializing_if = "Option::is_none", with = "serde_bytes")]
+    pub token: Option<Vec<u8>>,
+}
+
+#[bitmask(u8)]
+pub enum WantFamily {
+    Ipv4,
+    Ipv6,
+}
+
+impl WantFamily {
+    /// Returns the underlying want value.
+    pub fn values(&self) -> Vec<&str> {
+        let mut result = vec![];
+        if self.contains(WantFamily::Ipv4) {
+            result.push("n4");
+        }
+        if self.contains(WantFamily::Ipv6) {
+            result.push("n6");
+        }
+        result
+    }
+
+    /// Returns the number of wanted values.
+    pub fn len(&self) -> usize {
+        let mut len = 0;
+        if self.contains(WantFamily::Ipv4) {
+            len += 1;
+        }
+        if self.contains(WantFamily::Ipv6) {
+            len += 1;
+        }
+        len
+    }
+}
+
+impl FromStr for WantFamily {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        match s {
+            "n4" => Ok(WantFamily::Ipv4),
+            "n6" => Ok(WantFamily::Ipv6),
+            _ => Err(Error::Parse(
+                format!("invalid want value {}", s).to_string(),
+            )),
+        }
+    }
+}
+
+impl Default for WantFamily {
+    fn default() -> Self {
+        WantFamily::none()
+    }
+}
+
+impl Serialize for WantFamily {
+    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut seq = serializer.serialize_seq(Some(self.len()))?;
+        for value in self.values() {
+            seq.serialize_element(value)?;
+        }
+        seq.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for WantFamily {
+    fn deserialize<D>(deserializer: D) -> result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct WantVisitor;
+        impl<'de> de::Visitor<'de> for WantVisitor {
+            type Value = WantFamily;
+
+            fn expecting(&self, f: &mut Formatter) -> std::fmt::Result {
+                write!(f, "expected a sequence of Want values")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> result::Result<Self::Value, A::Error>
+            where
+                A: SeqAccess<'de>,
+            {
+                let mut result = WantFamily::none();
+                while let Some(value) = seq.next_element::<String>().map_err(|e| {
+                    de::Error::custom(format!("failed to deserialize Want value: {}", e))
+                })? {
+                    result |= WantFamily::from_str(value.as_str()).map_err(de::Error::custom)?;
+                }
+                Ok(result)
+            }
+        }
+
+        deserializer.deserialize_any(WantVisitor)
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct GetPeersRequest {
     pub id: NodeId,
-    /// The info hash of the torrent to retrieve peers for.
     pub info_hash: InfoHash,
-    #[serde(default)]
-    pub want: Option<String>,
+    #[serde(default, skip_serializing_if = "WantFamily::is_none")]
+    pub want: WantFamily,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -106,12 +239,31 @@ pub struct GetPeersResponse {
     pub id: NodeId,
     #[serde(with = "serde_bytes")]
     pub token: Vec<u8>,
-    #[serde(default)]
-    pub values: Option<Vec<ByteBuf>>,
     #[serde(default, with = "serde_bytes")]
-    pub nodes: Option<Vec<u8>>,
-    #[serde(default, with = "serde_bytes")]
-    pub nodes6: Option<Vec<u8>>,
+    pub values: Option<Vec<u8>>,
+    #[serde(default, skip_serializing_if = "CompactIPv4Nodes::is_empty")]
+    pub nodes: CompactIPv4Nodes,
+    #[serde(default, skip_serializing_if = "CompactIPv6Nodes::is_empty")]
+    pub nodes6: CompactIPv6Nodes,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct AnnouncePeerRequest {
+    pub id: NodeId,
+    pub implied_port: bool,
+    pub info_hash: InfoHash,
+    pub port: u16,
+    pub token: String,
+    /// The name of the torrent, if provided
+    #[serde(default, rename = "n", skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seed: Option<bool>,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct AnnouncePeerResponse {
+    pub id: NodeId,
 }
 
 /// The error message.
@@ -190,13 +342,72 @@ pub enum MessagePayload {
     Error(ErrorMessage),
 }
 
-impl MessagePayload {
-    /// Get the payload type of the message.
-    pub fn payload_type(&self) -> &str {
-        match &self {
-            MessagePayload::Query(_) => "query",
-            MessagePayload::Response(_) => "response",
-            MessagePayload::Error(_) => "error",
+/// The version info of the DHT node.
+#[derive(Debug, PartialEq)]
+pub struct Version {
+    raw: Vec<u8>,
+}
+
+impl Serialize for Version {
+    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match std::str::from_utf8(&self.raw) {
+            Ok(e) => serializer.serialize_str(e),
+            Err(_) => serializer.serialize_bytes(&self.raw),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for Version {
+    fn deserialize<D>(deserializer: D) -> result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct VersionVisitor;
+        impl<'de> de::Visitor<'de> for VersionVisitor {
+            type Value = Version;
+
+            fn expecting(&self, f: &mut Formatter) -> std::fmt::Result {
+                write!(f, "expected a version string or bytes")
+            }
+
+            fn visit_str<E>(self, v: &str) -> result::Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(Self::Value::from(v))
+            }
+
+            fn visit_bytes<E>(self, v: &[u8]) -> result::Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(Self::Value { raw: v.to_vec() })
+            }
+        }
+
+        deserializer.deserialize_any(VersionVisitor)
+    }
+}
+
+impl Display for Version {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", std::str::from_utf8(&self.raw).unwrap_or("UNKNOWN"))
+    }
+}
+
+impl Default for Version {
+    fn default() -> Self {
+        Self { raw: vec![] }
+    }
+}
+
+impl From<&str> for Version {
+    fn from(s: &str) -> Self {
+        Self {
+            raw: s.as_bytes().to_vec(),
         }
     }
 }
@@ -206,8 +417,8 @@ impl MessagePayload {
 pub struct Message {
     #[serde(rename = "t", with = "serde_bytes")]
     pub transaction_id_bytes: TransactionId,
-    #[serde(rename = "v")]
-    pub version: Option<String>,
+    #[serde(default, rename = "v", skip_serializing_if = "Option::is_none")]
+    pub version: Option<Version>,
     #[serde(flatten)]
     pub payload: MessagePayload,
     /// The node's external IP.
@@ -217,15 +428,26 @@ pub struct Message {
     /// The node's external port
     #[serde(default, skip_serializing_if = "Option::is_none", with = "serde_bytes")]
     pub port: Option<[u8; 2]>, // this field is present in libtorrent, but not documented in a BEP
+    #[serde(default, rename = "ro", skip_serializing_if = "std::ops::Not::not")]
+    pub read_only: bool,
 }
 
 impl Message {
-    /// Get a builder instance to create a new message.
+    /// Returns a new builder instance to create a message.
     pub fn builder() -> MessageBuilder {
         MessageBuilder::new()
     }
 
-    /// Get the [u16] representation of the transaction ID.
+    /// Returns the node ID of the sender, if available.
+    pub fn id(&self) -> Option<&NodeId> {
+        match &self.payload {
+            MessagePayload::Query(q) => Some(q.id()),
+            MessagePayload::Response(r) => Some(r.id()),
+            MessagePayload::Error(_) => None,
+        }
+    }
+
+    /// Returns the [u16] representation of the transaction ID.
     pub fn transaction_id(&self) -> u16 {
         u16::from_be_bytes(self.transaction_id_bytes)
     }
@@ -234,10 +456,11 @@ impl Message {
 #[derive(Debug, Default)]
 pub(crate) struct MessageBuilder {
     transaction_id: Option<Vec<u8>>,
-    version: Option<String>,
+    version: Option<Version>,
     payload: Option<MessagePayload>,
     ip: Option<CompactIpAddr>,
     port: Option<[u8; 2]>,
+    read_only: Option<bool>,
 }
 
 impl MessageBuilder {
@@ -259,7 +482,7 @@ impl MessageBuilder {
     }
 
     /// Set the version of the message.
-    pub fn version(&mut self, version: String) -> &mut Self {
+    pub fn version(&mut self, version: Version) -> &mut Self {
         self.version = Some(version);
         self
     }
@@ -279,6 +502,12 @@ impl MessageBuilder {
     /// Set the node's external port.
     pub fn port(&mut self, port: [u8; 2]) -> &mut Self {
         self.port = Some(port);
+        self
+    }
+
+    /// Set the read-only flag of the message.
+    pub fn read_only(&mut self, read_only: bool) -> &mut Self {
+        self.read_only = Some(read_only);
         self
     }
 
@@ -304,6 +533,7 @@ impl MessageBuilder {
                 .ok_or(Error::InvalidMessage("missing payload".to_string()))?,
             ip: self.ip.take(),
             port: self.port.take(),
+            read_only: self.read_only.take().unwrap_or(false),
         })
     }
 }
@@ -376,5 +606,27 @@ mod tests {
         let result = serde_bencode::to_string(&message).unwrap();
 
         assert_eq!(expected_result, result.as_str());
+    }
+
+    mod want {
+        use super::*;
+
+        #[test]
+        fn test_deserialize() {
+            let want = WantFamily::Ipv4;
+            let bytes = serde_bencode::to_bytes(&want).unwrap();
+            let result = serde_bencode::from_bytes::<WantFamily>(bytes.as_slice()).unwrap();
+            assert_eq!(want, result);
+
+            let want = WantFamily::Ipv6;
+            let bytes = serde_bencode::to_bytes(&want).unwrap();
+            let result = serde_bencode::from_bytes::<WantFamily>(bytes.as_slice()).unwrap();
+            assert_eq!(want, result);
+
+            let want = WantFamily::Ipv4 | WantFamily::Ipv6;
+            let bytes = serde_bencode::to_bytes(&want).unwrap();
+            let result = serde_bencode::from_bytes::<WantFamily>(bytes.as_slice()).unwrap();
+            assert_eq!(want, result);
+        }
     }
 }

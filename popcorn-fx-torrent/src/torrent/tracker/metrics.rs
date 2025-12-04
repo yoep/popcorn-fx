@@ -1,4 +1,4 @@
-use crate::torrent::metrics::{Counter, Metric};
+use crate::torrent::metrics::{Counter, Gauge, Metric};
 use std::time::Duration;
 
 /// Aggregated I/O metrics for a [`TrackerClient`].
@@ -31,6 +31,9 @@ impl Metric for TrackerClientMetrics {
 
 #[derive(Debug, Default, Clone)]
 pub struct TrackerMetrics {
+    pub peers: Gauge,
+    pub seeders: Gauge,
+    pub leechers: Gauge,
     pub confirmed: Counter,
     pub errors: Counter,
     pub bytes_in: Counter,
@@ -44,6 +47,9 @@ impl Metric for TrackerMetrics {
 
     fn snapshot(&self) -> Self {
         Self {
+            peers: self.peers.snapshot(),
+            seeders: self.seeders.snapshot(),
+            leechers: self.leechers.snapshot(),
             confirmed: self.confirmed.snapshot(),
             errors: self.errors.snapshot(),
             bytes_in: self.bytes_in.snapshot(),
@@ -52,6 +58,9 @@ impl Metric for TrackerMetrics {
     }
 
     fn tick(&self, interval: Duration) {
+        self.peers.tick(interval);
+        self.seeders.tick(interval);
+        self.leechers.tick(interval);
         self.confirmed.tick(interval);
         self.errors.tick(interval);
         self.bytes_in.tick(interval);

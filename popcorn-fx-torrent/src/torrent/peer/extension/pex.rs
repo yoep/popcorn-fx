@@ -22,22 +22,22 @@ const EXTENSION_NAME_PEX: &str = "ut_pex";
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 struct PexMessage {
     /// The added ipv4 peer addresses
-    #[serde(default, with = "crate::torrent::compact::compact_ipv4")]
+    #[serde(default)]
     pub added: CompactIpv4Addrs,
     /// The flags of the added ipv4 peer addresses
     #[serde(default, rename = "added.f", with = "pex_flags")]
     pub added_flags: Vec<PexFlag>,
     /// The added ipv6 peer addresses
-    #[serde(default, with = "crate::torrent::compact::compact_ipv6")]
+    #[serde(default)]
     pub added6: CompactIpv6Addrs,
     /// The flags of the added ipv6 peer addresses
     #[serde(default, rename = "added6.f", with = "pex_flags")]
     pub added6_flags: Vec<PexFlag>,
     /// The dropped ipv4 peer addresses
-    #[serde(default, with = "crate::torrent::compact::compact_ipv4")]
+    #[serde(default)]
     pub dropped: CompactIpv4Addrs,
     /// The dropped ipv6 peer addresses
-    #[serde(default, with = "crate::torrent::compact::compact_ipv6")]
+    #[serde(default)]
     pub dropped6: CompactIpv6Addrs,
 }
 
@@ -310,12 +310,12 @@ impl InnerPexPool {
                 dropped_lock.drain(..).collect::<Vec<_>>(),
             )
         };
-        let mut added: CompactIpv4Addrs = vec![];
+        let mut added = vec![];
         let mut added_flags = vec![];
-        let mut added6: CompactIpv6Addrs = vec![];
+        let mut added6 = vec![];
         let mut added6_flags = vec![];
-        let mut dropped: CompactIpv4Addrs = vec![];
-        let mut dropped6: CompactIpv6Addrs = vec![];
+        let mut dropped = vec![];
+        let mut dropped6 = vec![];
 
         for peer in added_peers {
             if peer.addr.is_ipv4() {
@@ -351,12 +351,12 @@ impl InnerPexPool {
         }
 
         PexMessage {
-            added,
+            added: added.into(),
             added_flags,
-            added6,
+            added6: added6.into(),
             added6_flags,
-            dropped,
-            dropped6,
+            dropped: dropped.into(),
+            dropped6: dropped6.into(),
         }
     }
 }

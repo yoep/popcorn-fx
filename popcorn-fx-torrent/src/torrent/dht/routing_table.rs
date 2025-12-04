@@ -1,10 +1,9 @@
 use crate::torrent::dht::{Node, NodeId, NodeState};
 use crate::torrent::metrics::Metric;
 use itertools::Itertools;
-use log::trace;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::time::{Duration, Instant};
 use thiserror::Error;
 
@@ -18,8 +17,6 @@ pub enum Reason {
     Duplicate,
     #[error("node is invalid")]
     InvalidNode,
-    #[error("node is known as router")]
-    RouterNode,
     #[error("bucket has reached its limit")]
     LimitReached,
 }
@@ -36,93 +33,47 @@ pub struct RoutingTable {
     /// The number of nodes that can be stored within a bucket.
     /// This is the "K" value as described in BEP5.
     pub bucket_size: usize,
-    /// The router nodes of the routing table used only for searching.
-    router_nodes: Vec<Node>,
 }
 
 impl RoutingTable {
     /// Create a new routing table for the given root node.
-    pub fn new(id: NodeId, bucket_size: usize, router_nodes: Vec<Node>) -> Self {
+    pub fn new(id: NodeId, bucket_size: usize) -> Self {
         Self {
             id,
             buckets: Default::default(),
             bucket_size,
-            router_nodes,
         }
     }
 
-    /// Get the number of nodes within the routing table.
+    /// Returns the amount of nodes within the routing table.
     pub fn len(&self) -> usize {
         self.buckets.iter().map(|(_, bucket)| bucket.len()).sum()
     }
 
-    /// Get all bucket nodes within the routing table.
-    /// Does not include any router nodes.
-    pub fn nodes(&self) -> Vec<Node> {
+    /// Returns an iterator over the nodes within the routing table.
+    pub fn nodes(&self) -> impl Iterator<Item = &Node> {
         self.buckets
             .iter()
-            .flat_map(|(_, bucket)| bucket.nodes.iter().cloned())
-            .collect()
+            .flat_map(|(_, bucket)| bucket.nodes.as_slice())
     }
 
-    /// Get all nodes used during search operations.
-    /// Includes both bucket and router nodes.
-    pub fn search_nodes(&self) -> Vec<Node> {
-        let mut nodes = self.nodes();
-        nodes.extend(self.router_nodes.iter().cloned());
-        nodes
+    /// Returns an iterator over the non-empty buckets of the routing table.
+    pub fn buckets(&self) -> impl Iterator<Item = &Bucket> {
+        self.buckets.values().filter(|bucket| bucket.len() > 0)
     }
 
-    /// Get all router nodes in the routing table.
-    /// These nodes are only used for search and should not appear in responses.
-    pub fn router_nodes(&self) -> &[Node] {
-        &self.router_nodes
-    }
-
-    /// Check if the given node already exists within the routing table.
-    /// This verifies if the node exists within any bucket or search nodes.
-    pub fn contains(&self, node: &Node) -> bool {
-        let node_id = &node.id;
-        let distance = self.id.distance(node_id);
-        self.buckets
-            .get(&distance)
-            .map(|bucket| bucket.nodes.iter().any(|node| &node.id == node_id))
-            .unwrap_or_default()
-            || self.router_nodes.contains(&node)
-    }
-
-    /// Try to find the node within the routing table for the given ID.
+    /// Returns the found node within the routing table, if found.
     pub fn find_node(&self, id: &NodeId) -> Option<&Node> {
-        let distance = self.id.distance(id);
-        self.buckets
-            .get(&distance)
-            .and_then(|bucket| bucket.nodes.iter().find(|node| &node.id == id))
+        self.nodes().find(|node| node.id() == id)
     }
 
-    /// Try to find the node within the routing table for the given ID.
-    /// It returns a mutable reference to the stored node when found.
-    pub fn find_node_mut(&mut self, id: &NodeId) -> Option<&mut Node> {
-        let distance = self.id.distance(id);
-        self.buckets
-            .get_mut(&distance)
-            .and_then(|bucket| bucket.nodes.iter_mut().find(|node| &node.id == id))
-    }
-
-    /// Try to find the node within the routing table for the given address.
-    /// It returns a mutable reference to the stored node when found.
-    pub fn find_node_by_addr_mut(&mut self, addr: &SocketAddr) -> Option<&mut Node> {
-        self.buckets
-            .iter_mut()
-            .find_map(|(_, bucket)| bucket.find_by_addr_mut(addr))
-    }
-
-    /// Try to find all nodes within the bucket of the given target node ID.
+    /// Returns the closest nodes slice for the given node id.
     pub fn find_bucket_nodes(&self, id: &NodeId) -> &[Node] {
         let distance = self.id.distance(id);
         self.buckets
             .get(&distance)
             .map(|b| b.nodes.as_slice())
-            .unwrap_or(Default::default())
+            .unwrap_or_default()
     }
 
     /// Try to add the given node to the routing table.
@@ -130,15 +81,12 @@ impl RoutingTable {
     /// # Returns
     ///
     /// It returns the bucket id to which the node has been added, else [None].
-    pub fn add_node(&mut self, node: Node) -> Result<BucketIndex> {
-        if node.id == self.id || !Self::is_valid(&node) {
+    pub async fn add_node(&mut self, node: Node) -> Result<BucketIndex> {
+        if node.id() == &self.id || !Self::is_valid(&node) {
             return Err(Reason::InvalidNode);
         }
-        if self.router_nodes.contains(&node) {
-            return Err(Reason::RouterNode);
-        }
 
-        let distance = self.id.distance(&node.id);
+        let distance = self.id.distance(node.id());
         // if distance == 0 {
         //     trace!("Routing table is ignoring node, node has same ID as the routing table");
         //     return None;
@@ -154,75 +102,29 @@ impl RoutingTable {
         }
 
         // try to add the node within the bucket
-        bucket.add(node).map(|_| distance)
-    }
-
-    /// Add the given router node to the routing table.
-    /// These will only be used during searches, but never returned in a response.
-    ///
-    /// # Returns
-    ///
-    /// Returns `true` when the router node has been added, else `false`.
-    pub fn add_router_node(&mut self, node: Node) -> bool {
-        // check if the router node is already known
-        if self.contains_router_node(&node.addr) {
-            return false;
-        }
-
-        self.router_nodes.push(node);
-        true
-    }
-
-    /// Remove the router node to the routing table.
-    ///
-    /// # Returns
-    ///
-    /// Returns `true` when the router node has been removed, else `false`.
-    pub fn remove_router_node(&mut self, node: &Node) -> bool {
-        if let Some(position) = self.router_nodes.iter().position(|e| e.id == node.id) {
-            self.router_nodes.remove(position);
-            return true;
-        }
-
-        false
-    }
-
-    /// Refresh all buckets within the routing table.
-    pub async fn refresh(&mut self) {
-        trace!(
-            "DHT routing table is updating {} buckets",
-            self.buckets.len()
-        );
-        for (_, bucket) in self.buckets.iter_mut() {
-            bucket.refresh().await;
-        }
+        bucket.add(node).await.map(|_| distance)
     }
 
     /// Call once per tick (typically once per second), providing a tick interval.
     pub fn tick(&self, interval: Duration) {
         for (_, bucket) in &self.buckets {
             for node in &bucket.nodes {
-                node.metrics.tick(interval);
+                node.metrics().tick(interval);
             }
         }
-    }
-
-    /// Check if the given address is already registered as a router node.
-    fn contains_router_node(&self, addr: &SocketAddr) -> bool {
-        self.router_nodes.iter().find(|e| e.addr == *addr).is_some()
     }
 
     /// Validate if the given node is valid.
     fn is_valid(node: &Node) -> bool {
         // early fail if the node address is unknown
-        if match &node.addr.ip() {
-            IpAddr::V4(ip) => ip == &Ipv4Addr::UNSPECIFIED,
-            IpAddr::V6(ip) => ip == &Ipv6Addr::UNSPECIFIED,
+        if match node.addr().ip() {
+            IpAddr::V4(ip) => ip == Ipv4Addr::UNSPECIFIED,
+            IpAddr::V6(ip) => ip == Ipv6Addr::UNSPECIFIED,
         } {
             return false;
         }
 
-        node.id.verify_id(&node.addr.ip()) && node.addr.port() != 0
+        node.id().verify_id(&node.addr().ip()) && node.addr().port() != 0
     }
 }
 
@@ -252,16 +154,22 @@ impl Bucket {
     }
 
     /// Add the given node to the bucket, without exceeding the bucket size.
-    fn add(&mut self, node: Node) -> Result<()> {
+    async fn add(&mut self, node: Node) -> Result<()> {
         if self.nodes.len() < self.max_size {
             self.nodes.push(node);
             self.last_changed = Instant::now();
             return Ok(());
         } else {
-            if let Some(position) = self
-                .nodes
-                .iter()
-                .filter(|e| e.state != NodeState::Good)
+            let nodes = futures::future::join_all(
+                self.nodes
+                    .iter()
+                    .map(|e| async move { (e.state().await, e) })
+                    .collect_vec(),
+            )
+            .await;
+            if let Some(position) = nodes
+                .into_iter()
+                .filter(|(state, _)| state != &NodeState::Good)
                 .sorted_by(Self::sort_nodes_by_worse_state)
                 .position(|_| true)
             {
@@ -276,19 +184,9 @@ impl Bucket {
         Err(Reason::LimitReached)
     }
 
-    /// Try to find a node by the given address.
-    fn find_by_addr_mut(&mut self, addr: &SocketAddr) -> Option<&mut Node> {
-        self.nodes.iter_mut().find(|e| e.addr == *addr)
-    }
-
-    /// Refresh the nodes within this bucket.
-    async fn refresh(&mut self) {
-        // TODO
-    }
-
-    fn sort_nodes_by_worse_state(a: &&Node, b: &&Node) -> Ordering {
-        let a_state = a.state as u8;
-        let b_state = b.state as u8;
+    fn sort_nodes_by_worse_state(a: &(NodeState, &Node), b: &(NodeState, &Node)) -> Ordering {
+        let a_state = a.0 as u8;
+        let b_state = b.0 as u8;
 
         b_state.cmp(&a_state)
     }
@@ -304,14 +202,14 @@ mod tests {
     mod routing_table {
         use super::*;
 
-        #[test]
-        fn test_add_node_self() {
+        #[tokio::test]
+        async fn test_add_node_self() {
             init_logger!();
             let node_id = NodeId::new();
             let node = Node::new(node_id, (Ipv4Addr::LOCALHOST, 9000).into());
-            let mut routing_table = RoutingTable::new(node_id, 2, Vec::with_capacity(0));
+            let mut routing_table = RoutingTable::new(node_id, 2);
 
-            let result = routing_table.add_node(node);
+            let result = routing_table.add_node(node).await;
             assert_eq!(
                 Err(Reason::InvalidNode),
                 result,
@@ -322,36 +220,36 @@ mod tests {
             assert_eq!(0, result, "expected the node to not have been stored");
         }
 
-        #[test]
-        fn test_add_node() {
+        #[tokio::test]
+        async fn test_add_node() {
             init_logger!();
             let node_id = NodeId::new();
             let node = Node::new(node_id, (Ipv4Addr::LOCALHOST, 10000).into());
-            let mut routing_table = RoutingTable::new(NodeId::new(), 10, Vec::with_capacity(0));
+            let mut routing_table = RoutingTable::new(NodeId::new(), 10);
 
-            let result = routing_table.add_node(node);
+            let result = routing_table.add_node(node).await;
             assert!(result.is_ok(), "expected Ok, but got {:?} instead", result);
 
             let result = routing_table.len();
             assert_eq!(1, result, "expected the node to have been stored");
         }
 
-        #[test]
-        fn test_add_node_invalid() {
+        #[tokio::test]
+        async fn test_add_node_invalid() {
             init_logger!();
             let node_unspecified_addr =
                 Node::new(NodeId::new(), (Ipv4Addr::UNSPECIFIED, 1000).into());
             let node_unspecified_port = Node::new(NodeId::new(), (Ipv4Addr::LOCALHOST, 0).into());
-            let mut routing_table = RoutingTable::new(NodeId::new(), 10, Vec::with_capacity(0));
+            let mut routing_table = RoutingTable::new(NodeId::new(), 10);
 
-            let result = routing_table.add_node(node_unspecified_addr);
+            let result = routing_table.add_node(node_unspecified_addr).await;
             assert_eq!(
                 Err(Reason::InvalidNode),
                 result,
                 "expected unspecified node addr to not be added"
             );
 
-            let result = routing_table.add_node(node_unspecified_port);
+            let result = routing_table.add_node(node_unspecified_port).await;
             assert_eq!(
                 Err(Reason::InvalidNode),
                 result,
@@ -363,18 +261,18 @@ mod tests {
     mod bucket {
         use super::*;
 
-        #[test]
-        fn test_add_empty_bucket() {
+        #[tokio::test]
+        async fn test_add_empty_bucket() {
             let node = Node::new(NodeId::new(), (Ipv4Addr::LOCALHOST, 8900).into());
             let mut bucket = Bucket::new(8);
 
-            let result = bucket.add(node);
+            let result = bucket.add(node).await;
 
             assert!(result.is_ok(), "expected Ok, but got {:?} instead", result);
         }
 
-        #[test]
-        fn test_add_bucket_full() {
+        #[tokio::test]
+        async fn test_add_bucket_full() {
             let node = Node::new(NodeId::new(), (Ipv4Addr::LOCALHOST, 8900).into());
             let mut bucket = Bucket::new(2);
             bucket.nodes.push(create_node_with_state(
@@ -386,7 +284,7 @@ mod tests {
                 NodeState::Good,
             ));
 
-            let result = bucket.add(node);
+            let result = bucket.add(node).await;
 
             assert_eq!(
                 Err(Reason::LimitReached),
@@ -395,8 +293,8 @@ mod tests {
             );
         }
 
-        #[test]
-        fn test_add_bucket_full_with_bad_node() {
+        #[tokio::test]
+        async fn test_add_bucket_full_with_bad_node() {
             let node = Node::new(NodeId::new(), (Ipv4Addr::LOCALHOST, 8900).into());
             let mut bucket = Bucket::new(2);
             bucket.nodes.push(create_node_with_state(
@@ -408,15 +306,13 @@ mod tests {
                 NodeState::Good,
             ));
 
-            let result = bucket.add(node);
+            let result = bucket.add(node).await;
 
             assert!(result.is_ok(), "expected Ok, but got {:?} instead", result);
         }
     }
 
     fn create_node_with_state(addr: SocketAddr, state: NodeState) -> Node {
-        let mut node = Node::new(NodeId::new(), addr);
-        node.state = state;
-        node
+        Node::new_with_state(NodeId::new(), addr, state)
     }
 }

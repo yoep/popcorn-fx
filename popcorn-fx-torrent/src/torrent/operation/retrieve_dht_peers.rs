@@ -79,6 +79,11 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
+        let dht = DhtTracker::builder()
+            .default_routing_nodes()
+            .build()
+            .await
+            .unwrap();
         let torrent = create_torrent!(
             uri,
             temp_path,
@@ -87,11 +92,7 @@ mod tests {
             vec![],
             vec![],
             |_| Box::new(MemoryStorage::new()),
-            DhtTracker::builder()
-                .default_routing_nodes()
-                .build()
-                .await
-                .unwrap()
+            Some(dht)
         );
         let context = torrent.instance().unwrap();
         let operation = TorrentDhtPeersOperation::new();

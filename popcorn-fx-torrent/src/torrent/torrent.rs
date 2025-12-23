@@ -796,14 +796,14 @@ impl Torrent {
         }
     }
 
-    /// Get of the given piece index has completed downloading, validating and written to the storage.
+    /// Get if the given piece index has completed downloading, validating, and written to the storage.
     ///
     /// # Returns
     ///
-    /// Returns true if the piece has been downloaded, validated and written to storage, else false.
+    /// Returns true if the piece has been downloaded, validated, and written to storage, else false.
     pub async fn has_piece(&self, piece: &PieceIndex) -> bool {
         if let Some(inner) = self.instance() {
-            return inner.pieces.contains(piece).await;
+            return inner.pieces.is_piece_completed(piece).await;
         }
 
         false

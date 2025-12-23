@@ -49,6 +49,11 @@ impl AppLogger {
                         level: Level::Info,
                     },
                     Logger {
+                        name: "Peer protocol".to_string(),
+                        target: "popcorn_fx_torrent::torrent::peer::protocol".to_string(),
+                        level: Level::Info,
+                    },
+                    Logger {
                         name: "Session".to_string(),
                         target: "popcorn_fx_torrent::torrent::session".to_string(),
                         level: Level::Info,

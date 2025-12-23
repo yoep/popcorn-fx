@@ -113,8 +113,8 @@ impl LoadingStrategy for MediaTorrentUrlLoadingStrategy {
         LoadingResult::Ok
     }
 
-    async fn cancel(&self, data: LoadingData) -> CancellationResult {
-        Ok(data)
+    async fn cancel(&self, _: &mut LoadingData) -> CancellationResult {
+        Ok(())
     }
 }
 
@@ -195,22 +195,40 @@ mod tests {
         init_logger!();
         let url = "http://localhost:9090/DolorEsta.mp4";
         let title = "FooBar";
+        let quality = "720p";
         let item = PlaylistItem {
             url: Some(url.to_string()),
             title: title.to_string(),
             caption: None,
             thumb: None,
             media: Default::default(),
-            quality: Some("720p".to_string()),
+            quality: Some(quality.to_string()),
             auto_resume_timestamp: Some(50000),
             subtitle: Default::default(),
             torrent: Default::default(),
         };
-        let data = LoadingData::from(item);
+        let mut data = LoadingData::from(item);
         let strategy = MediaTorrentUrlLoadingStrategy::new();
 
-        let result = strategy.cancel(data.clone()).await;
+        let _ = strategy
+            .cancel(&mut data)
+            .await
+            .expect("failed to cancel loading strategy");
 
-        assert_eq!(Ok(data), result);
+        assert_eq!(
+            Some(url.to_string()),
+            data.url,
+            "expected the url data to be unmodified"
+        );
+        assert_eq!(
+            Some(title.to_string()),
+            data.title,
+            "expected the title data to be unmodified"
+        );
+        assert_eq!(
+            Some(quality.to_string()),
+            data.quality,
+            "expected the quality data to be unmodified"
+        );
     }
 }

@@ -113,9 +113,9 @@ impl LoadingStrategy for AutoResumeLoadingStrategy {
         LoadingResult::Ok
     }
 
-    async fn cancel(&self, mut data: LoadingData) -> CancellationResult {
+    async fn cancel(&self, data: &mut LoadingData) -> CancellationResult {
         let _ = data.auto_resume_timestamp.take();
-        Ok(data)
+        Ok(())
     }
 }
 
@@ -310,10 +310,15 @@ mod tests {
             Box::new(auto_resume) as Box<dyn AutoResumeService>
         ));
 
-        let result = strategy.cancel(data.clone()).await;
-        data.auto_resume_timestamp = None;
+        let _ = strategy
+            .cancel(&mut data)
+            .await
+            .expect("expected the cancellation to succeed");
 
-        assert_eq!(Ok(data), result);
+        assert_eq!(
+            None, data.auto_resume_timestamp,
+            "expected the auto resume timestamp to be cleared"
+        );
     }
 
     fn create_file(filename: &str) -> torrent::File {

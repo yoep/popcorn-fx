@@ -293,10 +293,10 @@ impl LoadingStrategy for SubtitlesLoadingStrategy {
         LoadingResult::Ok
     }
 
-    async fn cancel(&self, data: LoadingData) -> CancellationResult {
+    async fn cancel(&self, _: &mut LoadingData) -> CancellationResult {
         debug!("Cancelling the subtitle loader");
         self.subtitle_manager.reset().await;
-        Ok(data)
+        Ok(())
     }
 }
 
@@ -608,9 +608,10 @@ mod tests {
     #[tokio::test]
     async fn test_cancel() {
         init_logger!();
-        let data = LoadingData::from(PlaylistItem {
+        let title = "CancelledItem";
+        let mut data = LoadingData::from(PlaylistItem {
             url: None,
-            title: "CancelledItem".to_string(),
+            title: title.to_string(),
             caption: None,
             thumb: None,
             media: Default::default(),
@@ -631,7 +632,15 @@ mod tests {
         let manager = Arc::new(Box::new(manager) as Box<dyn SubtitleManager>);
         let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), manager);
 
-        let result = loader.cancel(data.clone()).await;
-        assert_eq!(Ok(data), result);
+        let _ = loader
+            .cancel(&mut data)
+            .await
+            .expect("expected the cancel operation to succeed");
+
+        assert_eq!(
+            Some(title.to_string()),
+            data.title,
+            "expected the title data to be unmodified"
+        );
     }
 }

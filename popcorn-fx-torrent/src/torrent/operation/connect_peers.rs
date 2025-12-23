@@ -133,6 +133,10 @@ impl TorrentConnectPeersOperation {
         let len = wanted_connections.min(available_permits);
         let peer_pool = context.peer_pool();
         let peer_addrs = peer_pool.new_connection_candidates(len).await;
+        if peer_addrs.is_empty() {
+            // early exit when not peer addrs are available
+            return;
+        }
 
         match self.permits.clone().acquire_many_owned(len as u32).await {
             Ok(mut permits) => {

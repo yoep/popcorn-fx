@@ -32,6 +32,7 @@ pub mod tests {
         CancellationResult, LoadingChain, LoadingData, LoadingError, LoadingEvent, LoadingResult,
         LoadingStrategy,
     };
+    use std::fmt::{Debug, Formatter};
 
     use async_trait::async_trait;
     use derive_more::Display;
@@ -66,13 +67,16 @@ pub mod tests {
         LoadingTask::new(chain)
     }
 
-    #[derive(Debug, Display)]
+    /// A loading data peeker that can be used to investigate the triggered process fn.
+    pub type DataPeeker = dyn Fn(&LoadingData) + Send + Sync;
+
+    #[derive(Display)]
     #[display(fmt = "TestingLoadingStrategy")]
     pub struct TestingLoadingStrategy {
         event: Option<LoadingEvent>,
         process_result: LoadingResult,
         delay: Duration,
-        data_sender: Option<UnboundedSender<LoadingData>>,
+        data_peeker: Option<Box<DataPeeker>>,
         cancel_sender: Option<UnboundedSender<()>>,
     }
 
@@ -85,14 +89,14 @@ pub mod tests {
             event: Option<LoadingEvent>,
             process_result: LoadingResult,
             delay: Duration,
-            data_sender: Option<UnboundedSender<LoadingData>>,
+            data_peeker: Option<Box<DataPeeker>>,
             cancel_sender: Option<UnboundedSender<()>>,
         ) -> Self {
             Self {
                 event,
                 process_result,
                 delay,
-                data_sender,
+                data_peeker,
                 cancel_sender,
             }
         }
@@ -105,8 +109,8 @@ pub mod tests {
             data: &mut LoadingData,
             context: &LoadingTaskContext,
         ) -> LoadingResult {
-            if let Some(sender) = self.data_sender.as_ref() {
-                sender.send(data.clone()).unwrap();
+            if let Some(peeker) = self.data_peeker.as_ref() {
+                peeker(data);
             }
             if let Some(event) = self.event.clone() {
                 context.send_event(event);
@@ -120,20 +124,31 @@ pub mod tests {
             self.process_result.clone()
         }
 
-        async fn cancel(&self, data: LoadingData) -> CancellationResult {
+        async fn cancel(&self, _: &mut LoadingData) -> CancellationResult {
             if let Some(sender) = self.cancel_sender.as_ref() {
                 sender.send(()).unwrap();
             }
-            Ok(data)
+            Ok(())
         }
     }
 
-    #[derive(Debug, Default)]
+    impl Debug for TestingLoadingStrategy {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("TestingLoadingStrategy")
+                .field("event", &self.event)
+                .field("process_result", &self.process_result)
+                .field("delay", &self.delay)
+                .field("cancel_sender", &self.cancel_sender)
+                .finish()
+        }
+    }
+
+    #[derive(Default)]
     pub struct TestingLoadingStrategyBuilder {
         event: Option<LoadingEvent>,
         process_result: Option<LoadingResult>,
         delay: Option<Duration>,
-        data_sender: Option<UnboundedSender<LoadingData>>,
+        data_peeker: Option<Box<DataPeeker>>,
         cancel_sender: Option<UnboundedSender<()>>,
     }
 
@@ -153,8 +168,11 @@ pub mod tests {
             self
         }
 
-        pub fn data_sender(mut self, sender: UnboundedSender<LoadingData>) -> Self {
-            self.data_sender = Some(sender);
+        pub fn data_peeker<F>(mut self, peeker: F) -> Self
+        where
+            F: Fn(&LoadingData) + Send + Sync + 'static,
+        {
+            self.data_peeker = Some(Box::new(peeker) as Box<DataPeeker>);
             self
         }
 
@@ -171,7 +189,7 @@ pub mod tests {
                 self.event,
                 process_result,
                 delay,
-                self.data_sender,
+                self.data_peeker,
                 self.cancel_sender,
             )
         }

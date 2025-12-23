@@ -469,7 +469,7 @@ impl TorrentFilesWidget {
 
     fn on_priorities_changed(&mut self, priorities: &[(FileIndex, FilePriority)]) {
         for priority in priorities {
-            if let Some(mut file) = self.files.iter_mut().find(|e| e.index == priority.0) {
+            if let Some(file) = self.files.iter_mut().find(|e| e.index == priority.0) {
                 file.priority = priority.1;
             }
         }

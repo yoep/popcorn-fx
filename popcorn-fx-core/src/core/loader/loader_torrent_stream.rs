@@ -4,11 +4,13 @@ use crate::core::loader::{
     LoadingState, LoadingStrategy, Result, TorrentData,
 };
 use crate::core::torrents::stream::DefaultTorrentStream;
-use crate::core::torrents::{Error, TorrentStreamEvent, TorrentStreamServer, TorrentStreamState};
+use crate::core::torrents::{
+    Error, TorrentStream, TorrentStreamEvent, TorrentStreamServer, TorrentStreamState,
+};
 use async_trait::async_trait;
 use derive_more::Display;
 use fx_callback::Callback;
-use log::{debug, trace};
+use log::{debug, info, trace};
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use tokio::select;
@@ -108,7 +110,10 @@ impl LoadingStrategy for TorrentStreamLoadingStrategy {
                         }
 
                         match stream.downcast::<DefaultTorrentStream>() {
-                            Ok(stream) => data.torrent = Some(TorrentData::Stream(stream)),
+                            Ok(stream) => {
+                                info!("Streaming {}", stream.url());
+                                data.torrent = Some(TorrentData::Stream(stream))
+                            }
                             Err(e) => {
                                 return LoadingResult::Err(LoadingError::ParseError(format!(
                                     "expected DefaultTorrentStream, got {:?} instead",
@@ -125,7 +130,7 @@ impl LoadingStrategy for TorrentStreamLoadingStrategy {
         LoadingResult::Ok
     }
 
-    async fn cancel(&self, mut data: LoadingData) -> CancellationResult {
+    async fn cancel(&self, data: &mut LoadingData) -> CancellationResult {
         if let Some(TorrentData::Stream(stream)) = data.torrent.take() {
             let handle = stream.handle();
             trace!("Cancelling torrent download & stream for {}", handle);
@@ -134,7 +139,7 @@ impl LoadingStrategy for TorrentStreamLoadingStrategy {
             debug!("Stream {} loading has been cancelled", handle);
         }
 
-        Ok(data)
+        Ok(())
     }
 }
 
@@ -186,7 +191,7 @@ mod tests {
         let mut stream = MockTorrentStream::new();
         stream.inner.expect_handle().return_const(handle);
         stream.inner.expect_stream_handle().return_const(handle);
-        let data = create_loading_data(stream);
+        let mut data = create_loading_data(stream);
         let (tx, mut rx) = unbounded_channel();
         let mut stream_server = MockTorrentStreamServer::new();
         stream_server
@@ -199,27 +204,22 @@ mod tests {
             torrent_stream_server: Arc::new(Box::new(stream_server) as Box<dyn TorrentStreamServer>),
         };
 
-        let result = strategy.cancel(data).await;
-        if let Ok(result) = result {
-            if let Some(TorrentData::Torrent(torrent)) = result.torrent {
-                assert_eq!(
-                    handle,
-                    torrent.handle(),
-                    "expected the stream to have been set as torrent for next cancellation"
-                );
-            } else {
-                assert!(
-                    false,
-                    "expected TorrentData::Torrent, but got {:?} instead",
-                    result
-                );
-            }
+        let _ = strategy
+            .cancel(&mut data)
+            .await
+            .expect("expected the cancellation to succeed");
+        if let Some(TorrentData::Torrent(torrent)) = data.torrent {
+            assert_eq!(
+                handle,
+                torrent.handle(),
+                "expected the stream to have been set as torrent for next cancellation"
+            );
         } else {
             assert!(
                 false,
-                "expected CancellationResult::Ok, got {:?} instead",
-                result
-            )
+                "expected TorrentData::Torrent, but got {:?} instead",
+                data.torrent
+            );
         }
 
         let result = recv_timeout!(&mut rx, Duration::from_millis(200));

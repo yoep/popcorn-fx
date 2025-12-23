@@ -48,7 +48,10 @@ impl PartsFile {
 
         let slot_index = {
             let piece_slots = self.piece_slots.read().await;
-            *piece_slots.get(piece).ok_or(Error::Unavailable)?
+            match piece_slots.get(piece).copied() {
+                None => return Err(Error::Unavailable),
+                Some(e) => e,
+            }
         };
         let slots = self.slots.read().await;
         let slot = slots.get(&slot_index).ok_or(Error::Unavailable)?;

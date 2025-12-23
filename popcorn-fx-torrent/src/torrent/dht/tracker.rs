@@ -21,11 +21,10 @@ use derive_more::Display;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use itertools::Itertools;
 use log::{debug, trace, warn};
-use socket2::Socket;
 use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::io;
-use std::net::{IpAddr, Ipv6Addr, SocketAddr};
+use std::net::{IpAddr, SocketAddr};
 use std::pin::Pin;
 use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::Arc;
@@ -94,7 +93,6 @@ impl DhtTracker {
         let reader = NodeReader {
             socket: socket.clone(),
             socket_addr,
-            metrics: metrics.clone(),
             sender,
             cancellation_token: cancellation_token.clone(),
         };
@@ -236,7 +234,6 @@ impl DhtTracker {
         match Self::bind_dual_stack().await {
             Ok(socket) => Ok(socket),
             Err(e) => {
-                // fallback to ipv4 only
                 debug!("DHT node server failed to bind dual stack socket, {}", e);
                 Ok(UdpSocket::bind("0.0.0.0:0").await?)
             }
@@ -245,13 +242,11 @@ impl DhtTracker {
 
     /// Try to bind a dual stack IPv4 & IPv6 udp socket.
     async fn bind_dual_stack() -> Result<UdpSocket> {
-        // FIXME: dual binding doesn't work
-        let socket = UdpSocket::bind(SocketAddr::from((Ipv6Addr::UNSPECIFIED, 0))).await?;
-        let std_socket: std::net::UdpSocket = socket.into_std()?;
-        let socket2 = Socket::from(std_socket);
-        socket2.set_only_v6(false)?;
-
-        Ok(UdpSocket::from_std(std::net::UdpSocket::from(socket2))?)
+        // TODO: reimplement dual stack support
+        Err(Error::Io(io::Error::new(
+            io::ErrorKind::Other,
+            "Dual stack support is currently not implemented",
+        )))
     }
 }
 
@@ -392,7 +387,7 @@ pub(crate) struct TrackerContext {
 impl TrackerContext {
     async fn start(
         &self,
-        mut receiver: UnboundedReceiver<(Message, SocketAddr)>,
+        mut receiver: UnboundedReceiver<ReaderMessage>,
         mut command_receiver: UnboundedReceiver<TrackerCommand>,
         routing_nodes: Vec<SocketAddr>,
     ) {
@@ -410,12 +405,7 @@ impl TrackerContext {
         loop {
             select! {
                 _ = self.cancellation_token.cancelled() => break,
-                Some((message, addr)) = receiver.recv() => {
-                    observer.observe(addr, message.ip.as_ref(), &self).await;
-                    if let Err(e) = self.handle_incoming_message(message, addr, &mut peers).await {
-                        warn!("{} failed to process incoming message, {}", self, e);
-                    }
-                },
+                Some(message) = receiver.recv() => self.on_message_received(message, &mut observer, &mut peers).await,
                 Some(command) = command_receiver.recv() => self.handle_command(command, &mut traversal).await,
                 _ = cleanup_interval.tick() => self.cleanup_pending_requests().await,
                 _ = refresh_interval.tick() => self.refresh_routing_table().await,
@@ -440,6 +430,39 @@ impl TrackerContext {
     async fn bootstrap(&self, traversal: &mut TraversalAlgorithm) {
         let id = self.routing_table.lock().await.id;
         traversal.run(id, &self).await;
+    }
+
+    async fn on_message_received(
+        &self,
+        message: ReaderMessage,
+        observer: &mut Observer,
+        peers: &mut PeerStorage,
+    ) {
+        match message {
+            ReaderMessage::Message {
+                message,
+                message_len,
+                addr,
+            } => {
+                self.metrics.bytes_in.inc_by(message_len as u64);
+                observer.observe(addr, message.ip.as_ref(), &self).await;
+                if let Err(e) = self.handle_incoming_message(message, addr, peers).await {
+                    warn!("{} failed to process incoming message, {}", self, e);
+                }
+            }
+            ReaderMessage::Error {
+                error,
+                payload_len,
+                addr,
+            } => {
+                warn!(
+                    "{} failed to read incoming message from {}, {}",
+                    self, addr, error
+                );
+                self.metrics.bytes_in.inc_by(payload_len as u64);
+                self.metrics.errors.inc();
+            }
+        }
     }
 
     /// Try to process an incoming DHT message from the given node address.
@@ -509,7 +532,7 @@ impl TrackerContext {
                             return self
                                 .send_error(
                                     transaction_id,
-                                    ErrorMessage::Protocol("invalid node address".to_string()),
+                                    ErrorMessage::Protocol("Bad node".to_string()),
                                     &addr,
                                 )
                                 .await;
@@ -523,7 +546,7 @@ impl TrackerContext {
                             return self
                                 .send_error(
                                     transaction_id,
-                                    ErrorMessage::Protocol("invalid token".to_string()),
+                                    ErrorMessage::Protocol("Bad token".to_string()),
                                     &addr,
                                 )
                                 .await;
@@ -630,18 +653,7 @@ impl TrackerContext {
                 }
             }
             MessagePayload::Error(err) => {
-                self.metrics.errors.inc();
-                self.node_query_result(&addr, false).await;
-
-                if let Some(pending_request) = self.pending_requests.lock().await.remove(&key) {
-                    debug!("{} received error for {}", self, key);
-                    Self::send_reply(pending_request.request_type, Err(Error::from(err)))
-                } else {
-                    warn!(
-                        "{} received error for unknown request, invalid transaction {}",
-                        self, key
-                    );
-                }
+                self.on_error_response(&addr, &key, err).await;
             }
         }
 
@@ -680,7 +692,7 @@ impl TrackerContext {
                     return self
                         .send_error(
                             transaction_id,
-                            ErrorMessage::Generic("unknown node id".to_string()),
+                            ErrorMessage::Generic("Bad node".to_string()),
                             &addr,
                         )
                         .await;
@@ -695,7 +707,7 @@ impl TrackerContext {
                             return self
                                 .send_error(
                                     transaction_id,
-                                    ErrorMessage::Server("server error occurred".to_string()),
+                                    ErrorMessage::Server("A Server Error Occurred".to_string()),
                                     &addr,
                                 )
                                 .await;
@@ -787,7 +799,27 @@ impl TrackerContext {
         };
 
         self.metrics.discovered_peers.inc_by(peers.len() as u64);
-        return Some(Ok(Reply::GetPeers(peers)));
+        Some(Ok(Reply::GetPeers(peers)))
+    }
+
+    async fn on_error_response(
+        &self,
+        addr: &SocketAddr,
+        key: &TransactionKey,
+        message: ErrorMessage,
+    ) {
+        self.metrics.errors.inc();
+        self.node_query_result(&addr, false).await;
+
+        if let Some(pending_request) = self.pending_requests.lock().await.remove(&key) {
+            debug!("{} received error for {}", self, key);
+            Self::send_reply(pending_request.request_type, Err(Error::from(message)))
+        } else {
+            warn!(
+                "{} received error for unknown request, invalid transaction {}",
+                self, key
+            );
+        }
     }
 
     /// Process a received tracker command.
@@ -1058,6 +1090,7 @@ impl TrackerContext {
             .version(Version::from(VERSION_IDENTIFIER))
             .payload(MessagePayload::Response(response))
             .ip((*addr).into())
+            .port(addr.port())
             .build()?;
 
         self.send(message, addr).await
@@ -1080,6 +1113,7 @@ impl TrackerContext {
             .transaction_id(transaction_id)
             .payload(MessagePayload::Error(error))
             .ip((*addr).into())
+            .port(addr.port())
             .build()?;
 
         self.send(message, addr).await
@@ -1391,13 +1425,26 @@ impl TrackerContext {
     }
 }
 
+#[derive(Debug)]
+enum ReaderMessage {
+    Message {
+        message: Message,
+        message_len: usize,
+        addr: SocketAddr,
+    },
+    Error {
+        error: Error,
+        payload_len: usize,
+        addr: SocketAddr,
+    },
+}
+
 #[derive(Debug, Display)]
 #[display(fmt = "DHT node reader [{}]", socket_addr)]
 struct NodeReader {
     socket: Arc<UdpSocket>,
     socket_addr: SocketAddr,
-    metrics: DhtMetrics,
-    sender: UnboundedSender<(Message, SocketAddr)>,
+    sender: UnboundedSender<ReaderMessage>,
     cancellation_token: CancellationToken,
 }
 
@@ -1411,8 +1458,7 @@ impl NodeReader {
                 _ = self.cancellation_token.cancelled() => break,
                 Ok((len, addr)) = self.socket.recv_from(&mut buffer) => {
                     if let Err(e) = self.handle_incoming_message(&buffer[0..len], addr).await {
-                        self.metrics.errors.inc();
-                        warn!("{} failed to read incoming message from {}, {}", self, addr, e);
+                        let _ = self.sender.send(ReaderMessage::Error { error: e, payload_len: len, addr });
                     }
                 },
             }
@@ -1442,8 +1488,13 @@ impl NodeReader {
             elapsed.as_micros(),
         );
 
-        self.metrics.bytes_in.inc_by(bytes.len() as u64);
-        self.sender.send((message, addr)).map_err(|_| Error::Closed)
+        let message_len = bytes.len();
+        let _ = self.sender.send(ReaderMessage::Message {
+            message,
+            message_len,
+            addr,
+        });
+        Ok(())
     }
 }
 

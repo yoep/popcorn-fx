@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::time::Instant;
 
-/// A torrent session cache used for storing data about torrents within the session.
+/// The torrent session cache used for storing data about torrents within the session.
 pub trait SessionCache: Debug + Send {
     /// Try to find the metadata of the given info hash within the torrent session cache.
     fn find_metadata(&self, info_hash: &InfoHash) -> Option<&TorrentMetadata>;

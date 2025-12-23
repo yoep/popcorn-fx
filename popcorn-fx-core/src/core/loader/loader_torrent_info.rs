@@ -213,7 +213,7 @@ impl LoadingStrategy for TorrentInfoLoadingStrategy {
         LoadingResult::Ok
     }
 
-    async fn cancel(&self, mut data: LoadingData) -> CancellationResult {
+    async fn cancel(&self, data: &mut LoadingData) -> CancellationResult {
         if let Some(torrent) = data.torrent.take() {
             debug!(
                 "Torrent info loader is cancelling torrent {} for loading task",
@@ -222,7 +222,7 @@ impl LoadingStrategy for TorrentInfoLoadingStrategy {
             self.cancel_torrent(&torrent.handle()).await;
         }
 
-        Ok(data)
+        Ok(())
     }
 }
 

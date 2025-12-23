@@ -3,7 +3,7 @@ use std::any::TypeId;
 use async_trait::async_trait;
 use chrono::Duration;
 use derive_more::Display;
-use log::{debug, error, trace, warn};
+use log::{debug, trace, warn};
 use regex::Regex;
 use reqwest::Client;
 use thiserror::Error;

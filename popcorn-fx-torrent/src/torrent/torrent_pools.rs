@@ -27,19 +27,32 @@ impl PiecePool {
         pieces.len()
     }
 
-    /// Get the piece for the given index.
+    /// Returns the piece for the given index.
     pub async fn get(&self, piece: &PieceIndex) -> Option<Piece> {
         let pieces = self.inner.pieces.read().await;
         pieces.get(piece).cloned()
     }
 
-    /// Check if the given piece is present within the pool.
+    /// Returns the piece which contains the given torrent offset.
+    pub async fn find_piece_at_offset(&self, offset: usize) -> Option<Piece> {
+        let pieces = self.inner.pieces.read().await;
+        pieces
+            .iter()
+            .find(|(_, piece)| {
+                let piece_start = piece.offset;
+                let piece_end = piece_start + piece.len();
+                offset >= piece_start && offset < piece_end
+            })
+            .map(|(_, piece)| piece.clone())
+    }
+
+    /// Returns `true` if the given piece is present within the pool, else `false`.
     pub async fn contains(&self, piece: &PieceIndex) -> bool {
         let pieces = self.inner.pieces.read().await;
         pieces.contains_key(piece)
     }
 
-    /// Get all pieces present within the pool.
+    /// Returns all pieces present within the pool.
     pub async fn pieces(&self) -> Vec<Piece> {
         let pieces = self.inner.pieces.read().await;
         pieces.values().cloned().collect()
@@ -339,19 +352,6 @@ impl FilePool {
             files.into_iter().map(|file| (file.index, file)).collect();
     }
 
-    /// Get the file index at the given torrent offset.
-    pub async fn file_index_at_offset(&self, offset: usize) -> Option<FileIndex> {
-        let files = self.inner.files.read().await;
-
-        files
-            .iter()
-            .find(|(_, file)| {
-                let file_end = file.torrent_offset + file.len();
-                offset >= file.torrent_offset && offset <= file_end
-            })
-            .map(|(index, _)| *index)
-    }
-
     /// Get the file index which contains the start byte for the given piece.
     ///
     /// Returns the file containing the start byte for the piece.
@@ -362,8 +362,9 @@ impl FilePool {
         files
             .iter()
             .find(|(_, file)| {
-                piece.offset >= file.torrent_offset
-                    && piece.offset <= file.torrent_offset + file.len()
+                let file_start = file.torrent_offset;
+                let file_end = file_start + file.len();
+                piece.offset >= file_start && piece.offset <= file_end
             })
             .map(|(index, _)| *index)
     }

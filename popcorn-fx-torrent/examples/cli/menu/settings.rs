@@ -98,63 +98,94 @@ impl MenuSettings {
         Self {
             items: vec![
                 SettingsMenuItem::Title("Peer discovery".to_string()),
-                SettingsMenuItem::Option(Box::new(DhtSetting::new(app_sender.clone()))),
-                SettingsMenuItem::Option(Box::new(TrackerSetting::new(app_sender.clone()))),
+                SettingsMenuItem::Option(Box::new(ToggleSetting::new(
+                    "DHT",
+                    true,
+                    |enabled, sender| {
+                        let _ = sender.send(AppCommand::DhtEnabled(enabled));
+                    },
+                    app_sender.clone(),
+                ))),
+                SettingsMenuItem::Option(Box::new(ToggleSetting::new(
+                    "Tracker",
+                    true,
+                    |enabled, sender| {
+                        let _ = sender.send(AppCommand::TrackerEnabled(enabled));
+                    },
+                    app_sender.clone(),
+                ))),
+                SettingsMenuItem::Title("Peer connections".to_string()),
+                SettingsMenuItem::Option(Box::new(ToggleSetting::new(
+                    "TCP",
+                    true,
+                    |enabled, sender| {
+                        let _ = sender.send(AppCommand::TcpPeerEnabled(enabled));
+                    },
+                    app_sender.clone(),
+                ))),
+                SettingsMenuItem::Option(Box::new(ToggleSetting::new(
+                    "uTP",
+                    true,
+                    |enabled, sender| {
+                        let _ = sender.send(AppCommand::UtpPeerEnabled(enabled));
+                    },
+                    app_sender.clone(),
+                ))),
                 SettingsMenuItem::Title("Storage location".to_string()),
                 SettingsMenuItem::Widget(Box::new(StorageSetting::new(
                     app_sender.clone(),
                     close_sender,
                 ))),
                 SettingsMenuItem::Title("Torrent options".to_string()),
-                SettingsMenuItem::Option(Box::new(TorrentFlagSetting::new(
+                SettingsMenuItem::Option(Box::new(ToggleFlagSetting::new(
                     "Seed mode",
                     TorrentFlags::SeedMode,
                     torrent_flags,
                     app_sender.clone(),
                 ))),
-                SettingsMenuItem::Option(Box::new(TorrentFlagSetting::new(
+                SettingsMenuItem::Option(Box::new(ToggleFlagSetting::new(
                     "Upload mode",
                     TorrentFlags::UploadMode,
                     torrent_flags,
                     app_sender.clone(),
                 ))),
-                SettingsMenuItem::Option(Box::new(TorrentFlagSetting::new(
+                SettingsMenuItem::Option(Box::new(ToggleFlagSetting::new(
                     "Download mode",
                     TorrentFlags::DownloadMode,
                     torrent_flags,
                     app_sender.clone(),
                 ))),
-                SettingsMenuItem::Option(Box::new(TorrentFlagSetting::new(
+                SettingsMenuItem::Option(Box::new(ToggleFlagSetting::new(
                     "Share mode",
                     TorrentFlags::ShareMode,
                     torrent_flags,
                     app_sender.clone(),
                 ))),
-                SettingsMenuItem::Option(Box::new(TorrentFlagSetting::new(
+                SettingsMenuItem::Option(Box::new(ToggleFlagSetting::new(
                     "Apply IP filter",
                     TorrentFlags::ApplyIpFilter,
                     torrent_flags,
                     app_sender.clone(),
                 ))),
-                SettingsMenuItem::Option(Box::new(TorrentFlagSetting::new(
+                SettingsMenuItem::Option(Box::new(ToggleFlagSetting::new(
                     "Paused",
                     TorrentFlags::Paused,
                     torrent_flags,
                     app_sender.clone(),
                 ))),
-                SettingsMenuItem::Option(Box::new(TorrentFlagSetting::new(
+                SettingsMenuItem::Option(Box::new(ToggleFlagSetting::new(
                     "Metadata",
                     TorrentFlags::Metadata,
                     torrent_flags,
                     app_sender.clone(),
                 ))),
-                SettingsMenuItem::Option(Box::new(TorrentFlagSetting::new(
+                SettingsMenuItem::Option(Box::new(ToggleFlagSetting::new(
                     "Sequential download",
                     TorrentFlags::SequentialDownload,
                     torrent_flags,
                     app_sender.clone(),
                 ))),
-                SettingsMenuItem::Option(Box::new(TorrentFlagSetting::new(
+                SettingsMenuItem::Option(Box::new(ToggleFlagSetting::new(
                     "Stop when ready",
                     TorrentFlags::StopWhenReady,
                     torrent_flags,
@@ -291,27 +322,31 @@ impl MenuSectionWidget for MenuSettings {
     }
 }
 
-#[derive(Debug)]
-struct DhtSetting {
+type CheckboxAction = dyn Fn(bool, &AppCommandSender) + Send + Sync + 'static;
+
+struct ToggleSetting {
     checkbox: CheckboxWidget,
     app_sender: AppCommandSender,
+    on_trigger: Box<CheckboxAction>,
 }
 
-impl DhtSetting {
-    fn new(app_sender: AppCommandSender) -> Self {
+impl ToggleSetting {
+    fn new<F>(name: &str, default: bool, action: F, app_sender: AppCommandSender) -> Self
+    where
+        F: Fn(bool, &AppCommandSender) + Send + Sync + 'static,
+    {
         Self {
-            checkbox: CheckboxWidget::new("DHT", true),
+            checkbox: CheckboxWidget::new(name, default),
             app_sender,
+            on_trigger: Box::new(action),
         }
     }
 }
 
-impl Setting for DhtSetting {
+impl Setting for ToggleSetting {
     fn activate(&mut self) {
         self.checkbox.toggle();
-        let _ = self
-            .app_sender
-            .send(AppCommand::DhtEnabled(self.checkbox.is_checked()));
+        (self.on_trigger)(self.checkbox.is_checked(), &self.app_sender);
     }
 
     fn item(&'_ self) -> ListItem<'_> {
@@ -319,31 +354,51 @@ impl Setting for DhtSetting {
     }
 }
 
-#[derive(Debug)]
-struct TrackerSetting {
-    checkbox: CheckboxWidget,
-    app_sender: AppCommandSender,
+impl Debug for ToggleSetting {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ToggleSetting")
+            .field("checkbox", &self.checkbox)
+            .field("app_sender", &self.app_sender)
+            .finish()
+    }
 }
 
-impl TrackerSetting {
-    fn new(app_sender: AppCommandSender) -> Self {
+#[derive(Debug)]
+struct ToggleFlagSetting {
+    base: ToggleSetting,
+}
+
+impl ToggleFlagSetting {
+    fn new(
+        name: &str,
+        flag: TorrentFlags,
+        active_flags: TorrentFlags,
+        app_sender: AppCommandSender,
+    ) -> Self {
         Self {
-            checkbox: CheckboxWidget::new("Tracker", true),
-            app_sender,
+            base: ToggleSetting::new(
+                name,
+                active_flags.contains(flag),
+                move |enabled, app_sender| {
+                    if enabled {
+                        let _ = app_sender.send(AppCommand::AddTorrentFlags(flag));
+                    } else {
+                        let _ = app_sender.send(AppCommand::RemoveTorrentFlags(flag));
+                    }
+                },
+                app_sender,
+            ),
         }
     }
 }
 
-impl Setting for TrackerSetting {
+impl Setting for ToggleFlagSetting {
     fn activate(&mut self) {
-        self.checkbox.toggle();
-        let _ = self
-            .app_sender
-            .send(AppCommand::TrackerEnabled(self.checkbox.is_checked()));
+        self.base.activate();
     }
 
     fn item(&'_ self) -> ListItem<'_> {
-        Text::from(&self.checkbox).into()
+        self.base.item()
     }
 }
 
@@ -412,44 +467,5 @@ impl SettingWidget for StorageSetting {
 
         self.input.render(frame, border.inner(area));
         border.render(area, frame.buffer_mut());
-    }
-}
-
-#[derive(Debug)]
-struct TorrentFlagSetting {
-    widget: CheckboxWidget,
-    flag: TorrentFlags,
-    app_sender: AppCommandSender,
-}
-
-impl TorrentFlagSetting {
-    fn new(
-        name: &str,
-        flag: TorrentFlags,
-        initial_flags: TorrentFlags,
-        app_sender: AppCommandSender,
-    ) -> Self {
-        Self {
-            widget: CheckboxWidget::new(name, initial_flags.contains(flag)),
-            flag,
-            app_sender,
-        }
-    }
-}
-
-impl Setting for TorrentFlagSetting {
-    fn activate(&mut self) {
-        self.widget.toggle();
-        if self.widget.is_checked() {
-            let _ = self.app_sender.send(AppCommand::AddTorrentFlags(self.flag));
-        } else {
-            let _ = self
-                .app_sender
-                .send(AppCommand::RemoveTorrentFlags(self.flag));
-        }
-    }
-
-    fn item(&'_ self) -> ListItem<'_> {
-        Line::from(vec![Span::from(&self.widget)]).into()
     }
 }

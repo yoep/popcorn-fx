@@ -460,6 +460,7 @@ impl TorrentStreamServer for TorrentStreamServerInner {
 #[cfg(test)]
 mod test {
     use super::*;
+    use tokio::sync::mpsc::unbounded_channel;
 
     use crate::core::torrents::{MockTorrent, TorrentHandle, TorrentState, TorrentStreamState};
     use crate::testing::{copy_test_file, read_test_file_to_bytes, read_test_file_to_string};
@@ -467,7 +468,9 @@ mod test {
 
     use fx_callback::MultiThreadedCallback;
     use popcorn_fx_torrent::torrent;
-    use popcorn_fx_torrent::torrent::{Metrics, PieceIndex, TorrentEvent, TorrentFileInfo};
+    use popcorn_fx_torrent::torrent::{
+        Metrics, PieceIndex, PiecePriority, TorrentEvent, TorrentFileInfo,
+    };
     use reqwest::Client;
     use std::path::PathBuf;
     use std::time::Duration;
@@ -487,7 +490,6 @@ mod test {
             .expect("Client should have been created");
         let server = FXTorrentStreamServer::new();
         let callback = MultiThreadedCallback::<TorrentEvent>::new();
-        let callback_receiver = callback.subscribe();
         let mut torrent = MockTorrent::new();
         torrent.expect_handle().return_const(TorrentHandle::new());
         torrent
@@ -509,9 +511,16 @@ mod test {
         torrent
             .expect_stats()
             .return_const(create_incomplete_stats());
+        torrent.expect_piece_priorities().returning(move || {
+            (0..total_pieces)
+                .into_iter()
+                .map(|idx| (idx, PiecePriority::Normal))
+                .collect()
+        });
+        let subscribe_callback = callback.clone();
         torrent
             .expect_subscribe()
-            .return_once(move || callback_receiver);
+            .returning(move || subscribe_callback.subscribe());
         let torrent = Box::new(torrent) as Box<dyn Torrent>;
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
 
@@ -636,6 +645,16 @@ mod test {
         torrent
             .expect_stats()
             .return_const(create_incomplete_stats());
+        torrent.expect_piece_priorities().returning(move || {
+            (0..total_pieces)
+                .into_iter()
+                .map(|idx| (idx, PiecePriority::Normal))
+                .collect()
+        });
+        torrent.expect_subscribe().returning(|| {
+            let (_, rx) = unbounded_channel();
+            rx
+        });
         let torrent = Box::new(torrent) as Box<dyn Torrent>;
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
         let expected_result = read_test_file_to_string(filename).replace("\r\n", "\n");

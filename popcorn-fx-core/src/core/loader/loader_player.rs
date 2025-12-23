@@ -91,8 +91,8 @@ impl LoadingStrategy for PlayerLoadingStrategy {
         LoadingResult::Ok
     }
 
-    async fn cancel(&self, data: LoadingData) -> CancellationResult {
-        Ok(data)
+    async fn cancel(&self, _: &mut LoadingData) -> CancellationResult {
+        Ok(())
     }
 }
 

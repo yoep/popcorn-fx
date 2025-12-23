@@ -5,7 +5,8 @@ use crate::core::torrents::{Torrent, TorrentEvent, TorrentHandle, TorrentState, 
 use async_trait::async_trait;
 use fx_callback::{Callback, Subscriber, Subscription};
 use popcorn_fx_torrent::torrent;
-use popcorn_fx_torrent::torrent::{Metrics, PieceIndex};
+use popcorn_fx_torrent::torrent::{Metrics, PieceIndex, PiecePriority};
+use std::collections::BTreeMap;
 use std::ops::Range;
 use std::path::PathBuf;
 
@@ -47,33 +48,6 @@ impl PartialEq for LoadingData {
 
     fn ne(&self, other: &Self) -> bool {
         !self.eq(other)
-    }
-}
-
-impl Clone for LoadingData {
-    fn clone(&self) -> Self {
-        let cloned_parent_media = match &self.parent_media {
-            None => None,
-            Some(media) => media.clone_identifier(),
-        };
-        let cloned_media = match &self.media {
-            None => None,
-            Some(media) => media.clone_identifier(),
-        };
-
-        Self {
-            url: self.url.clone(),
-            title: self.title.clone(),
-            caption: self.caption.clone(),
-            thumb: self.thumb.clone(),
-            parent_media: cloned_parent_media,
-            media: cloned_media,
-            quality: self.quality.clone(),
-            auto_resume_timestamp: self.auto_resume_timestamp,
-            subtitle: self.subtitle.clone(),
-            torrent: None,
-            torrent_file: self.torrent_file.clone(),
-        }
     }
 }
 
@@ -210,6 +184,13 @@ impl Torrent for TorrentData {
         match self {
             TorrentData::Torrent(e) => e.prioritize_pieces(pieces).await,
             TorrentData::Stream(e) => e.prioritize_pieces(pieces).await,
+        }
+    }
+
+    async fn piece_priorities(&self) -> BTreeMap<PieceIndex, PiecePriority> {
+        match self {
+            TorrentData::Torrent(e) => e.piece_priorities().await,
+            TorrentData::Stream(e) => e.piece_priorities().await,
         }
     }
 

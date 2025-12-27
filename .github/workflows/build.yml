@@ -67,6 +67,9 @@ jobs:
         with:
           shared-key: "main-macos"
           cache-on-failure: "true"
+      - name: Install VLC
+        run: |-
+          brew update && brew install --cask vlc
       - name: Test
         run: |-
           make test-cargo

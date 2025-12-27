@@ -10,7 +10,7 @@ mod player;
 #[cfg(test)]
 mod tests {
     use std::io;
-    use std::net::{SocketAddr, UdpSocket};
+    use std::net::{Ipv4Addr, SocketAddr, UdpSocket};
     use std::sync::Arc;
 
     use log::{debug, error};
@@ -162,13 +162,14 @@ EXT:\r
             let upnp_server_addr = self
                 .upnp_server_addr
                 .expect("expected an upnp server address to have been set");
-            let addr = SockAddr::from(SocketAddr::from(([0, 0, 0, 0], 1900)));
+            let addr = SockAddr::from(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 1900)));
             let socket = socket2::Socket::new(
                 socket2::Domain::IPV4,
                 socket2::Type::DGRAM,
                 Some(Protocol::UDP),
             )
             .expect("failed to create socket");
+            #[cfg(not(target_os = "windows"))]
             socket.set_reuse_port(true).unwrap();
             socket.bind(&addr).expect("failed to bind socket");
             let socket = UdpSocket::from(socket);

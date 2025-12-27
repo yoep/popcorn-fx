@@ -297,11 +297,11 @@ impl LoadingTaskContext {
         // if so, we undo any changes made by the strategies
         if self.cancellation_token.is_cancelled() {
             trace!("Loading task {} is being cancelled", self);
-            self.cancel(data).await;
+            self.cancel(&mut data).await;
         }
     }
 
-    async fn cancel(&self, mut data: LoadingData) {
+    async fn cancel(&self, data: &mut LoadingData) {
         let strategies = self.chain.strategies();
 
         debug!(
@@ -312,16 +312,13 @@ impl LoadingTaskContext {
         for index in (0..strategies.len()).rev() {
             if let Some(strategy) = strategies.get(index).and_then(|e| e.upgrade()) {
                 trace!("Loading task {} is executing cancel for {}", self, strategy);
-                match strategy.cancel(data).await {
-                    Ok(new_data) => data = new_data,
-                    Err(e) => {
-                        error!(
-                            "Loading task {} cancellation of {} failed, {}",
-                            self, strategy, e
-                        );
-                        self.invoke_event(LoadingEvent::LoadingError(e));
-                        break;
-                    }
+                if let Err(e) = strategy.cancel(data).await {
+                    error!(
+                        "Loading task {} cancellation of {} failed, {}",
+                        self, strategy, e
+                    );
+                    self.invoke_event(LoadingEvent::LoadingError(e));
+                    break;
                 }
             } else {
                 warn!(
@@ -450,9 +447,10 @@ mod tests {
     #[tokio::test]
     async fn test_load() {
         init_logger!();
+        let title = "MyLoadTest";
         let data = LoadingData::from(PlaylistItem {
             url: None,
-            title: "MyLoadTest".to_string(),
+            title: title.to_string(),
             caption: None,
             thumb: None,
             media: Default::default(),
@@ -464,7 +462,9 @@ mod tests {
         let (tx_data, mut rx_data) = unbounded_channel();
         let (tx_completed, mut rx_completed) = unbounded_channel();
         let strategy = TestingLoadingStrategy::builder()
-            .data_sender(tx_data)
+            .data_peeker(move |e| {
+                let _ = tx_data.send(e.url.clone());
+            })
             .build();
         let task = LoadingTask::new(Arc::new(LoadingChain::from(vec![
             Box::new(strategy) as Box<dyn LoadingStrategy>
@@ -472,19 +472,15 @@ mod tests {
 
         let mut receiver = task.subscribe();
         tokio::spawn(async move {
-            loop {
-                if let Some(event) = receiver.recv().await {
-                    if let LoadingEvent::Completed = &*event {
-                        tx_completed.send(()).unwrap();
-                        break;
-                    }
-                } else {
+            while let Some(event) = receiver.recv().await {
+                if let LoadingEvent::Completed = &*event {
+                    tx_completed.send(()).unwrap();
                     break;
                 }
             }
         });
 
-        task.load(data.clone());
+        task.load(data);
 
         recv_timeout!(
             &mut rx_completed,
@@ -497,7 +493,7 @@ mod tests {
             Duration::from_millis(200),
             "expected the process to have received data"
         );
-        assert_eq!(data, result);
+        assert_eq!(None, result, "expected the loading url to be None");
     }
 
     #[tokio::test]
@@ -590,7 +586,9 @@ mod tests {
         let (tx_data, mut rx_data) = unbounded_channel();
         let (tx_event, mut rx_event) = unbounded_channel();
         let strategy = TestingLoadingStrategy::builder()
-            .data_sender(tx_data)
+            .data_peeker(move |e| {
+                let _ = tx_data.send(());
+            })
             .delay(Duration::from_secs(1))
             .build();
         let task = LoadingTask::new(Arc::new(LoadingChain::from(vec![
@@ -632,9 +630,10 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_cancel_should_call_cancel_when_executed() {
         init_logger!();
+        let title = "";
         let data = LoadingData::from(PlaylistItem {
             url: None,
-            title: "".to_string(),
+            title: title.to_string(),
             caption: None,
             thumb: None,
             media: Default::default(),
@@ -647,7 +646,9 @@ mod tests {
         let (tx_cancel_1, mut rx_cancel_1) = unbounded_channel();
         let (tx_cancel_2, mut rx_cancel_2) = unbounded_channel();
         let strategy1 = TestingLoadingStrategy::builder()
-            .data_sender(tx_data)
+            .data_peeker(move |e| {
+                let _ = tx_data.send(e.url.clone());
+            })
             .cancel_sender(tx_cancel_1)
             .build();
         MockLoadingStrategy::new();
@@ -661,7 +662,7 @@ mod tests {
         ])));
 
         // start loading the task data
-        task.load(data.clone());
+        task.load(data);
 
         // wait for the first strategy to be started before cancelling the task
         let result = recv_timeout!(
@@ -669,7 +670,8 @@ mod tests {
             Duration::from_millis(500),
             "expected the 1st strategy process to have been started"
         );
-        assert_eq!(data, result, "expected the loading data to match");
+        assert_eq!(None, result, "expected the loading url to be None");
+
         task.cancel();
 
         // check the cancel invocation on the 1st strategy

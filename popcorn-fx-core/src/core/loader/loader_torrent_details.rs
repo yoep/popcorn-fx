@@ -82,7 +82,7 @@ impl LoadingStrategy for TorrentDetailsLoadingStrategy {
         LoadingResult::Ok
     }
 
-    async fn cancel(&self, mut data: LoadingData) -> CancellationResult {
+    async fn cancel(&self, data: &mut LoadingData) -> CancellationResult {
         if data.torrent.is_some() {
             if let Some(torrent) = data.torrent.take() {
                 let handle = torrent.handle();
@@ -90,7 +90,7 @@ impl LoadingStrategy for TorrentDetailsLoadingStrategy {
             }
         }
 
-        Ok(data)
+        Ok(())
     }
 }
 
@@ -181,10 +181,12 @@ mod tests {
         let torrent_handle = TorrentHandle::new();
         let mut torrent = MockTorrent::new();
         torrent.expect_handle().return_const(torrent_handle);
-        let data = LoadingData {
+        let title = "MyTorrentDetails";
+        let caption = "Lorem ipsum dolor";
+        let mut data = LoadingData {
             url: None,
-            title: Some("MyTorrentDetails".to_string()),
-            caption: None,
+            title: Some(title.to_string()),
+            caption: Some(caption.to_string()),
             thumb: None,
             parent_media: None,
             media: None,
@@ -206,13 +208,22 @@ mod tests {
             Arc::new(Box::new(torrent_manager)),
         );
 
-        let result = strategy.cancel(data).await;
+        let _ = strategy
+            .cancel(&mut data)
+            .await
+            .expect("expected the cancellation process to succeed");
+        assert_eq!(
+            Some(title.to_string()),
+            data.title,
+            "expected the title to be unmodified"
+        );
+        assert_eq!(
+            Some(caption.to_string()),
+            data.caption,
+            "expected the caption to be unmodified"
+        );
 
-        if let Ok(_) = result {
-            let result = recv_timeout!(&mut rx, Duration::from_millis(100));
-            assert_eq!(torrent_handle, result);
-        } else {
-            assert!(false, "expected Ok, got {:?} instead", result);
-        }
+        let result = recv_timeout!(&mut rx, Duration::from_millis(100));
+        assert_eq!(torrent_handle, result);
     }
 }

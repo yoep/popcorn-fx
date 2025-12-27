@@ -109,7 +109,7 @@ impl DiskStorage {
         offset: usize,
         buffer_len: usize,
     ) -> Result<(FileIndex, usize)> {
-        let torrent_offset = self
+        let torrent_piece_start = self
             .files
             .pieces()
             .get(piece)
@@ -118,7 +118,7 @@ impl DiskStorage {
             .ok_or(Error::Unavailable)?;
 
         // check if the requested range is still within the torrent range
-        let end = torrent_offset
+        let end = torrent_piece_start
             .checked_add(buffer_len)
             .ok_or(Error::OutOfBounds)?;
         let torrent_len = self.torrent_len().await;
@@ -128,11 +128,11 @@ impl DiskStorage {
 
         let file_index = self
             .files
-            .file_index_at_offset(torrent_offset)
+            .file_index_for(&piece)
             .await
             .ok_or(Error::Unavailable)?;
 
-        Ok((file_index, torrent_offset))
+        Ok((file_index, torrent_piece_start))
     }
 
     /// Get the canonicalized path for the given path.
@@ -269,13 +269,23 @@ impl Storage for DiskStorage {
 
             // check if we need to write to the parts file
             if file.priority == FilePriority::None {
+                let cur_piece = match self
+                    .files
+                    .pieces()
+                    .find_piece_at_offset(torrent_offset)
+                    .await
+                {
+                    Some(piece) => piece,
+                    None => return Err(Error::Unavailable),
+                };
+                let piece_offset = torrent_offset.saturating_sub(cur_piece.offset);
                 let parts_len = min(bytes_remaining, file.len());
                 let bytes_written = self
                     .part_file
                     .write(
                         &data[cursor..cursor + parts_len],
-                        &file.pieces.start,
-                        torrent_offset.saturating_sub(file.torrent_offset),
+                        &cur_piece.index,
+                        piece_offset,
                     )
                     .await?;
 

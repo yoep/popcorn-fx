@@ -287,7 +287,6 @@ pub mod tests {
         }};
         ($uri:expr, $temp_dir:expr, $options:expr, $config:expr, $operations:expr, $discoveries:expr, $storage:expr) => {{
             use crate::torrent::dht::DhtTracker;
-            use crate::torrent::storage::DiskStorage;
 
             create_torrent!(
                 $uri,
@@ -296,13 +295,7 @@ pub mod tests {
                 $config,
                 $operations,
                 $discoveries,
-                |params| {
-                    Box::new(DiskStorage::new(
-                        params.info_hash,
-                        params.path,
-                        params.files,
-                    ))
-                },
+                $storage,
                 Some(DhtTracker::builder().build().await.unwrap())
             )
         }};

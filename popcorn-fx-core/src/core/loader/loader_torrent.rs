@@ -132,14 +132,14 @@ impl LoadingStrategy for TorrentLoadingStrategy {
         loader::LoadingResult::Ok
     }
 
-    async fn cancel(&self, mut data: LoadingData) -> CancellationResult {
+    async fn cancel(&self, data: &mut LoadingData) -> CancellationResult {
         if let Some(torrent) = data.torrent.take() {
             debug!("Cancelling the torrent downloading");
             let handle = torrent.handle();
             self.torrent_manager.remove(&handle).await;
         }
 
-        Ok(data)
+        Ok(())
     }
 }
 
@@ -215,19 +215,14 @@ mod tests {
             });
         let strategy = TorrentLoadingStrategy::new(Arc::new(Box::new(torrent_manager)), settings);
 
-        let result = strategy.cancel(data).await;
-        if let Ok(result) = result {
-            assert!(
-                result.torrent.is_none(),
-                "expected the torrent to have been removed from the data"
-            );
-        } else {
-            assert!(
-                false,
-                "expected CancellationResult::Ok, but got {:?} instead",
-                result
-            );
-        }
+        let _ = strategy
+            .cancel(&mut data)
+            .await
+            .expect("expected the cancellation process to succeed");
+        assert!(
+            data.torrent.is_none(),
+            "expected the torrent to have been stopped"
+        );
 
         let result = recv_timeout!(&mut rx, Duration::from_millis(200));
         assert_eq!(handle.to_string(), result);

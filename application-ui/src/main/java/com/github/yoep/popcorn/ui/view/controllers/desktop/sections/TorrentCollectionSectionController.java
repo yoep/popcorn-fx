@@ -3,15 +3,17 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.MagnetInfo;
 import com.github.yoep.popcorn.backend.loader.LoaderService;
+import com.github.yoep.popcorn.backend.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.ShowTorrentCollectionEvent;
 import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
+import com.github.yoep.popcorn.ui.messages.TorrentCollectionMessage;
 import com.github.yoep.popcorn.ui.messages.TorrentMessage;
-import com.github.yoep.popcorn.backend.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.torrent.controls.TorrentCollection;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.control.Label;
 import javafx.scene.effect.BlurType;
 import javafx.scene.effect.InnerShadow;
 import javafx.scene.input.Clipboard;
@@ -37,6 +39,8 @@ public class TorrentCollectionSectionController implements Initializable {
     Pane fileShadow;
     @FXML
     TorrentCollection collection;
+    @FXML
+    Label torrentCollectionPlaceholder;
 
     //region Initializable
 
@@ -66,7 +70,9 @@ public class TorrentCollectionSectionController implements Initializable {
     }
 
     private void updateTorrentCollection() {
+        Platform.runLater(() -> torrentCollectionPlaceholder.setText(localeText.get(TorrentCollectionMessage.LOADING)));
         torrentCollectionService.getStoredTorrents().whenComplete((torrents, throwable) -> {
+            Platform.runLater(() -> torrentCollectionPlaceholder.setText(localeText.get(TorrentCollectionMessage.EMPTY)));
             if (throwable == null) {
                 Platform.runLater(() -> {
                     log.trace("Updating torrent collection list");

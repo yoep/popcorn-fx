@@ -26,7 +26,8 @@ pub mod testing {
     use log4rs::Config;
     use mockall::mock;
     use popcorn_fx_torrent::torrent;
-    use popcorn_fx_torrent::torrent::{File, Metrics, PieceIndex};
+    use popcorn_fx_torrent::torrent::{File, Metrics, PieceIndex, PiecePriority};
+    use std::collections::BTreeMap;
     use std::fmt::{Display, Formatter};
     use std::fs::OpenOptions;
     use std::io::Read;
@@ -265,6 +266,7 @@ pub mod testing {
             async fn has_piece(&self, piece: usize) -> bool;
             async fn prioritize_bytes(&self, bytes: &std::ops::Range<usize>);
             async fn prioritize_pieces(&self, pieces: &[PieceIndex]);
+            async fn piece_priorities(&self) -> BTreeMap<PieceIndex, PiecePriority>;
             async fn total_pieces(&self) -> usize;
             async fn sequential_mode(&self);
             async fn state(&self) -> TorrentState;
@@ -295,16 +297,16 @@ pub mod testing {
         fn handle(&self) -> TorrentHandle {
             self.inner.handle()
         }
-        async fn absolute_file_path(&self, file: &torrent::File) -> PathBuf {
+        async fn absolute_file_path(&self, file: &File) -> PathBuf {
             self.inner.absolute_file_path(file).await
         }
-        async fn files(&self) -> Vec<torrent::File> {
+        async fn files(&self) -> Vec<File> {
             self.inner.files().await
         }
         async fn file_by_name(&self, name: &str) -> Option<File> {
             self.inner.file_by_name(name).await
         }
-        async fn largest_file(&self) -> Option<torrent::File> {
+        async fn largest_file(&self) -> Option<File> {
             self.inner.largest_file().await
         }
         async fn has_bytes(&self, bytes: &Range<usize>) -> bool {
@@ -318,6 +320,9 @@ pub mod testing {
         }
         async fn prioritize_pieces(&self, pieces: &[PieceIndex]) {
             self.inner.prioritize_pieces(pieces).await
+        }
+        async fn piece_priorities(&self) -> BTreeMap<PieceIndex, PiecePriority> {
+            self.inner.piece_priorities().await
         }
         async fn total_pieces(&self) -> usize {
             self.inner.total_pieces().await

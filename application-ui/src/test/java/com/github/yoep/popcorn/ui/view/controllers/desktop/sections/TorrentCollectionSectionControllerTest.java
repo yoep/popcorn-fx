@@ -6,7 +6,9 @@ import com.github.yoep.popcorn.backend.loader.LoaderService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.ShowTorrentCollectionEvent;
 import com.github.yoep.popcorn.backend.torrent.TorrentCollectionService;
+import com.github.yoep.popcorn.ui.messages.TorrentCollectionMessage;
 import com.github.yoep.popcorn.ui.torrent.controls.TorrentCollection;
+import javafx.scene.control.Label;
 import javafx.scene.layout.Pane;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,9 +22,11 @@ import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
 import java.util.Collections;
+import java.util.List;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
@@ -46,6 +50,30 @@ class TorrentCollectionSectionControllerTest {
     void setUp() {
         controller.fileShadow = new Pane();
         controller.collection = new TorrentCollection();
+        controller.torrentCollectionPlaceholder = new Label();
+    }
+
+    @Test
+    void testOnShowTorrentCollection_shouldUpdatePlaceholderMessage() {
+        var completableFuture = new CompletableFuture<List<MagnetInfo>>();
+        when(torrentCollectionService.getStoredTorrents()).thenReturn(completableFuture);
+        when(localeText.get(TorrentCollectionMessage.LOADING)).thenReturn("loading");
+        when(localeText.get(TorrentCollectionMessage.EMPTY)).thenReturn("empty");
+        controller.initialize(url, resourceBundle);
+
+        // invoke the show torrent collection event
+        eventPublisher.publish(new ShowTorrentCollectionEvent(this));
+
+        // verify that the placeholder text has been updated
+        WaitForAsyncUtils.waitForFxEvents();
+        verify(localeText, timeout(500)).get(TorrentCollectionMessage.LOADING);
+        assertEquals("loading", controller.torrentCollectionPlaceholder.getText());
+
+        // complete the future for retrieving the collection
+        completableFuture.complete(Collections.emptyList());
+        WaitForAsyncUtils.waitForFxEvents();
+        verify(localeText, timeout(500)).get(TorrentCollectionMessage.EMPTY);
+        assertEquals("empty", controller.torrentCollectionPlaceholder.getText());
     }
 
     @Test

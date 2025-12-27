@@ -4,6 +4,7 @@ use downcast_rs::{impl_downcast, DowncastSync};
 use fx_callback::Callback;
 use fx_handle::Handle;
 use log::{debug, trace};
+use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::path::PathBuf;
 
@@ -68,6 +69,9 @@ pub trait Torrent: Debug + DowncastSync + Callback<TorrentEvent> + Send + Sync {
 
     /// Prioritize the given piece indexes.
     async fn prioritize_pieces(&self, pieces: &[PieceIndex]);
+
+    /// Returns the piece priorities of the torrent.
+    async fn piece_priorities(&self) -> BTreeMap<PieceIndex, PiecePriority>;
 
     /// Get the total number of pieces in the torrent.
     /// It might return [None] when the metadata is still being retrieved.
@@ -142,6 +146,10 @@ impl Torrent for torrent::Torrent {
         }
 
         self.prioritize_pieces(priorities).await;
+    }
+
+    async fn piece_priorities(&self) -> BTreeMap<PieceIndex, PiecePriority> {
+        self.piece_priorities().await
     }
 
     async fn total_pieces(&self) -> usize {
@@ -294,6 +302,7 @@ mod mock {
             async fn has_piece(&self, piece: usize) -> bool;
             async fn prioritize_bytes(&self, bytes: &Range<usize>);
             async fn prioritize_pieces(&self, pieces: &[PieceIndex]);
+            async fn piece_priorities(&self) -> BTreeMap<PieceIndex, PiecePriority>;
             async fn total_pieces(&self) -> usize;
             async fn sequential_mode(&self);
             async fn state(&self) -> TorrentState;

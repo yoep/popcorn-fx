@@ -6,14 +6,16 @@ use crate::core::torrents::{
 };
 use async_trait::async_trait;
 use derive_more::Display;
+use futures::task::AtomicWaker;
 use futures::Future;
 use futures::Stream;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
 use popcorn_fx_torrent::torrent;
-use popcorn_fx_torrent::torrent::{FilePriority, Metrics, PieceIndex};
+use popcorn_fx_torrent::torrent::{FilePriority, Metrics, PieceIndex, PiecePriority};
 use std::cmp::{max, min};
+use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::fs;
 use std::fs::File;
@@ -28,7 +30,7 @@ use tokio_util::sync::CancellationToken;
 use url::Url;
 
 /// The default buffer size, in bytes, used while streaming the file contents.
-const DEFAULT_BUFFER_SIZE: usize = 131_072; // 128KB
+const DEFAULT_BUFFER_SIZE: usize = 256 * 1000; // 256KB
 const PREPARE_FILE_PERCENTAGE: f32 = 0.08; // 8%
 
 /// The buffer byte range type.
@@ -140,6 +142,14 @@ impl Torrent for DefaultTorrentStream {
         if let Some(context) = self.instance() {
             context.prioritize_pieces(pieces).await
         }
+    }
+
+    async fn piece_priorities(&self) -> BTreeMap<PieceIndex, PiecePriority> {
+        if let Some(context) = self.instance() {
+            return context.piece_priorities().await;
+        }
+
+        BTreeMap::new()
     }
 
     async fn total_pieces(&self) -> usize {
@@ -278,7 +288,7 @@ enum StreamRefType {
 #[display(fmt = "{}", "torrent.handle()")]
 struct TorrentStreamContext {
     /// The backing torrent of this stream
-    torrent: Arc<Box<dyn Torrent>>,
+    torrent: Arc<dyn Torrent>,
     /// The underlying used filename within the torrent that is being streamed
     torrent_filename: String,
     /// The url on which this stream is being hosted
@@ -299,7 +309,7 @@ impl TorrentStreamContext {
         let prepare_pieces = Self::preparation_pieces(&torrent).await;
 
         Self {
-            torrent: Arc::new(torrent),
+            torrent: Arc::from(torrent),
             torrent_filename: filename.to_string(),
             url,
             preparing_pieces: Arc::new(Mutex::new(prepare_pieces)),
@@ -349,20 +359,28 @@ impl TorrentStreamContext {
     async fn start_preparing_pieces(&self) {
         let state = self.torrent.state().await;
         let stats = self.torrent.stats();
+        let priorities = self.torrent.piece_priorities().await;
         trace!(
             "Torrent stream {} preparation with torrent state {}",
             self,
             state
         );
-        let is_finished = state == TorrentState::Finished || stats.progress() == 1.0;
+        let is_finished = priorities
+            .iter()
+            .any(|(_, priority)| *priority != PiecePriority::None)
+            && (state == TorrentState::Finished || stats.progress() == 1.0);
 
         if is_finished {
-            debug!("Torrent has state {}, starting stream immediately", state);
+            debug!(
+                "Torrent stream {} is already ready, starting stream immediately",
+                self
+            );
             self.update_state(TorrentStreamState::Streaming).await;
         } else {
-            let mut pieces = self.preparing_pieces.lock().await;
+            let pieces = self.preparing_pieces.lock().await.clone();
             debug!(
-                "Preparing a total of {} pieces for the stream",
+                "Torrent stream {} is preparing a total of {} pieces",
+                self,
                 pieces.len()
             );
             self.torrent.prioritize_pieces(&pieces[..]).await;
@@ -372,8 +390,8 @@ impl TorrentStreamContext {
                 match pieces.get(index) {
                     None => {}
                     Some(piece) => {
-                        if self.torrent.has_piece(piece.clone() as usize).await {
-                            pieces.remove(index);
+                        if self.torrent.has_piece(*piece).await {
+                            self.on_piece_finished(*piece).await;
                         }
                     }
                 }
@@ -412,26 +430,35 @@ impl TorrentStreamContext {
     }
 
     async fn verify_ready_to_stream(&self) {
-        let pieces = self.preparing_pieces.lock().await;
+        let (is_empty, remaining) = {
+            let pieces = self.preparing_pieces.lock().await;
+            (pieces.is_empty(), pieces.len())
+        };
 
-        if pieces.is_empty() {
+        if is_empty {
             self.torrent.sequential_mode().await;
             self.update_state(TorrentStreamState::Streaming).await;
         } else {
-            debug!("Awaiting {} remaining pieces to be prepared", pieces.len());
+            debug!("Awaiting {} remaining pieces to be prepared", remaining);
         }
     }
 
     async fn update_state(&self, new_state: TorrentStreamState) {
-        let mut state = self.state.lock().await;
-        if *state == new_state {
-            return;
-        }
+        let changed = {
+            let mut state = self.state.lock().await;
+            if *state == new_state {
+                false
+            } else {
+                *state = new_state;
+                true
+            }
+        };
 
-        info!("Torrent stream state changed to {}", &new_state);
-        *state = new_state.clone();
-        self.callbacks
-            .invoke(TorrentStreamEvent::StateChanged(new_state));
+        if changed {
+            info!("Torrent stream state changed to {}", &new_state);
+            self.callbacks
+                .invoke(TorrentStreamEvent::StateChanged(new_state));
+        }
     }
 
     async fn preparation_pieces(torrent: &Box<dyn Torrent>) -> Vec<PieceIndex> {
@@ -448,11 +475,10 @@ impl TorrentStreamContext {
                 total_file_pieces
             );
             // prepare at least 8 (if available), or the ceil of the PREPARE_FILE_PERCENTAGE
-            let prepare_at_least = min(8, total_file_pieces);
+            let prepare_lower_bound = min(8, total_file_pieces);
             let percentage_count =
                 ((total_file_pieces as f32) * PREPARE_FILE_PERCENTAGE).ceil() as usize;
-            let number_of_preparation_pieces =
-                max(prepare_at_least, percentage_count).min(total_file_pieces);
+            let number_of_preparation_pieces = max(prepare_lower_bound, percentage_count);
             let mut pieces = vec![];
 
             // prepare the first `PREPARE_FILE_PERCENTAGE` of pieces if it doesn't exceed the total file pieces
@@ -541,6 +567,10 @@ impl Torrent for TorrentStreamContext {
         self.torrent.prioritize_pieces(pieces).await
     }
 
+    async fn piece_priorities(&self) -> BTreeMap<PieceIndex, PiecePriority> {
+        self.torrent.piece_priorities().await
+    }
+
     async fn total_pieces(&self) -> usize {
         self.torrent.total_pieces().await
     }
@@ -566,13 +596,13 @@ impl TorrentStream for TorrentStreamContext {
 
     async fn stream(&self) -> torrents::Result<TorrentStreamingResourceWrapper> {
         if !self.cancellation_token.is_cancelled() {
-            let mutex = self.state.lock().await;
-            if *mutex == TorrentStreamState::Streaming {
+            let state = self.stream_state().await;
+            if state == TorrentStreamState::Streaming {
                 FXTorrentStreamingResource::new(self.torrent.clone(), &self.torrent_filename)
                     .await
                     .map(|e| TorrentStreamingResourceWrapper::new(e))
             } else {
-                Err(Error::InvalidStreamState(*mutex))
+                Err(Error::InvalidStreamState(state))
             }
         } else {
             Err(Error::InvalidStreamState(TorrentStreamState::Stopped))
@@ -584,8 +614,8 @@ impl TorrentStream for TorrentStreamContext {
         offset: u64,
         len: Option<u64>,
     ) -> torrents::Result<TorrentStreamingResourceWrapper> {
-        let mutex = self.state.lock().await;
-        if *mutex == TorrentStreamState::Streaming {
+        let state = self.stream_state().await;
+        if state == TorrentStreamState::Streaming {
             FXTorrentStreamingResource::new_offset(
                 self.torrent.clone(),
                 &self.torrent_filename,
@@ -595,7 +625,7 @@ impl TorrentStream for TorrentStreamContext {
             .await
             .map(|e| TorrentStreamingResourceWrapper::new(e))
         } else {
-            Err(Error::InvalidStreamState(mutex.clone()))
+            Err(Error::InvalidStreamState(state))
         }
     }
 
@@ -612,7 +642,7 @@ impl TorrentStream for TorrentStreamContext {
 #[derive(Debug, Display)]
 #[display(fmt = "{}", "torrent.handle()")]
 pub struct FXTorrentStreamingResource {
-    torrent: Arc<Box<dyn Torrent>>,
+    torrent: Arc<dyn Torrent>,
     torrent_filename: String,
     /// The offset of the torrent file within the torrent
     torrent_offset: usize,
@@ -628,18 +658,20 @@ pub struct FXTorrentStreamingResource {
     offset: u64,
     /// The total len of the stream
     len: u64,
+    waker: Arc<AtomicWaker>,
+    cancellation_token: CancellationToken,
 }
 
 impl FXTorrentStreamingResource {
     /// Create a new streaming resource which will read the full [Torrent].
-    pub async fn new(torrent: Arc<Box<dyn Torrent>>, filename: &str) -> torrents::Result<Self> {
+    pub async fn new(torrent: Arc<dyn Torrent>, filename: &str) -> torrents::Result<Self> {
         Self::new_offset(torrent, filename, 0, None).await
     }
 
     /// Create a new streaming resource for the given offset.
     /// If no `len` is given, the streaming resource will be read till it's end.
     pub async fn new_offset(
-        torrent: Arc<Box<dyn Torrent>>,
+        torrent: Arc<dyn Torrent>,
         filename: &str,
         offset: u64,
         len: Option<u64>,
@@ -696,6 +728,8 @@ impl FXTorrentStreamingResource {
                     let resource_length = torrent_file.len() as u64;
                     let mut stream_length = len.unwrap_or_else(|| resource_length);
                     let stream_end = offset + stream_length;
+                    let waker = Arc::new(AtomicWaker::new());
+                    let cancellation_token = CancellationToken::new();
 
                     if stream_end > resource_length {
                         warn!(
@@ -704,6 +738,19 @@ impl FXTorrentStreamingResource {
                         );
                         stream_length = resource_length - offset;
                     }
+
+                    // create a generic torrent event listener for waking streaming tasks when needed
+                    let event_waker = waker.clone();
+                    let event_cancellation_token = cancellation_token.clone();
+                    let receiver = torrent.subscribe();
+                    tokio::spawn(async move {
+                        Self::start_torrent_event_handler(
+                            receiver,
+                            event_waker,
+                            event_cancellation_token,
+                        )
+                        .await;
+                    });
 
                     Ok(Self {
                         torrent,
@@ -715,6 +762,8 @@ impl FXTorrentStreamingResource {
                         cursor: offset as usize,
                         offset,
                         len: stream_length,
+                        waker,
+                        cancellation_token,
                     })
                 })
         } else {
@@ -727,48 +776,20 @@ impl FXTorrentStreamingResource {
     }
 
     /// Wait for the current cursor to become available.
-    fn wait_for(&mut self, cx: &mut Context) -> Poll<Option<StreamBytesResult>> {
-        let waker = cx.waker().clone();
-        let mut buffer = self.next_buffer();
+    fn wait_for(&mut self, buffer: &Buffer, cx: &mut Context) -> Poll<Option<StreamBytesResult>> {
+        self.waker.register(cx.waker());
 
-        // request the torrent file info
-        let file_info =
-            match pin!(self.torrent.file_by_name(self.torrent_filename.as_str())).poll(cx) {
-                Poll::Ready(e) => e,
-                Poll::Pending => return Poll::Pending,
-            };
+        // prioritize the given buffer range within the torrent
+        let torrent = self.torrent.clone();
+        let torrent_range = self.as_torrent_range(buffer);
+        tokio::spawn(async move {
+            torrent.prioritize_bytes(&torrent_range).await;
+        });
 
-        // make the buffer relative to the offset within the torrent
-        if let Some(file_info) = file_info {
-            buffer = buffer.start + file_info.torrent_offset..buffer.end + file_info.torrent_offset;
-        } else {
-            warn!("Torrent streaming resource {} is unable to update buffer info, torrent file info not found", self);
-        }
-
-        // request the torrent to prioritize the buffer
         debug!(
             "Torrent streaming resource {} is waiting for buffer {{{}-{}}} to be available",
             self, &buffer.start, &buffer.end
         );
-        match pin!(self.prioritize_bytes(&buffer)).poll(cx) {
-            Poll::Ready(_) => {}
-            Poll::Pending => return Poll::Pending,
-        }
-
-        let mut receiver = self.torrent.subscribe();
-        // FIXME: this is very insufficient and should be refactored to a more global waker
-        tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
-                match &*event {
-                    TorrentEvent::StateChanged(_) | TorrentEvent::PieceCompleted(_) => {
-                        break;
-                    }
-                    _ => {}
-                }
-            }
-            waker.wake_by_ref();
-        });
-
         Poll::Pending
     }
 
@@ -863,10 +884,30 @@ impl FXTorrentStreamingResource {
         self.torrent.has_bytes(&torrent_range).await
     }
 
-    /// Prioritize the given stream buffer range within the torrent.
-    async fn prioritize_bytes(&self, bytes: &Buffer) {
-        let torrent_range = self.as_torrent_range(bytes);
-        self.torrent.prioritize_bytes(&torrent_range).await
+    async fn start_torrent_event_handler(
+        mut receiver: Subscription<TorrentEvent>,
+        event_waker: Arc<AtomicWaker>,
+        cancellation_token: CancellationToken,
+    ) {
+        loop {
+            select! {
+                _ = cancellation_token.cancelled() => {
+                    break;
+                }
+                event = receiver.recv() => {
+                    if let Some(event) = event {
+                        match &*event {
+                            TorrentEvent::StateChanged(_) | TorrentEvent::PieceCompleted(_) => {
+                                event_waker.wake();
+                            }
+                            _ => {}
+                        }
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -921,18 +962,8 @@ impl Stream for FXTorrentStreamingResource {
             Poll::Ready(e) => e,
             Poll::Pending => return Poll::Pending,
         };
-        trace!(
-            "Torrent streaming resource {} buffer {:?} {}",
-            self,
-            buffer,
-            if is_available {
-                "is available"
-            } else {
-                "is not available"
-            }
-        );
         if !is_available {
-            return self.as_mut().wait_for(cx);
+            return self.as_mut().wait_for(&buffer, cx);
         }
 
         Poll::Ready(self.as_mut().read_data())
@@ -943,6 +974,12 @@ impl Stream for FXTorrentStreamingResource {
         let total_buffers = length / DEFAULT_BUFFER_SIZE as f64;
 
         (0, Some(total_buffers.ceil() as usize))
+    }
+}
+
+impl Drop for FXTorrentStreamingResource {
+    fn drop(&mut self) {
+        self.cancellation_token.cancel();
     }
 }
 
@@ -990,6 +1027,11 @@ mod test {
             .returning(move || subscription_callbacks.subscribe());
         mock.expect_absolute_file_path()
             .returning(move |_| temp_path.clone());
+        mock.expect_piece_priorities().returning(|| {
+            vec![(0, PiecePriority::Normal), (1, PiecePriority::Normal)]
+                .into_iter()
+                .collect()
+        });
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
         let torrent_stream = DefaultTorrentStream::new(url, Box::new(mock), filename).await;
 
@@ -1052,9 +1094,12 @@ mod test {
             .expect_absolute_file_path()
             .returning(move |_| temp_path.clone());
         torrent.expect_has_bytes().return_const(true);
-        let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
+        torrent.expect_subscribe().returning(|| {
+            let (_, rx) = unbounded_channel();
+            rx
+        });
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
-        let stream = FXTorrentStreamingResource::new(torrent, filename)
+        let stream = FXTorrentStreamingResource::new(Arc::new(torrent), filename)
             .await
             .unwrap();
         let expected_result = format!("bytes 0-{}/{}", expected_length - 1, expected_length);
@@ -1078,11 +1123,15 @@ mod test {
             .expect_absolute_file_path()
             .returning(move |_| temp_path.clone());
         torrent.expect_has_bytes().return_const(true);
-        let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
+        torrent.expect_subscribe().returning(|| {
+            let (_, rx) = unbounded_channel();
+            rx
+        });
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
-        let stream = FXTorrentStreamingResource::new_offset(torrent, filename, 1, Some(3))
-            .await
-            .unwrap();
+        let stream =
+            FXTorrentStreamingResource::new_offset(Arc::new(torrent), filename, 1, Some(3))
+                .await
+                .unwrap();
 
         let result = read_stream(stream).await;
 
@@ -1120,15 +1169,14 @@ mod test {
             .expect_subscribe()
             .times(1)
             .return_once(move || callback_receiver);
-        torrent
-            .expect_file_by_name()
-            .times(1)
-            .returning(move |_| Some(file.clone()));
-        let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
+        torrent.expect_subscribe().returning(|| {
+            let (_, rx) = unbounded_channel();
+            rx
+        });
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
         let expected_result = read_test_file_to_string(filename);
 
-        let stream = FXTorrentStreamingResource::new(torrent, filename)
+        let stream = FXTorrentStreamingResource::new(Arc::new(torrent), filename)
             .await
             .unwrap();
 
@@ -1169,17 +1217,12 @@ mod test {
         });
         torrent.expect_prioritize_bytes().times(1).return_const(());
         torrent
-            .expect_file_by_name()
-            .times(1)
-            .returning(move |_| Some(file.clone()));
-        torrent
             .expect_subscribe()
             .times(1)
             .return_once(move || callback_subscription);
-        let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
 
-        let stream = FXTorrentStreamingResource::new(torrent, filename)
+        let stream = FXTorrentStreamingResource::new(Arc::new(torrent), filename)
             .await
             .unwrap();
 
@@ -1237,6 +1280,11 @@ mod test {
                 pieces: 0..101,
             }]
         });
+        torrent.expect_piece_priorities().returning(|| {
+            vec![(0, PiecePriority::Normal), (1, PiecePriority::Normal)]
+                .into_iter()
+                .collect()
+        });
         let stream = DefaultTorrentStream::new(url, Box::new(torrent), filename).await;
         let expected_pieces: Vec<PieceIndex> = vec![0, 1, 2, 3, 4, 5, 6, 7, 97, 98, 99];
 
@@ -1287,6 +1335,11 @@ mod test {
             .return_const(torrent_stats_not_completed());
         mock.expect_subscribe()
             .return_once(move || callback_subscription);
+        mock.expect_piece_priorities().returning(|| {
+            vec![(0, PiecePriority::Normal), (1, PiecePriority::Normal)]
+                .into_iter()
+                .collect()
+        });
         let stream = DefaultTorrentStream::new(url, Box::new(mock), filename).await;
 
         // check if the initial state automatically becomes streaming as the torrent is in finished state
@@ -1325,6 +1378,11 @@ mod test {
         mock.expect_stats().return_const(metrics);
         mock.expect_subscribe()
             .return_once(move || callback_subscription);
+        mock.expect_piece_priorities().returning(|| {
+            vec![(0, PiecePriority::Normal), (1, PiecePriority::Normal)]
+                .into_iter()
+                .collect()
+        });
         let stream = DefaultTorrentStream::new(url, Box::new(mock), filename).await;
 
         // check if the initial state automatically becomes streaming as the torrent is in finished state
@@ -1365,6 +1423,11 @@ mod test {
         torrent
             .expect_subscribe()
             .return_once(move || callback_subscription);
+        torrent.expect_piece_priorities().returning(|| {
+            vec![(0, PiecePriority::Normal), (1, PiecePriority::Normal)]
+                .into_iter()
+                .collect()
+        });
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
         let torrent_stream = DefaultTorrentStream::new(url, Box::new(torrent), filename).await;
 
@@ -1420,53 +1483,17 @@ mod test {
             torrent
                 .expect_absolute_file_path()
                 .returning(move |_| absolute_filepath.clone());
-            let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
-            let stream = FXTorrentStreamingResource::new(torrent, filename)
+            torrent.expect_subscribe().returning(|| {
+                let (_, rx) = unbounded_channel();
+                rx
+            });
+            let stream = FXTorrentStreamingResource::new(Arc::new(torrent), filename)
                 .await
                 .unwrap();
 
             let result = stream.has_bytes(&buffer).await;
 
             assert_eq!(true, result, "expected the bytes to have been present");
-        }
-
-        #[tokio::test]
-        async fn test_prioritize_bytes() {
-            init_logger!();
-            let filename = "myShowEpisode.mkv";
-            let temp_dir = tempdir().unwrap();
-            let temp_path = temp_dir.path().join(filename);
-            let absolute_filepath = PathBuf::from(copy_test_file(
-                temp_dir.path().to_str().unwrap(),
-                "huge.txt",
-                Some(filename),
-            ));
-            let buffer: Buffer = 650..980;
-            let files = vec![create_torrent_file!(temp_path.clone(), 3000)];
-            let (tx, mut rx) = unbounded_channel();
-            let mut torrent = MockTorrent::new();
-            torrent.expect_handle().return_const(TorrentHandle::new());
-            torrent
-                .expect_prioritize_bytes()
-                .times(1)
-                .returning(move |bytes| tx.send(bytes.clone()).unwrap());
-            torrent.expect_files().returning(move || files.clone());
-            torrent
-                .expect_absolute_file_path()
-                .returning(move |_| absolute_filepath.clone());
-            let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
-            let stream = FXTorrentStreamingResource::new(torrent, filename)
-                .await
-                .unwrap();
-
-            stream.prioritize_bytes(&buffer).await;
-
-            let result = recv_timeout!(&mut rx, Duration::from_millis(750));
-            assert_eq!(
-                3650..3980,
-                result,
-                "expected the torrent bytes to have been prioritized"
-            )
         }
     }
 

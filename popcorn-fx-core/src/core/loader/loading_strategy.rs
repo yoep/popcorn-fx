@@ -60,7 +60,7 @@ pub trait LoadingStrategy: Debug + Display + Send + Sync {
     /// # Returns
     ///
     /// A `CancellationResult` indicating the outcome of the cancellation operation.
-    async fn cancel(&self, data: LoadingData) -> crate::core::loader::CancellationResult;
+    async fn cancel(&self, data: &mut LoadingData) -> crate::core::loader::CancellationResult;
 }
 
 #[cfg(any(test, feature = "testing"))]
@@ -81,7 +81,7 @@ pub mod mock {
                 data: &mut LoadingData,
                 context: &LoadingTaskContext,
             ) -> crate::core::loader::LoadingResult;
-            async fn cancel(&self, data: LoadingData) -> crate::core::loader::CancellationResult;
+            async fn cancel(&self, data: &mut LoadingData) -> crate::core::loader::CancellationResult;
         }
     }
 

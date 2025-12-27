@@ -892,6 +892,16 @@ impl UtpStreamContext {
     async fn update_timestamp_difference(&self, packet: &Packet) {
         let timestamp = now_as_micros();
         let timestamp_difference = timestamp.saturating_sub(packet.timestamp_microseconds);
+        let delay = Duration::from_micros(timestamp_difference as u64);
+        if delay >= Duration::from_secs(1) {
+            debug!(
+                "Utp stream {} high latency detected, {}.{:03}ms",
+                self,
+                delay.as_millis(),
+                delay.subsec_micros() % 1000
+            );
+        }
+
         *self.timestamp_difference_microseconds.lock().await = timestamp_difference;
     }
 

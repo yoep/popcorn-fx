@@ -3083,8 +3083,11 @@ mod tests {
         );
 
         // create the pieces for the torrent
-        create_pieces(&outgoing_context).await;
-        create_pieces(&incoming_context).await;
+        create_pieces_and_files(&outgoing_context).await;
+        create_pieces_and_files(&incoming_context).await;
+
+        // validate the pieces for the incoming torrent
+        incoming_context.piece_pool().set_completed(&0, true).await;
 
         // unchoke the remote peer
         incoming
@@ -3130,7 +3133,7 @@ mod tests {
         let (outgoing, _incoming) = create_peer_pair!(&torrent);
 
         // create the pieces for the torrent
-        create_pieces(&context).await;
+        create_pieces_and_files(&context).await;
 
         // check if both the client & remote piece bitfield have been updated
         let torrent_bitfield = context.piece_pool().bitfield().await;
@@ -3298,8 +3301,12 @@ mod tests {
         }
     }
 
-    async fn create_pieces(context: &Arc<TorrentContext>) {
+    async fn create_pieces_and_files(context: &Arc<TorrentContext>) {
         let operation = TorrentCreatePiecesOperation::new();
+        let result = operation.execute(&context).await;
+        assert_eq!(TorrentOperationResult::Continue, result);
+
+        let operation = TorrentCreateFilesOperation::new();
         let result = operation.execute(&context).await;
         assert_eq!(TorrentOperationResult::Continue, result);
     }

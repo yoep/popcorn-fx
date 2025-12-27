@@ -30,6 +30,7 @@ pub struct DhtInfoWidget {
     state: DhtInfoState,
     node_info_widget: DhtNodeInfoWidget,
     add_node_widget: DhtAddNodeWidget,
+    peers_widget: DhtPeerWidget,
     event_receiver: Subscription<DhtEvent>,
     command_receiver: UnboundedReceiver<DhtInfoCommand>,
 }
@@ -45,6 +46,7 @@ impl DhtInfoWidget {
             state: DhtInfoState::Nodes,
             node_info_widget: DhtNodeInfoWidget::new(nodes),
             add_node_widget: DhtAddNodeWidget::new(command_sender),
+            peers_widget: DhtPeerWidget::new(vec![]),
             event_receiver,
             command_receiver,
         }
@@ -142,6 +144,8 @@ impl FXWidget for DhtInfoWidget {
         let [data_area, performance_area] = header.areas(header_area);
         let performance_layout = Layout::vertical([Percentage(50), Percentage(50)]);
         let [down_performance, up_performance] = performance_layout.areas(performance_area);
+        let details_layout = Layout::horizontal([Percentage(60), Percentage(40)]);
+        let [nodes_area, peer_area] = details_layout.areas(details_area);
 
         // render the DHT network data
         Paragraph::new(vec![
@@ -202,9 +206,10 @@ impl FXWidget for DhtInfoWidget {
 
         // render the node information
         match &self.state {
-            DhtInfoState::Nodes => self.node_info_widget.render(frame, details_area),
-            DhtInfoState::AddNode => self.add_node_widget.render(frame, details_area),
+            DhtInfoState::Nodes => self.node_info_widget.render(frame, nodes_area),
+            DhtInfoState::AddNode => self.add_node_widget.render(frame, nodes_area),
         }
+        self.peers_widget.render(frame, peer_area);
     }
 }
 
@@ -293,13 +298,6 @@ impl DhtNodeInfoWidget {
     }
 
     fn render(&self, frame: &mut Frame, area: Rect) {
-        let layout = Layout::horizontal([Percentage(70), Percentage(30)]);
-        let [nodes_area, _] = layout.areas(area);
-
-        self.render_nodes(frame, nodes_area);
-    }
-
-    fn render_nodes(&self, frame: &mut Frame, area: Rect) {
         let header = vec![
             "Address",
             "State",
@@ -311,7 +309,7 @@ impl DhtNodeInfoWidget {
         .into_iter()
         .map(Cell::from)
         .collect::<Row>()
-        .style(Self::header_style());
+        .style(info_header_style());
         let rows = self
             .nodes
             .iter()
@@ -354,10 +352,6 @@ impl DhtNodeInfoWidget {
         if let Ok(mut state) = self.state.lock() {
             StatefulWidget::render(table, area, frame.buffer_mut(), &mut state);
         }
-    }
-
-    fn header_style() -> Style {
-        Style::new().bg(Color::DarkGray).fg(Color::White)
     }
 
     fn row_color(index: usize) -> Color {
@@ -490,4 +484,45 @@ fn node_state_as_str(state: &NodeState) -> &str {
         NodeState::Questionable => "Questionable",
         NodeState::Bad => "Bad",
     }
+}
+
+#[derive(Debug)]
+struct DhtPeerWidget {
+    peers: Vec<SocketAddr>,
+}
+
+impl DhtPeerWidget {
+    fn new(peers: Vec<SocketAddr>) -> Self {
+        Self { peers }
+    }
+
+    fn render(&self, frame: &mut Frame, area: Rect) {
+        let header = vec!["Address", "Seed"]
+            .into_iter()
+            .map(Cell::from)
+            .collect::<Row>()
+            .style(info_header_style());
+        let rows = self
+            .peers
+            .iter()
+            .map(|addr| {
+                let is_seed = "";
+                Row::new(vec![addr.to_string(), is_seed.to_string()])
+            })
+            .collect::<Vec<Row>>();
+
+        Widget::render(
+            Table::new(rows, [Fill(1), Length(6)])
+                .header(header)
+                .block(Block::bordered().title("Discovered peers"))
+                .row_highlight_style(Style::new().bg(Color::LightYellow).fg(Color::DarkGray))
+                .highlight_spacing(HighlightSpacing::Always),
+            area,
+            frame.buffer_mut(),
+        );
+    }
+}
+
+fn info_header_style() -> Style {
+    Style::new().bg(Color::DarkGray).fg(Color::White)
 }

@@ -26,7 +26,7 @@
                 <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
             </columnResizePolicy>
             <placeholder>
-                <Label text="%torrent_collection_empty" styleClass="placeholder" />
+                <Label fx:id="torrentCollectionPlaceholder" text="%torrent_collection_empty" styleClass="placeholder" />
             </placeholder>
         </TorrentCollection>
     </StackPane>

@@ -306,11 +306,11 @@ impl FxTorrentSession {
         FxTorrentSessionBuilder::new()
     }
 
-    /// Create a new torrent sessions.
+    /// Create a new torrent session instance.
     ///
     /// # Arguments
     ///
-    /// * `base_path` - The base path to use for storing torrent data.
+    /// * `config` - The configuration settings of the session.
     /// * `client_name` - The client name of the session.
     /// * `protocol_extensions` - The protocol extensions to use for this session.
     /// * `extensions` - The peer extensions to use for this session.
@@ -319,9 +319,8 @@ impl FxTorrentSession {
     /// # Returns
     ///
     /// Returns the session when initialized successfully or an error on failure.
-    pub fn new<P: AsRef<Path>, S: AsRef<str>>(
-        path: P,
-        client_name: S,
+    pub fn new(
+        config: SessionConfig,
         protocol_extensions: ProtocolExtensionFlags,
         extensions: ExtensionFactories,
         operations: Vec<TorrentOperationFactory>,
@@ -336,8 +335,7 @@ impl FxTorrentSession {
         let inner = Arc::new(InnerSession {
             handle,
             state: Mutex::new(SessionState::Initializing),
-            path: RwLock::new(path.as_ref().to_path_buf()),
-            client_name: client_name.as_ref().to_string(),
+            config: RwLock::new(config),
             dht: Mutex::new(dht),
             tracker: TrackerClient::new(Duration::from_secs(DEFAULT_TRACKER_TIMEOUT_SECONDS)),
             torrents: Default::default(),
@@ -411,28 +409,28 @@ impl FxTorrentSession {
         };
 
         let info_hash = torrent_info.info_hash.clone();
-        let config = TorrentConfig::builder()
-            .client_name(self.inner.client_name.as_str())
-            .path(self.inner.path.read().await.as_path())
-            .peer_connection_timeout(peer_timeout.unwrap_or(DEFAULT_PEER_TIMEOUT))
-            .build();
+        let config = {
+            let session_config = self.inner.config.read().await;
+            TorrentConfig::builder()
+                .client_name(session_config.client_name.as_str())
+                .path(session_config.path.as_path())
+                .peer_connection_timeout(peer_timeout.unwrap_or(DEFAULT_PEER_TIMEOUT))
+                .build()
+        };
 
         trace!(
             "Session {} is creating new torrent for info hash {}",
             self,
             info_hash
         );
-        let (tcp_peer_discovery, utp_peer_discovery) = self.inner.create_discoveries().await?;
+        let peer_discoveries = self.inner.create_discoveries().await?;
         let dht_tracker = self.inner.dht.lock().await.clone();
         let storage = self.inner.storage_factory.clone();
         let torrent = Torrent::request()
             .metadata(torrent_info)
             .options(options)
             .config(config)
-            .peer_discoveries(vec![
-                Box::new(tcp_peer_discovery),
-                Box::new(utp_peer_discovery),
-            ])
+            .peer_discoveries(peer_discoveries)
             .protocol_extensions(self.inner.protocol_extensions)
             .extensions(self.inner.extensions())
             .operations(self.inner.torrent_operations())
@@ -478,11 +476,11 @@ impl Session for FxTorrentSession {
     }
 
     async fn base_path(&self) -> PathBuf {
-        self.inner.path.read().await.clone()
+        self.inner.config.read().await.path.clone()
     }
 
     async fn set_base_path(&self, location: PathBuf) {
-        *self.inner.path.write().await = location;
+        self.inner.config.write().await.path = location;
     }
 
     async fn find_torrent_by_handle(&self, handle: &TorrentHandle) -> Option<Torrent> {
@@ -511,7 +509,7 @@ impl Session for FxTorrentSession {
                 .options(TorrentFlags::none())
                 .config(
                     TorrentConfig::builder()
-                        .client_name(self.inner.client_name.as_str())
+                        .client_name(self.inner.config.read().await.client_name.as_str())
                         .peers_lower_limit(0)
                         .peers_upper_limit(0)
                         .peer_connection_timeout(Duration::from_secs(0))
@@ -668,16 +666,28 @@ impl Drop for FxTorrentSession {
     }
 }
 
-/// The torrent session builder for configuring an [FxTorrentSession].
+/// The torrent session builder for configuring a new [FxTorrentSession].
 ///
 /// # Required fields
 ///
 /// The following fields are required to be configured.
 ///
-/// - `base_path` - The path location of where torrent file data will be stored.
+/// - `path` - The location where torrent file data will be stored.
 /// - `client_name` - The client name which is communicated between torrent peers.
 ///
 /// All other fields make use of defaults when not set.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use popcorn_fx_torrent::torrent::FxTorrentSession;
+///
+/// FxTorrentSession::builder()
+///     .client_name("MyClientName")
+///     .path("/tmp/fx-torrent")
+///     .build()
+///     .unwrap()
+/// ```
 #[derive(Default)]
 pub struct FxTorrentSessionBuilder {
     path: Option<PathBuf>,
@@ -688,6 +698,8 @@ pub struct FxTorrentSessionBuilder {
     storage: Option<Arc<SessionStorageFactory>>,
     session_cache: Option<Box<dyn SessionCache>>,
     dht: Option<DhtTracker>,
+    enable_tcp_peer: Option<bool>,
+    enable_utp_peer: Option<bool>,
 }
 
 impl FxTorrentSessionBuilder {
@@ -786,6 +798,30 @@ impl FxTorrentSessionBuilder {
         self
     }
 
+    /// Enables the TCP peer connections for the session.
+    pub fn enable_tcp_peer(&mut self) -> &mut Self {
+        self.enable_tcp_peer = Some(true);
+        self
+    }
+
+    /// Disables the TCP peer connections for the session.
+    pub fn disable_tcp_peer(&mut self) -> &mut Self {
+        self.enable_tcp_peer = Some(false);
+        self
+    }
+
+    /// Enables the UTP peer connections for the session.
+    pub fn enable_utp_peer(&mut self) -> &mut Self {
+        self.enable_utp_peer = Some(true);
+        self
+    }
+
+    /// Disables the UTP peer connections for the session.
+    pub fn disable_utp_peer(&mut self) -> &mut Self {
+        self.enable_utp_peer = Some(false);
+        self
+    }
+
     /// Create a new torrent session from this builder.
     /// The only required field within this builder is the base path for the torrent storage.
     ///
@@ -793,12 +829,16 @@ impl FxTorrentSessionBuilder {
     ///
     /// It returns an error when one of the required is not set.
     pub fn build(&mut self) -> Result<FxTorrentSession> {
-        let path = self.path.take().ok_or(TorrentError::InvalidSession(
-            "base path is required".to_string(),
-        ))?;
-        let client_name = self.client_name.take().filter(|e| !e.is_empty()).ok_or(
-            TorrentError::InvalidSession("client name is required".to_string()),
-        )?;
+        let config = SessionConfig {
+            client_name: self.client_name.take().filter(|e| !e.is_empty()).ok_or(
+                TorrentError::InvalidSession("client name is required".to_string()),
+            )?,
+            path: self.path.take().ok_or(TorrentError::InvalidSession(
+                "base path is required".to_string(),
+            ))?,
+            enable_tcp_peer: self.enable_tcp_peer.take().unwrap_or(true),
+            enable_utp_peer: self.enable_utp_peer.take().unwrap_or(true),
+        };
         let protocol_extensions = self
             .protocol_extensions
             .unwrap_or_else(DEFAULT_TORRENT_PROTOCOL_EXTENSIONS);
@@ -837,8 +877,7 @@ impl FxTorrentSessionBuilder {
         let dht = self.dht.take();
 
         Ok(FxTorrentSession::new(
-            path,
-            client_name,
+            config,
             protocol_extensions,
             extensions,
             torrent_operations,
@@ -863,6 +902,15 @@ impl Debug for FxTorrentSessionBuilder {
     }
 }
 
+/// The configuration of a torrent session.
+#[derive(Debug, Clone)]
+pub struct SessionConfig {
+    pub client_name: String,
+    pub path: PathBuf,
+    pub enable_tcp_peer: bool,
+    pub enable_utp_peer: bool,
+}
+
 #[derive(Debug)]
 enum SessionCommand {
     /// Store the metadata within the session
@@ -877,10 +925,8 @@ struct InnerSession {
     handle: SessionHandle,
     /// The state of the session
     state: Mutex<SessionState>,
-    /// The base path for the torrent storage of the session
-    path: RwLock<PathBuf>,
-    /// The client name of the session, exchanged with peers that support `LTEP`
-    client_name: String,
+    /// The config settings of the session
+    config: RwLock<SessionConfig>,
     /// The DHT node server of the session
     dht: Mutex<Option<DhtTracker>>,
     /// The tracker of the session
@@ -1044,15 +1090,27 @@ impl InnerSession {
         }
     }
 
-    async fn create_discoveries(&self) -> Result<(TcpPeerDiscovery, UtpPeerDiscovery)> {
-        let tcp_discovery = TcpPeerDiscovery::new()
-            .await
-            .map_err(|e| TorrentError::Peer(e))?;
-        let utp_discovery = UtpPeerDiscovery::new_with_port(tcp_discovery.port())
-            .await
-            .map_err(|e| TorrentError::Peer(e))?;
+    async fn create_discoveries(&self) -> Result<Vec<Box<dyn PeerDiscovery>>> {
+        let mut port = 0;
+        let config = self.config.read().await;
+        let mut discoveries: Vec<Box<dyn PeerDiscovery>> = Vec::new();
 
-        Ok((tcp_discovery, utp_discovery))
+        if config.enable_tcp_peer {
+            let tcp_discovery = TcpPeerDiscovery::new()
+                .await
+                .map_err(|e| TorrentError::Peer(e))?;
+            port = tcp_discovery.port();
+            discoveries.push(Box::new(tcp_discovery));
+        }
+        if config.enable_utp_peer {
+            discoveries.push(Box::new(
+                UtpPeerDiscovery::new_with_port(port)
+                    .await
+                    .map_err(|e| TorrentError::Peer(e))?,
+            ));
+        }
+
+        Ok(discoveries)
     }
 }
 
@@ -1061,8 +1119,7 @@ impl Debug for InnerSession {
         f.debug_struct("InnerSession")
             .field("handle", &self.handle)
             .field("state", &self.state)
-            .field("path", &self.path)
-            .field("client_name", &self.client_name)
+            .field("config", &self.config)
             .field("dht", &self.dht)
             .field("tracker", &self.tracker)
             .field("torrents", &self.torrents)

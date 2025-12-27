@@ -475,9 +475,11 @@ impl MessageBuilder {
         self
     }
 
-    /// Set the transaction id of the message from the given string.
-    pub fn transaction_id_str<S: AsRef<str>>(&mut self, id: S) -> &mut Self {
-        self.transaction_id = Some(id.as_ref().as_bytes().to_vec());
+    /// Set the underlying transaction ID bytes.
+    /// This is useful for testing purposes.
+    #[cfg(test)]
+    fn transaction_id_bytes(&mut self, id: &[u8]) -> &mut Self {
+        self.transaction_id = Some(id.to_vec());
         self
     }
 
@@ -500,8 +502,8 @@ impl MessageBuilder {
     }
 
     /// Set the node's external port.
-    pub fn port(&mut self, port: [u8; 2]) -> &mut Self {
-        self.port = Some(port);
+    pub fn port(&mut self, port: u16) -> &mut Self {
+        self.port = Some(port.to_be_bytes());
         self
     }
 
@@ -547,7 +549,7 @@ mod tests {
         let payload = "d1:ad2:id20:abcdefghij0123456789e1:q4:ping1:t2:aa1:y1:qe";
         let node_id = NodeId::try_from("abcdefghij0123456789".as_bytes()).unwrap();
         let expected_result = Message::builder()
-            .transaction_id_str("aa")
+            .transaction_id_bytes("aa".as_bytes())
             .payload(MessagePayload::Query(QueryMessage::Ping {
                 request: PingMessage { id: node_id },
             }))
@@ -564,7 +566,7 @@ mod tests {
         let payload = "d1:rd2:id20:mnopqrstuvwxyz123456e1:t2:aa1:y1:re";
         let node_id = NodeId::try_from("mnopqrstuvwxyz123456".as_bytes()).unwrap();
         let expected_result = Message::builder()
-            .transaction_id_str("aa")
+            .transaction_id_bytes("aa".as_bytes())
             .payload(MessagePayload::Response(ResponseMessage::Ping {
                 response: PingMessage { id: node_id },
             }))
@@ -580,7 +582,7 @@ mod tests {
     fn test_message_error_deserialize() {
         let payload = "d1:eli201e23:A Generic Error Ocurrede1:t2:aa1:y1:ee";
         let expected_result = Message::builder()
-            .transaction_id_str("aa")
+            .transaction_id_bytes("aa".as_bytes())
             .payload(MessagePayload::Error(ErrorMessage::Generic(
                 "A Generic Error Ocurred".to_string(),
             )))
@@ -595,7 +597,7 @@ mod tests {
     #[test]
     fn test_message_error_serialize() {
         let message = Message::builder()
-            .transaction_id_str("aa")
+            .transaction_id_bytes("aa".as_bytes())
             .payload(MessagePayload::Error(ErrorMessage::Generic(
                 "A Generic Error Occurred".to_string(),
             )))

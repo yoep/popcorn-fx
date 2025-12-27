@@ -13,6 +13,7 @@ struct DontHaveMessage {
     piece: u32,
 }
 
+/// Discard a piece as no longer available.
 #[derive(Debug)]
 pub struct DontHaveExtension;
 
@@ -30,8 +31,9 @@ impl Extension for DontHaveExtension {
 
     async fn handle<'a>(&'a self, payload: &'a [u8], peer: &'a PeerContext) -> Result<()> {
         trace!("Peer {} is parsing donthave message", peer);
-        let message: DontHaveMessage = serde_bencode::from_bytes(payload)?;
-        debug!("Peer {} parsed donthave message {:?}", peer, message);
+        let piece = u32::from_be_bytes([payload[0], payload[1], payload[2], payload[3]]);
+        let message = DontHaveMessage { piece };
+        debug!("Peer {} parsed \"don't have\" message {:?}", peer, message);
 
         peer.remote_has_piece(message.piece as PieceIndex, false)
             .await;

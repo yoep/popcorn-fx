@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use derive_more::Display;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use fx_handle::Handle;
-use log::{debug, error, trace};
+use log::{debug, trace};
 #[cfg(any(test, feature = "testing"))]
 pub use mock::*;
 use popcorn_fx_torrent::torrent::Metrics;
@@ -58,7 +58,7 @@ pub enum LoadingResult {
 }
 
 /// An enum representing the result of a cancellation operation on loading data.
-pub type CancellationResult = std::result::Result<LoadingData, LoadingError>;
+pub type CancellationResult = std::result::Result<(), LoadingError>;
 
 #[derive(Debug, Copy, Clone, Display, PartialOrd, PartialEq)]
 pub enum LoadingState {
@@ -650,9 +650,10 @@ mod tests {
     #[tokio::test]
     async fn test_load_playlist_item() {
         init_logger!();
+        let title = "Nam facilisis";
         let item = PlaylistItem {
             url: None,
-            title: "LoremIpsum".to_string(),
+            title: title.to_string(),
             caption: None,
             thumb: None,
             media: Default::default(),
@@ -663,7 +664,11 @@ mod tests {
         };
         let (tx, mut rx) = unbounded_channel();
         let expected_result = LoadingData::from(item.clone());
-        let strategy = TestingLoadingStrategy::builder().data_sender(tx).build();
+        let strategy = TestingLoadingStrategy::builder()
+            .data_peeker(move |e| {
+                let _ = tx.send(e.title.clone());
+            })
+            .build();
         let chain: Vec<Box<dyn LoadingStrategy>> = vec![Box::new(strategy)];
         let loader = DefaultMediaLoader::new(chain);
 
@@ -675,7 +680,7 @@ mod tests {
         assert_eq!(LoadingState::Initializing, state);
 
         let result = recv_timeout!(&mut rx, Duration::from_millis(200));
-        assert_eq!(expected_result, result);
+        assert_eq!(Some(title.to_string()), result);
     }
 
     #[tokio::test]
@@ -704,7 +709,9 @@ mod tests {
         let (tx_data, mut rx_data) = unbounded_channel();
         let (tx_event, mut rx_event) = unbounded_channel();
         let strategy = TestingLoadingStrategy::builder()
-            .data_sender(tx_data)
+            .data_peeker(move |e| {
+                let _ = tx_data.send(());
+            })
             .event(LoadingEvent::ProgressChanged(expected_result.clone()))
             .delay(Duration::from_millis(150))
             .build();

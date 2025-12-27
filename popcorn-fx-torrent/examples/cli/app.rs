@@ -191,6 +191,8 @@ impl App {
             AppCommand::AddTorrentUri(uri) => self.add_torrent_uri(uri.as_str()).await,
             AppCommand::DhtEnabled(enabled) => self.update_dht(enabled).await,
             AppCommand::TrackerEnabled(enabled) => self.update_trackers(enabled).await,
+            AppCommand::TcpPeerEnabled(enabled) => self.update_tcp_peer_connections(enabled).await,
+            AppCommand::UtpPeerEnabled(enabled) => self.update_utp_peer_connections(enabled).await,
             AppCommand::Storage(location) => self.update_storage(location).await,
             AppCommand::DhtInfo => self.show_session_info(DHT_INFO_WIDGET_NAME),
             AppCommand::TrackersInfo => self.show_session_info(TRACKER_INFO_WIDGET_NAME),
@@ -329,6 +331,16 @@ impl App {
         self.recreate_session().await;
     }
 
+    async fn update_tcp_peer_connections(&mut self, enabled: bool) {
+        self.settings.tcp_peer_enabled = enabled;
+        self.recreate_session().await;
+    }
+
+    async fn update_utp_peer_connections(&mut self, enabled: bool) {
+        self.settings.utp_peer_enabled = enabled;
+        self.recreate_session().await;
+    }
+
     async fn recreate_session(&mut self) {
         self.remove_session_tabs();
         match Self::create_session(&self.settings).await {
@@ -462,7 +474,18 @@ impl App {
             );
         }
 
-        FxTorrentSession::builder()
+        let mut builder = FxTorrentSession::builder();
+
+        match settings.tcp_peer_enabled {
+            true => builder.enable_tcp_peer(),
+            false => builder.disable_tcp_peer(),
+        };
+        match settings.utp_peer_enabled {
+            true => builder.enable_utp_peer(),
+            false => builder.disable_utp_peer(),
+        };
+
+        builder
             .client_name(APP_CLIENT_NAME)
             .path(&settings.storage)
             .session_cache(FxSessionCache::new(SESSION_CACHE_LIMIT))
@@ -491,6 +514,10 @@ pub enum AppCommand {
     DhtEnabled(bool),
     /// Set if trackers are enabled
     TrackerEnabled(bool),
+    /// Set if tcp peer connections are enabled
+    TcpPeerEnabled(bool),
+    /// Set if utp peer connections are enabled
+    UtpPeerEnabled(bool),
     /// Set the new storage location of the session
     Storage(PathBuf),
     /// Show the DHT info widget
@@ -510,6 +537,8 @@ struct AppSettings {
     storage: PathBuf,
     dht_enabled: bool,
     trackers_enabled: bool,
+    tcp_peer_enabled: bool,
+    utp_peer_enabled: bool,
     torrent_flags: TorrentFlags,
 }
 
@@ -519,6 +548,8 @@ impl Default for AppSettings {
             storage: PathBuf::from(APP_DEFAULT_STORAGE),
             dht_enabled: true,
             trackers_enabled: true,
+            tcp_peer_enabled: true,
+            utp_peer_enabled: true,
             torrent_flags: DEFAULT_TORRENT_FLAGS(),
         }
     }

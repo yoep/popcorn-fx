@@ -14,8 +14,8 @@ use crate::core::torrents::{
 };
 use async_trait::async_trait;
 use derive_more::Display;
+use fx_torrent;
 use log::{debug, error, trace};
-use popcorn_fx_torrent::torrent;
 use tokio::select;
 
 const MAGNET_PREFIX: &str = "magnet:?";
@@ -68,7 +68,7 @@ impl TorrentInfoLoadingStrategy {
         info: &TorrentInfo,
         media: &Box<dyn MediaIdentifier>,
         quality: &str,
-    ) -> Result<torrent::File> {
+    ) -> Result<fx_torrent::File> {
         match media.media_type() {
             MediaType::Movie => media
                 .downcast_ref::<MovieDetails>()
@@ -237,11 +237,10 @@ mod tests {
     use crate::{create_loading_task, init_logger, recv_timeout};
 
     use fx_callback::{Callback, MultiThreadedCallback};
+    use fx_torrent::TorrentFileInfo;
     use mockall::predicate::eq;
-    use popcorn_fx_torrent::torrent::TorrentFileInfo;
     use std::path::PathBuf;
     use std::time::Duration;
-    use tempfile::tempdir;
     use tokio::sync::mpsc::unbounded_channel;
 
     #[tokio::test]
@@ -326,7 +325,7 @@ mod tests {
         init_logger!();
         let filename = "MySecondFile";
         let magnet_url = "magnet:?MyFullShowTorrent";
-        let expected_torrent_file_info = torrent::File {
+        let expected_torrent_file_info = fx_torrent::File {
             index: 2,
             torrent_path: PathBuf::from(filename),
             torrent_offset: 0,
@@ -398,7 +397,7 @@ mod tests {
             directory_name: None,
             total_files: 2,
             files: vec![
-                torrent::File {
+                fx_torrent::File {
                     index: 1,
                     torrent_path: PathBuf::from("MyFirstFile"),
                     torrent_offset: 0,

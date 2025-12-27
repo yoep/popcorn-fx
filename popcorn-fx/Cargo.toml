@@ -16,16 +16,17 @@ popcorn-fx-core = { path = "../popcorn-fx-core" }
 popcorn-fx-opensubtitles = { path = "../popcorn-fx-opensubtitles" }
 popcorn-fx-platform = { path = "../popcorn-fx-platform" }
 popcorn-fx-players = { path = "../popcorn-fx-players" }
-popcorn-fx-torrent = { path = "../popcorn-fx-torrent" }
 popcorn-fx-trakt = { path = "../popcorn-fx-trakt" }
+
+fx-callback.workspace = true
+fx-handle.workspace = true
+fx-torrent.workspace = true
 
 async-trait.workspace = true
 byteorder.workspace = true
 clap = { version = "4.5", features = ["derive"] }
 derive_more.workspace = true
 directories.workspace = true
-fx-callback.workspace = true
-fx-handle.workspace = true
 itertools.workspace = true
 log.workspace = true
 log4rs = { workspace = true, features = ["console_appender", "rolling_file_appender", "compound_policy"] }

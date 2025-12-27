@@ -467,10 +467,8 @@ mod test {
     use crate::{assert_timeout, assert_timeout_eq, init_logger};
 
     use fx_callback::MultiThreadedCallback;
-    use popcorn_fx_torrent::torrent;
-    use popcorn_fx_torrent::torrent::{
-        Metrics, PieceIndex, PiecePriority, TorrentEvent, TorrentFileInfo,
-    };
+    use fx_torrent;
+    use fx_torrent::{Metrics, PieceIndex, PiecePriority, TorrentEvent, TorrentFileInfo};
     use reqwest::Client;
     use std::path::PathBuf;
     use std::time::Duration;
@@ -804,8 +802,8 @@ mod test {
         )
     }
 
-    fn create_torrent_files(file: &PathBuf, length: u64) -> Vec<torrent::File> {
-        vec![torrent::File {
+    fn create_torrent_files(file: &PathBuf, length: u64) -> Vec<fx_torrent::File> {
+        vec![fx_torrent::File {
             index: 0,
             torrent_path: file.clone(),
             torrent_offset: 0,

@@ -56,12 +56,8 @@ prerequisites-cargo:  ## Install the requirements for Cargo
 
 prerequisites: prerequisites-cargo ## Install the requirements for the application
 
-bump-dependencies: ## Install required bump dependencies
-	@$(PYTHON) -m pip install --upgrade pip
-	@pip install bump2version --user
-
-bump-%: bump-dependencies ## Bump the (major, minor, patch) version of the application
-	@bumpversion $*
+bump-%: ## Bump the (major, minor, patch) version of the application
+	@bump-my-version bump $*
 
 clean: prerequisites ## Clean the output
 	$(info Cleaning output directories)
@@ -70,11 +66,11 @@ clean: prerequisites ## Clean the output
 
 test-cargo: prerequisites-cargo ## The test cargo section of the application
 	$(info Running cargo tests)
-	@cargo llvm-cov --lcov --output-path target/lcov.info nextest
+	@cargo llvm-cov --lcov --output-path target/lcov.info nextest --all-features
 
 cov-cargo: prerequisites ## Test coverage of the cargo section as std output
 	$(info Running cargo tests)
-	@cargo llvm-cov nextest
+	@cargo llvm-cov nextest --all-features
 
 test-java: ## The test java section of the application
 	$(info Running maven tests)

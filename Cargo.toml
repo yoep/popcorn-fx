@@ -8,12 +8,7 @@ members = [
     "popcorn-fx-players",
     "popcorn-fx-opensubtitles",
     "popcorn-fx-platform",
-    "popcorn-fx-torrent",
     "popcorn-fx-trakt",
-]
-
-exclude = [
-    "popcorn-fx-torrent/examples/cli"
 ]
 
 [workspace.dependencies]
@@ -28,8 +23,9 @@ derive_more = "0.99.18"
 directories = "5.0.1"
 downcast-rs = "1.2.1"
 futures = "0.3"
-fx-callback = "1.0.0"
-fx-handle = "1.0.0"
+fx-callback = "1.0"
+fx-handle = "1.0"
+fx-torrent = "0.1.0"
 itertools = "0.14.0"
 local-ip-address = "0.6"
 log = "0.4"

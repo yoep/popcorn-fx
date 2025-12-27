@@ -8,9 +8,9 @@ use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::path::PathBuf;
 
-use popcorn_fx_torrent::torrent;
-use popcorn_fx_torrent::torrent::{Metrics, PiecePriority, TorrentFlags};
-pub use popcorn_fx_torrent::torrent::{PieceIndex, TorrentEvent, TorrentState};
+use fx_torrent;
+use fx_torrent::{Metrics, PiecePriority, TorrentFlags};
+pub use fx_torrent::{PieceIndex, TorrentEvent, TorrentState};
 
 #[cfg(any(test, feature = "testing"))]
 pub use mock::*;
@@ -26,11 +26,11 @@ pub trait Torrent: Debug + DowncastSync + Callback<TorrentEvent> + Send + Sync {
     fn handle(&self) -> TorrentHandle;
 
     /// Get the absolute filesystem path to a given file in the torrent.
-    async fn absolute_file_path(&self, file: &torrent::File) -> PathBuf;
+    async fn absolute_file_path(&self, file: &fx_torrent::File) -> PathBuf;
 
     /// Get the files of the torrent.
     /// It might return an empty array if the metadata is unknown.
-    async fn files(&self) -> Vec<torrent::File>;
+    async fn files(&self) -> Vec<fx_torrent::File>;
 
     /// Get the torrent file information by its name.
     ///
@@ -41,11 +41,11 @@ pub trait Torrent: Debug + DowncastSync + Callback<TorrentEvent> + Send + Sync {
     /// # Returns
     ///
     /// It returns the torrent file info for the given torrent filename if found, else [None].
-    async fn file_by_name(&self, name: &str) -> Option<torrent::File>;
+    async fn file_by_name(&self, name: &str) -> Option<fx_torrent::File>;
 
     /// Get the largest file of the torrent.
     /// It returns [None] if the metadata is currently unknown of the torrent.
-    async fn largest_file(&self) -> Option<torrent::File>;
+    async fn largest_file(&self) -> Option<fx_torrent::File>;
 
     /// Check if the given bytes are available within the torrent.
     /// This will check if the underlying pieces that contain the given byte range are downloaded, validated and written to storage.
@@ -90,28 +90,28 @@ pub trait Torrent: Debug + DowncastSync + Callback<TorrentEvent> + Send + Sync {
 impl_downcast!(sync Torrent);
 
 #[async_trait]
-impl Torrent for torrent::Torrent {
+impl Torrent for fx_torrent::Torrent {
     fn handle(&self) -> TorrentHandle {
         self.handle()
     }
 
-    async fn absolute_file_path(&self, file: &torrent::File) -> PathBuf {
+    async fn absolute_file_path(&self, file: &fx_torrent::File) -> PathBuf {
         self.absolute_file_path(file).await
     }
 
-    async fn files(&self) -> Vec<torrent::File> {
+    async fn files(&self) -> Vec<fx_torrent::File> {
         self.files().await
     }
 
-    async fn file_by_name(&self, name: &str) -> Option<torrent::File> {
+    async fn file_by_name(&self, name: &str) -> Option<fx_torrent::File> {
         self.files()
             .await
             .into_iter()
             .find(|e| e.info.filename() == name)
     }
 
-    async fn largest_file(&self) -> Option<torrent::File> {
-        let mut result: Option<torrent::File> = None;
+    async fn largest_file(&self) -> Option<fx_torrent::File> {
+        let mut result: Option<fx_torrent::File> = None;
 
         for file in self.files().await {
             if let Some(current) = result.as_ref() {
@@ -193,11 +193,11 @@ pub struct TorrentInfo {
     /// The total number of files available in the torrent
     pub total_files: u32,
     /// The available files
-    pub files: Vec<torrent::File>,
+    pub files: Vec<fx_torrent::File>,
 }
 
 impl TorrentInfo {
-    pub fn by_filename(&self, filename: &str) -> Option<torrent::File> {
+    pub fn by_filename(&self, filename: &str) -> Option<fx_torrent::File> {
         trace!(
             "Searching for torrent file {} within {:?}",
             filename,
@@ -211,7 +211,7 @@ impl TorrentInfo {
             .cloned()
     }
 
-    pub fn largest_file(&self) -> Option<torrent::File> {
+    pub fn largest_file(&self) -> Option<fx_torrent::File> {
         let mut largest_file_index: Option<usize> = None;
         let mut largest_file_size = 0;
         let mut index: usize = 0;
@@ -228,7 +228,7 @@ impl TorrentInfo {
         largest_file_index.and_then(|e| self.files.get(e)).cloned()
     }
 
-    fn by_filename_without_directory(&self, filename: &str) -> Option<&torrent::File> {
+    fn by_filename_without_directory(&self, filename: &str) -> Option<&fx_torrent::File> {
         debug!(
             "Searching for torrent file {} without torrent directory",
             filename
@@ -246,7 +246,7 @@ impl TorrentInfo {
         })
     }
 
-    fn by_filename_with_directory(&self, filename: &str) -> Option<&torrent::File> {
+    fn by_filename_with_directory(&self, filename: &str) -> Option<&fx_torrent::File> {
         debug!(
             "Searching for torrent file {} with torrent directory {:?}",
             filename, self.directory_name
@@ -294,10 +294,10 @@ mod mock {
         #[async_trait]
         impl Torrent for Torrent {
             fn handle(&self) -> TorrentHandle;
-            async fn absolute_file_path(&self, file: &torrent::File) -> PathBuf;
-            async fn files(&self) -> Vec<torrent::File>;
-            async fn file_by_name(&self, name: &str) -> Option<torrent::File>;
-            async fn largest_file(&self) -> Option<torrent::File>;
+            async fn absolute_file_path(&self, file: &fx_torrent::File) -> PathBuf;
+            async fn files(&self) -> Vec<fx_torrent::File>;
+            async fn file_by_name(&self, name: &str) -> Option<fx_torrent::File>;
+            async fn largest_file(&self) -> Option<fx_torrent::File>;
             async fn has_bytes(&self, bytes: &Range<usize>) -> bool;
             async fn has_piece(&self, piece: usize) -> bool;
             async fn prioritize_bytes(&self, bytes: &Range<usize>);
@@ -326,7 +326,7 @@ mod mock {
 mod test {
     use super::*;
     use crate::init_logger;
-    use popcorn_fx_torrent::torrent::TorrentFileInfo;
+    use fx_torrent::TorrentFileInfo;
 
     #[test]
     fn test_torrent_info_by_filename_match_without_torrent_directory() {
@@ -396,8 +396,8 @@ mod test {
         assert_eq!(Some(largest_file), result);
     }
 
-    fn create_torrent_file(relative_path: &str, length: u64) -> torrent::File {
-        torrent::File {
+    fn create_torrent_file(relative_path: &str, length: u64) -> fx_torrent::File {
+        fx_torrent::File {
             index: 0,
             torrent_path: PathBuf::from(relative_path),
             torrent_offset: 0,

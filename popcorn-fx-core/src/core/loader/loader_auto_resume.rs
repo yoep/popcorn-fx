@@ -16,7 +16,7 @@ use crate::core::torrents::Torrent;
 #[derive(Display)]
 #[display(fmt = "Auto resume timestamp loading strategy")]
 pub struct AutoResumeLoadingStrategy {
-    auto_resume: Arc<Box<dyn AutoResumeService>>,
+    auto_resume: Arc<dyn AutoResumeService>,
 }
 
 impl AutoResumeLoadingStrategy {
@@ -29,7 +29,7 @@ impl AutoResumeLoadingStrategy {
     /// # Returns
     ///
     /// A new `AutoResumeLoadingStrategy` instance.
-    pub fn new(auto_resume: Arc<Box<dyn AutoResumeService>>) -> Self {
+    pub fn new(auto_resume: Arc<dyn AutoResumeService>) -> Self {
         Self { auto_resume }
     }
 
@@ -130,8 +130,8 @@ mod tests {
     use crate::core::torrents::MockTorrent;
     use crate::{create_loading_task, init_logger, recv_timeout};
 
-    use popcorn_fx_torrent::torrent;
-    use popcorn_fx_torrent::torrent::TorrentFileInfo;
+    use fx_torrent;
+    use fx_torrent::TorrentFileInfo;
     use std::path::PathBuf;
     use std::time::Duration;
     use tokio::sync::mpsc::unbounded_channel;
@@ -187,9 +187,7 @@ mod tests {
                 tx_filename.send(filename.map(|e| e.to_string())).unwrap();
                 Some(timestamp)
             });
-        let strategy = AutoResumeLoadingStrategy::new(Arc::new(
-            Box::new(auto_resume) as Box<dyn AutoResumeService>
-        ));
+        let strategy = AutoResumeLoadingStrategy::new(Arc::new(auto_resume));
 
         let result = strategy.process(&mut data, &*context).await;
 
@@ -258,9 +256,7 @@ mod tests {
                 tx_filename.send(filename.map(|e| e.to_string())).unwrap();
                 Some(timestamp)
             });
-        let strategy = AutoResumeLoadingStrategy::new(Arc::new(
-            Box::new(auto_resume) as Box<dyn AutoResumeService>
-        ));
+        let strategy = AutoResumeLoadingStrategy::new(Arc::new(auto_resume));
 
         let result = strategy.process(&mut data, &*context).await;
 
@@ -306,9 +302,7 @@ mod tests {
         };
         let mut data = LoadingData::from(item);
         let auto_resume = MockAutoResumeService::new();
-        let strategy = AutoResumeLoadingStrategy::new(Arc::new(
-            Box::new(auto_resume) as Box<dyn AutoResumeService>
-        ));
+        let strategy = AutoResumeLoadingStrategy::new(Arc::new(auto_resume));
 
         let _ = strategy
             .cancel(&mut data)
@@ -321,8 +315,8 @@ mod tests {
         );
     }
 
-    fn create_file(filename: &str) -> torrent::File {
-        torrent::File {
+    fn create_file(filename: &str) -> fx_torrent::File {
+        fx_torrent::File {
             index: 0,
             torrent_path: PathBuf::from(filename),
             torrent_offset: 0,

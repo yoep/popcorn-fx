@@ -10,10 +10,10 @@ use futures::task::AtomicWaker;
 use futures::Future;
 use futures::Stream;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_torrent;
+use fx_torrent::{FilePriority, Metrics, PieceIndex, PiecePriority};
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
-use popcorn_fx_torrent::torrent;
-use popcorn_fx_torrent::torrent::{FilePriority, Metrics, PieceIndex, PiecePriority};
 use std::cmp::{max, min};
 use std::collections::BTreeMap;
 use std::fmt::Debug;
@@ -84,7 +84,7 @@ impl Torrent for DefaultTorrentStream {
         self.handle
     }
 
-    async fn absolute_file_path(&self, file: &torrent::File) -> PathBuf {
+    async fn absolute_file_path(&self, file: &fx_torrent::File) -> PathBuf {
         if let Some(context) = self.instance() {
             return context.absolute_file_path(file).await;
         }
@@ -92,7 +92,7 @@ impl Torrent for DefaultTorrentStream {
         PathBuf::new()
     }
 
-    async fn files(&self) -> Vec<torrent::File> {
+    async fn files(&self) -> Vec<fx_torrent::File> {
         if let Some(context) = self.instance() {
             return context.files().await;
         }
@@ -100,7 +100,7 @@ impl Torrent for DefaultTorrentStream {
         Vec::with_capacity(0)
     }
 
-    async fn file_by_name(&self, name: &str) -> Option<torrent::File> {
+    async fn file_by_name(&self, name: &str) -> Option<fx_torrent::File> {
         if let Some(context) = self.instance() {
             return context.torrent.file_by_name(name).await;
         }
@@ -108,7 +108,7 @@ impl Torrent for DefaultTorrentStream {
         None
     }
 
-    async fn largest_file(&self) -> Option<torrent::File> {
+    async fn largest_file(&self) -> Option<fx_torrent::File> {
         if let Some(context) = self.instance() {
             return context.largest_file().await;
         }
@@ -535,19 +535,19 @@ impl Torrent for TorrentStreamContext {
         self.torrent.handle()
     }
 
-    async fn absolute_file_path(&self, file: &torrent::File) -> PathBuf {
+    async fn absolute_file_path(&self, file: &fx_torrent::File) -> PathBuf {
         self.torrent.absolute_file_path(file).await
     }
 
-    async fn files(&self) -> Vec<torrent::File> {
+    async fn files(&self) -> Vec<fx_torrent::File> {
         self.torrent.files().await
     }
 
-    async fn file_by_name(&self, name: &str) -> Option<torrent::File> {
+    async fn file_by_name(&self, name: &str) -> Option<fx_torrent::File> {
         self.torrent.file_by_name(name).await
     }
 
-    async fn largest_file(&self) -> Option<torrent::File> {
+    async fn largest_file(&self) -> Option<fx_torrent::File> {
         self.torrent.largest_file().await
     }
 
@@ -993,7 +993,7 @@ mod test {
     use crate::{assert_timeout, init_logger, recv_timeout};
 
     use futures::TryStreamExt;
-    use popcorn_fx_torrent::torrent::{PieceIndex, TorrentFileInfo};
+    use fx_torrent::{PieceIndex, TorrentFileInfo};
     use std::sync::mpsc::channel;
     use std::time::Duration;
     use tempfile::tempdir;
@@ -1263,7 +1263,7 @@ mod test {
             .expect_subscribe()
             .returning(move || subscribe_callbacks.subscribe());
         torrent.expect_files().returning(move || {
-            vec![torrent::File {
+            vec![fx_torrent::File {
                 index: 0,
                 torrent_path: Default::default(),
                 torrent_offset: 0,
@@ -1524,7 +1524,7 @@ mod test {
             create_torrent_file!($temp_path, $torrent_offset, 1024)
         }};
         ($temp_path:expr, $torrent_offset:expr, $file_len:expr) => {{
-            use popcorn_fx_torrent::torrent::File;
+            use fx_torrent::File;
 
             let torrent_path: PathBuf = $temp_path;
             let torrent_offset: usize = $torrent_offset;

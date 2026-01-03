@@ -1,9 +1,3 @@
-use std::env;
-use std::fmt::{Debug, Formatter};
-use std::path::PathBuf;
-use std::str::FromStr;
-use std::sync::{Arc, Once};
-
 use clap::Parser;
 use derive_more::Display;
 use directories::{BaseDirs, UserDirs};
@@ -57,6 +51,12 @@ use popcorn_fx_players::dlna::DlnaDiscovery;
 use popcorn_fx_players::vlc::VlcDiscovery;
 use popcorn_fx_players::Discovery;
 use popcorn_fx_trakt::trakt::TraktProvider;
+use std::env;
+use std::fmt::{Debug, Formatter};
+use std::path::PathBuf;
+use std::str::FromStr;
+use std::sync::{Arc, Once};
+use std::time::Duration;
 use thiserror::Error;
 
 static INIT: Once = Once::new();
@@ -257,9 +257,13 @@ impl PopcornFX {
             .await,
         );
         let torrent_manager = Arc::new(Box::new(
-            FxTorrentManager::new(settings.clone(), event_publisher.clone())
-                .await
-                .map_err(|e| Error::Initialization(e.to_string()))?,
+            FxTorrentManager::new(
+                Duration::from_hours(10 * 24),
+                settings.clone(),
+                event_publisher.clone(),
+            )
+            .await
+            .map_err(|e| Error::Initialization(e.to_string()))?,
         ) as Box<dyn TorrentManager>);
         let torrent_stream_server =
             Arc::new(Box::new(FXTorrentStreamServer::new()) as Box<dyn TorrentStreamServer>);

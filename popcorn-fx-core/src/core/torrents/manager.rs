@@ -4,7 +4,6 @@ use crate::core::storage::Storage;
 use crate::core::torrents::{Error, Result, Torrent, TorrentHandle, TorrentInfo};
 use crate::core::{event, torrents};
 use async_trait::async_trait;
-use chrono::{DateTime, Local};
 use derive_more::Display;
 use downcast_rs::{impl_downcast, DowncastSync};
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
@@ -13,7 +12,7 @@ use fx_torrent::{
     DhtOption, FileIndex, FilePriority, FxTorrentSession, Magnet, Session, TorrentEvent,
     TorrentFiles, TorrentFlags, TorrentHealth, TorrentState,
 };
-use log::{debug, error, info, trace, warn};
+use log::{debug, error, info, log_enabled, trace, warn, Level};
 #[cfg(any(test, feature = "testing"))]
 pub use mock::*;
 use std::collections::HashMap;
@@ -25,7 +24,6 @@ use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
 const CLEANUP_WATCH_THRESHOLD: f64 = 85f64;
-const CLEANUP_AFTER: fn() -> Duration = || Duration::from_secs(10 * 24 * 60 * 60);
 
 /// The events of the torrent manager.
 #[derive(Debug, Display, Clone)]
@@ -105,7 +103,11 @@ pub struct FxTorrentManager {
 }
 
 impl FxTorrentManager {
-    pub async fn new(settings: ApplicationConfig, event_publisher: EventPublisher) -> Result<Self> {
+    pub async fn new(
+        cleanup_after: Duration,
+        settings: ApplicationConfig,
+        event_publisher: EventPublisher,
+    ) -> Result<Self> {
         let session = FxTorrentSession::builder()
             .path(settings.user_settings().await.torrent_settings.directory())
             .client_name("PopcornFX")
@@ -123,6 +125,7 @@ impl FxTorrentManager {
             settings,
             session,
             torrent_files: Default::default(),
+            cleanup_after,
             callbacks: MultiThreadedCallback::new(),
             cancellation_token: Default::default(),
         });
@@ -198,6 +201,8 @@ struct InnerTorrentManager {
     session: Box<dyn Session>,
     /// The torrent files being downloaded,
     torrent_files: RwLock<HashMap<TorrentHandle, String>>,
+    /// The files older than this duration will be cleaned
+    cleanup_after: Duration,
     /// The callbacks of the torrent manager
     callbacks: MultiThreadedCallback<TorrentManagerEvent>,
     cancellation_token: CancellationToken,
@@ -412,7 +417,7 @@ impl InnerTorrentManager {
             .await;
         match settings.cleaning_mode {
             CleaningMode::OnShutdown => Self::clean_directory(&settings),
-            CleaningMode::Watched => Self::clean_directory_after(&settings),
+            CleaningMode::Watched => self.clean_directory_after(&settings),
             _ => {}
         }
     }
@@ -478,9 +483,11 @@ impl InnerTorrentManager {
         }
     }
 
-    fn clean_directory_after(settings: &TorrentSettings) {
-        let cleanup_after = CLEANUP_AFTER();
-        debug!("Cleaning torrents older than {}s", cleanup_after.as_secs());
+    fn clean_directory_after(&self, settings: &TorrentSettings) {
+        debug!(
+            "Cleaning torrents older than {}s",
+            self.cleanup_after.as_secs()
+        );
         for entry in settings
             .directory
             .read_dir()
@@ -489,15 +496,18 @@ impl InnerTorrentManager {
             match entry {
                 Ok(filepath) => match filepath.metadata().and_then(|m| m.modified()) {
                     Ok(last_modified) => {
-                        let last_modified = DateTime::from(last_modified);
-                        trace!(
-                            "Torrent path {} has last been modified at {}",
-                            filepath.path().display(),
-                            last_modified
-                        );
-                        if Local::now() - last_modified
-                            >= chrono::Duration::from_std(cleanup_after).unwrap()
-                        {
+                        let file_age = last_modified.elapsed().unwrap_or_default();
+                        if log_enabled!(Level::Trace) {
+                            trace!(
+                                "Torrent path {} is {}:{}:{} old",
+                                filepath.path().display(),
+                                file_age.as_secs() / 3600,
+                                (file_age.as_secs() % 3600) / 60,
+                                file_age.as_secs() % 60
+                            );
+                        }
+
+                        if file_age > self.cleanup_after {
                             match Storage::delete(filepath.path()) {
                                 Ok(_) => {
                                     debug!(
@@ -573,9 +583,10 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = default_config(temp_path, CleaningMode::Off);
-        let manager = FxTorrentManager::new(settings, EventPublisher::default())
-            .await
-            .unwrap();
+        let manager =
+            FxTorrentManager::new(Duration::from_hours(1), settings, EventPublisher::default())
+                .await
+                .unwrap();
 
         // copy some contents into the torrent working dir
         let filepath = copy_test_file(temp_path, "simple.txt", Some("torrents/debian.torrent"));
@@ -596,9 +607,10 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = default_config(temp_path, CleaningMode::Off);
-        let manager = FxTorrentManager::new(settings, EventPublisher::default())
-            .await
-            .unwrap();
+        let manager =
+            FxTorrentManager::new(Duration::from_hours(1), settings, EventPublisher::default())
+                .await
+                .unwrap();
 
         // copy some contents into the torrent working dir
         let filepath = copy_test_file(temp_path, "simple.txt", Some("torrents/debian.torrent"));
@@ -614,9 +626,13 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = default_config(temp_path, CleaningMode::OnShutdown);
-        let manager = FxTorrentManager::new(settings.clone(), EventPublisher::default())
-            .await
-            .unwrap();
+        let manager = FxTorrentManager::new(
+            Duration::from_hours(1),
+            settings.clone(),
+            EventPublisher::default(),
+        )
+        .await
+        .unwrap();
 
         // copy some contents into the torrent working dir
         let _filepath = copy_test_file(temp_path, "simple.txt", Some("torrents/debian.torrent"));
@@ -634,7 +650,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[cfg(not(target_os = "windows"))] // this is too finicky on Windows due to NTFS caching behavior
     async fn test_torrent_manager_drop_cleaning_mode_set_to_watched() {
         init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
@@ -645,9 +660,13 @@ mod tests {
             "simple.txt",
             Some("torrents/my-torrent/debian.torrent"),
         );
-        let manager = FxTorrentManager::new(settings.clone(), EventPublisher::default())
-            .await
-            .unwrap();
+        let manager = FxTorrentManager::new(
+            Duration::from_millis(1),
+            settings.clone(),
+            EventPublisher::default(),
+        )
+        .await
+        .unwrap();
         let modified = SystemTime::now() - (Duration::from_hours(24) * 10);
 
         // update the time info of the test file that will be cleaned

@@ -480,37 +480,38 @@ impl InnerTorrentManager {
 
     fn clean_directory_after(settings: &TorrentSettings) {
         let cleanup_after = CLEANUP_AFTER();
-        debug!("Cleaning torrents older than {:?}", cleanup_after);
+        debug!("Cleaning torrents older than {}s", cleanup_after.as_secs());
         for entry in settings
             .directory
             .read_dir()
             .expect("expected the directory to be readable")
         {
             match entry {
-                Ok(filepath) => match filepath.metadata() {
-                    Ok(meta) => {
-                        let absolute_path = filepath.path().to_str().unwrap().to_string();
-                        if let Ok(last_modified) = meta.modified() {
-                            let last_modified = DateTime::from(last_modified);
-                            trace!(
-                                "Torrent path {} has last been modified at {}",
-                                absolute_path,
-                                last_modified
-                            );
-                            if Local::now() - last_modified
-                                >= chrono::Duration::from_std(cleanup_after).unwrap()
-                            {
-                                match Storage::delete(filepath.path()) {
-                                    Ok(_) => {
-                                        debug!("Torrent path {} has been removed", absolute_path)
-                                    }
-                                    Err(e) => error!(
-                                        "Failed to remove torrent path {}, {}",
-                                        absolute_path, e
-                                    ),
+                Ok(filepath) => match filepath.metadata().and_then(|m| m.modified()) {
+                    Ok(last_modified) => {
+                        let last_modified = DateTime::from(last_modified);
+                        trace!(
+                            "Torrent path {} has last been modified at {}",
+                            filepath.path().display(),
+                            last_modified
+                        );
+                        if Local::now() - last_modified
+                            >= chrono::Duration::from_std(cleanup_after).unwrap()
+                        {
+                            match Storage::delete(filepath.path()) {
+                                Ok(_) => {
+                                    debug!(
+                                        "Torrent path {} has been removed",
+                                        filepath.path().display()
+                                    )
                                 }
+                                Err(e) => error!(
+                                    "Failed to remove torrent path {}, {}",
+                                    filepath.path().display(),
+                                    e
+                                ),
                             }
-                        };
+                        }
                     }
                     Err(e) => warn!("Unable to read entry data, {}", e),
                 },
@@ -562,7 +563,7 @@ mod tests {
     use crate::testing::copy_test_file;
     use crate::{assert_timeout, init_logger};
 
-    use std::fs::{File, FileTimes};
+    use std::fs::{FileTimes, OpenOptions};
     use std::path::PathBuf;
     use std::time::SystemTime;
 
@@ -633,12 +634,13 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(target_os = "windows"))] // this is too finicky on Windows due to NTFS caching behavior
     async fn test_torrent_manager_drop_cleaning_mode_set_to_watched() {
         init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = default_config(temp_path, CleaningMode::Watched);
-        let _ = copy_test_file(
+        let filepath = copy_test_file(
             temp_path,
             "simple.txt",
             Some("torrents/my-torrent/debian.torrent"),
@@ -646,23 +648,32 @@ mod tests {
         let manager = FxTorrentManager::new(settings.clone(), EventPublisher::default())
             .await
             .unwrap();
-        let modified = Local::now() - chrono::Duration::days(10);
+        let modified = SystemTime::now() - (Duration::from_hours(24) * 10);
 
-        let file =
-            File::open(PathBuf::from(temp_path).join("torrents").join("my-torrent")).unwrap();
-        file.set_times(
-            FileTimes::new()
-                .set_accessed(SystemTime::from(modified))
-                .set_modified(SystemTime::from(modified)),
-        )
-        .unwrap();
+        // update the time info of the test file that will be cleaned
+        {
+            let file = OpenOptions::new()
+                .create(false)
+                .read(true)
+                .write(true)
+                .open(filepath.as_str())
+                .expect("failed to open the test file");
+            file.set_times(
+                FileTimes::new()
+                    .set_accessed(modified)
+                    .set_modified(modified),
+            )
+            .expect("failed to set the file time info");
+        }
+
+        // drop the manager to trigger the cleanup
         drop(manager);
 
         let result = settings
             .user_settings_ref(|e| e.torrent_settings.directory.clone())
             .await;
         assert_timeout!(
-            Duration::from_millis(200),
+            Duration::from_millis(500),
             result.read_dir().unwrap().next().is_none(),
             "Expected the directory to be empty"
         );

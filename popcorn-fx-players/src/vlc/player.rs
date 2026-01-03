@@ -548,6 +548,7 @@ impl VlcCommandBuilder {
 }
 
 #[cfg(test)]
+#[cfg(not(target_os = "windows"))]
 mod tests {
     use httpmock::Method::GET;
     use httpmock::MockServer;

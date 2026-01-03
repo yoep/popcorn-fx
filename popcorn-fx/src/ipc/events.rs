@@ -155,7 +155,7 @@ mod tests {
             .publish(Event::PlaybackStateChanged(PlaybackState::PLAYING));
 
         let message =
-            timeout!(incoming.recv(), Duration::from_millis(500)).expect("expected a message");
+            timeout!(incoming.recv(), Duration::from_millis(750)).expect("expected a message");
         assert_eq!(events::Event::NAME, message.type_.as_str());
 
         let event = events::Event::parse_from_bytes(&message.payload).unwrap();

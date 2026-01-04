@@ -1,0 +1,105 @@
+[tool.bumpversion]
+current_version = "0.8.2"
+commit = true
+tag = true
+tag_name = "v{new_version}"
+
+[[tool.bumpversion.files]]
+filename = "popcorn-fx-core/src/lib.rs"
+search = 'pub const VERSION: &str = "{current_version}";'
+replace = 'pub const VERSION: &str = "{new_version}";'
+
+[[tool.bumpversion.files]]
+filename = "popcorn-fx/Cargo.toml"
+search = 'version = "{current_version}"'
+replace = 'version = "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "popcorn-fx-bootstrap/Cargo.toml"
+search = 'version = "{current_version}"'
+replace = 'version = "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "popcorn-fx-core/Cargo.toml"
+search = 'version = "{current_version}"'
+replace = 'version = "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "popcorn-fx-opensubtitles/Cargo.toml"
+search = 'version = "{current_version}"'
+replace = 'version = "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "popcorn-fx-platform/Cargo.toml"
+search = 'version = "{current_version}"'
+replace = 'version = "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "popcorn-fx-players/Cargo.toml"
+search = 'version = "{current_version}"'
+replace = 'version = "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "popcorn-fx-trakt/Cargo.toml"
+search = 'version = "{current_version}"'
+replace = 'version = "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "pom.xml"
+search = "<version>{current_version}</version>"
+replace = "<version>{new_version}</version>"
+
+[[tool.bumpversion.files]]
+filename = "application/pom.xml"
+search = "<version>{current_version}</version>"
+replace = "<version>{new_version}</version>"
+
+[[tool.bumpversion.files]]
+filename = "application-backend/pom.xml"
+search = "<version>{current_version}</version>"
+replace = "<version>{new_version}</version>"
+
+[[tool.bumpversion.files]]
+filename = "application-ui/pom.xml"
+search = "<version>{current_version}</version>"
+replace = "<version>{new_version}</version>"
+
+[[tool.bumpversion.files]]
+filename = "player-popcorn/pom.xml"
+search = "<version>{current_version}</version>"
+replace = "<version>{new_version}</version>"
+
+[[tool.bumpversion.files]]
+filename = "video-javafx/pom.xml"
+search = "<version>{current_version}</version>"
+replace = "<version>{new_version}</version>"
+
+[[tool.bumpversion.files]]
+filename = "video-vlc/pom.xml"
+search = "<version>{current_version}</version>"
+replace = "<version>{new_version}</version>"
+
+[[tool.bumpversion.files]]
+filename = "video-youtube/pom.xml"
+search = "<version>{current_version}</version>"
+replace = "<version>{new_version}</version>"
+
+[[tool.bumpversion.files]]
+filename = "assets/windows/installer.iss"
+search = "{current_version}"
+replace = "{new_version}"
+
+[[tool.bumpversion.files]]
+filename = "assets/debian/control"
+search = "Version: {current_version}"
+replace = "Version: {new_version}"
+
+[[tool.bumpversion.files]]
+filename = "Makefile"
+search = "VERSION = {current_version}"
+replace = "VERSION = {new_version}"
+
+[[tool.bumpversion.files]]
+filename = "versions.json"
+search = "{current_version}"
+replace = "{new_version}"

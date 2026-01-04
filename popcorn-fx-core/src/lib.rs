@@ -19,14 +19,14 @@ pub mod testing {
     use async_trait::async_trait;
     use fx_callback::{Callback, CallbackHandle, Subscriber, Subscription};
     use fx_handle::Handle;
+    use fx_torrent;
+    use fx_torrent::{File, Metrics, PieceIndex, PiecePriority};
     use log::{debug, trace, LevelFilter};
     use log4rs::append::console::ConsoleAppender;
     use log4rs::config::{Appender, Logger, Root};
     use log4rs::encode::pattern::PatternEncoder;
     use log4rs::Config;
     use mockall::mock;
-    use popcorn_fx_torrent::torrent;
-    use popcorn_fx_torrent::torrent::{File, Metrics, PieceIndex, PiecePriority};
     use std::collections::BTreeMap;
     use std::fmt::{Display, Formatter};
     use std::fs::OpenOptions;
@@ -63,6 +63,7 @@ pub mod testing {
                     .build())))
                 .logger(Logger::builder().build("async_io", LevelFilter::Info))
                 .logger(Logger::builder().build("fx_callback", LevelFilter::Info))
+                .logger(Logger::builder().build("fx_torrent", LevelFilter::Info))
                 .logger(Logger::builder().build("httpmock::server", LevelFilter::Debug))
                 .logger(Logger::builder().build("hyper", LevelFilter::Info))
                 .logger(Logger::builder().build("hyper_util", LevelFilter::Info))
@@ -71,7 +72,6 @@ pub mod testing {
                 .logger(Logger::builder().build("neli", LevelFilter::Info))
                 .logger(Logger::builder().build("polling", LevelFilter::Info))
                 .logger(Logger::builder().build("popcorn_fx_players", LevelFilter::Debug))
-                .logger(Logger::builder().build("popcorn_fx_torrent", LevelFilter::Info))
                 .logger(Logger::builder().build("reqwest", LevelFilter::Info))
                 .logger(Logger::builder().build("rustls", LevelFilter::Info))
                 .logger(Logger::builder().build("serde_xml_rs", LevelFilter::Info))
@@ -258,10 +258,10 @@ pub mod testing {
         #[async_trait]
         impl Torrent for InnerTorrentStream {
             fn handle(&self) -> TorrentHandle;
-            async fn absolute_file_path(&self, file: &torrent::File) -> PathBuf;
-            async fn files(&self) -> Vec<torrent::File>;
+            async fn absolute_file_path(&self, file: &fx_torrent::File) -> PathBuf;
+            async fn files(&self) -> Vec<fx_torrent::File>;
             async fn file_by_name(&self, name: &str) -> Option<File>;
-            async fn largest_file(&self) -> Option<torrent::File>;
+            async fn largest_file(&self) -> Option<fx_torrent::File>;
             async fn has_bytes(&self, bytes: &std::ops::Range<usize>) -> bool;
             async fn has_piece(&self, piece: usize) -> bool;
             async fn prioritize_bytes(&self, bytes: &std::ops::Range<usize>);

@@ -130,13 +130,24 @@ pub(crate) mod test {
     #[macro_export]
     macro_rules! timeout {
         ($future:expr, $duration:expr) => {{
+            timeout!(
+                $future,
+                $duration,
+                format!(
+                    "operation timed-out after {}.{:03}s",
+                    ($duration).as_secs(),
+                    ($duration).subsec_millis()
+                )
+            )
+        }};
+        ($future:expr, $duration:expr, $message:expr) => {{
             use tokio::time::timeout;
             let future = $future;
             let duration = $duration;
+            let message = $message;
+            let __message: &str = ::core::convert::AsRef::<str>::as_ref(&message);
 
-            timeout(duration, future)
-                .await
-                .expect("operation timed-out")
+            timeout(duration, future).await.expect(__message)
         }};
     }
 }

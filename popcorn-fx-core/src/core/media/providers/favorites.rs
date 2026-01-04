@@ -20,8 +20,8 @@ const SORT_RATING_KEY: &str = "rating";
 /// The `FavoritesProvider` for liked media items.
 #[derive(Debug)]
 pub struct FavoritesProvider {
-    favorites: Arc<Box<dyn FavoriteService>>,
-    watched_service: Arc<Box<dyn WatchedService>>,
+    favorites: Arc<dyn FavoriteService>,
+    watched_service: Arc<dyn WatchedService>,
 }
 
 impl FavoritesProvider {
@@ -44,8 +44,8 @@ impl FavoritesProvider {
     /// The `favorites` and `watched_service` parameters are of type `Arc<Box<dyn FavoriteService>>` and `Arc<Box<dyn WatchedService>>`, respectively.
     /// Ensure that you clone these services if they are used in other parts of your application.
     pub fn new(
-        favorites: Arc<Box<dyn FavoriteService>>,
-        watched_service: Arc<Box<dyn WatchedService>>,
+        favorites: Arc<dyn FavoriteService>,
+        watched_service: Arc<dyn WatchedService>,
     ) -> Self {
         Self {
             favorites,
@@ -237,10 +237,7 @@ mod test {
                     String::new(),
                 ))])
             });
-        let provider = FavoritesProvider::new(
-            Arc::new(Box::new(favorites)),
-            Arc::new(Box::new(watched_service)),
-        );
+        let provider = FavoritesProvider::new(Arc::new(favorites), Arc::new(watched_service));
 
         let result = provider
             .retrieve(&genre, &sort_by, &keywords, 1)
@@ -262,10 +259,7 @@ mod test {
         let favorites = FXFavoriteService::new(temp_path);
         let mut watched_service = MockWatchedService::new();
         watched_service.expect_is_watched().return_const(false);
-        let provider = FavoritesProvider::new(
-            Arc::new(Box::new(favorites)),
-            Arc::new(Box::new(watched_service)),
-        );
+        let provider = FavoritesProvider::new(Arc::new(favorites), Arc::new(watched_service));
 
         let result = provider
             .retrieve(&genre, &sort_by, &keywords, 1)
@@ -356,11 +350,11 @@ mod test {
         let resource_path = temp_dir.path().to_str().unwrap();
         let favorites = MockFavoriteService::new();
         let service = FavoritesProvider::new(
-            Arc::new(Box::new(favorites)),
-            Arc::new(Box::new(DefaultWatchedService::new(
+            Arc::new(favorites),
+            Arc::new(DefaultWatchedService::new(
                 resource_path,
                 EventPublisher::default(),
-            ))),
+            )),
         );
         let sort_by = SortBy::new(SORT_TITLE_KEY.to_string(), String::new());
         let movie = EnhancedFavoriteItem {
@@ -414,8 +408,7 @@ mod test {
         watched
             .expect_is_watched()
             .returning(move |id: &str| -> bool { id == watched_id });
-        let service =
-            FavoritesProvider::new(Arc::new(Box::new(favorites)), Arc::new(Box::new(watched)));
+        let service = FavoritesProvider::new(Arc::new(favorites), Arc::new(watched));
         let sort_by = SortBy::new("watched".to_string(), String::new());
 
         let result = service.sort_by(&sort_by, &movie_watched, &movie_unwatched);

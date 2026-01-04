@@ -1,13 +1,11 @@
-use std::sync::Arc;
-
-use chrono::{Duration, Local};
-use itertools::Itertools;
-use log::{debug, info, trace, warn};
-
 use crate::core::media::favorites::model::Favorites;
 use crate::core::media::favorites::FavoriteService;
 use crate::core::media::providers::ProviderManager;
 use crate::core::media::{MediaIdentifier, MediaType, MovieDetails, ShowDetails};
+use chrono::{Duration, Local};
+use itertools::Itertools;
+use log::{debug, info, trace, warn};
+use std::sync::Arc;
 
 const UPDATE_CACHE_INTERVAL: fn() -> Duration = || Duration::hours(72);
 
@@ -31,11 +29,11 @@ impl FavoriteCacheUpdater {
     /// * `favorite_service` - The favorite service implementing the `FavoriteService` trait.
     /// * `provider_manager` - The provider manager used to retrieve the latest information.
     pub fn new(
-        favorite_service: Arc<Box<dyn FavoriteService>>,
+        favorite_service: Arc<dyn FavoriteService>,
         provider_manager: Arc<ProviderManager>,
     ) -> Self {
         let inner = Arc::new(InnerCacheUpdater {
-            service: favorite_service.clone(),
+            service: favorite_service,
             providers: provider_manager,
         });
 
@@ -51,7 +49,7 @@ impl FavoriteCacheUpdater {
 /// Builder for creating a `FavoriteCacheUpdater` instance.
 #[derive(Debug, Default)]
 pub struct FavoriteCacheUpdaterBuilder {
-    favorite_service: Option<Arc<Box<dyn FavoriteService>>>,
+    favorite_service: Option<Arc<dyn FavoriteService>>,
     provider_manager: Option<Arc<ProviderManager>>,
 }
 
@@ -65,7 +63,7 @@ impl FavoriteCacheUpdaterBuilder {
     /// # Returns
     ///
     /// The updated `FavoriteCacheUpdaterBuilder` instance.
-    pub fn favorite_service(mut self, favorite_service: Arc<Box<dyn FavoriteService>>) -> Self {
+    pub fn favorite_service(mut self, favorite_service: Arc<dyn FavoriteService>) -> Self {
         self.favorite_service = Some(favorite_service);
         self
     }
@@ -119,7 +117,7 @@ impl FavoriteCacheUpdaterBuilder {
 #[derive(Debug)]
 struct InnerCacheUpdater {
     /// The favorite service containing the cache
-    service: Arc<Box<dyn FavoriteService>>,
+    service: Arc<dyn FavoriteService>,
     /// The provider manager which can provide the new media details
     providers: Arc<ProviderManager>,
 }
@@ -234,8 +232,7 @@ mod test {
         });
         let provider_manager = ProviderManager::builder().build();
 
-        let _updater =
-            FavoriteCacheUpdater::new(Arc::new(Box::new(favorites)), Arc::new(provider_manager));
+        let _updater = FavoriteCacheUpdater::new(Arc::new(favorites), Arc::new(provider_manager));
 
         let _ = recv_timeout!(
             &mut rx,
@@ -289,7 +286,7 @@ mod test {
             .expect_update()
             .returning(move |items: Vec<Box<dyn MediaIdentifier>>| tx.send(items).unwrap());
         let _updater = FavoriteCacheUpdater::builder()
-            .favorite_service(Arc::new(Box::new(favorites)))
+            .favorite_service(Arc::new(favorites))
             .provider_manager(Arc::new(
                 ProviderManager::builder()
                     .with_details_provider(Box::new(movie_provider))

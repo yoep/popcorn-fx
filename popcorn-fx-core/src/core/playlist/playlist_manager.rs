@@ -59,7 +59,7 @@ impl PlaylistManager {
     pub fn new(
         player_manager: Arc<Box<dyn PlayerManager>>,
         event_publisher: EventPublisher,
-        loader: Arc<Box<dyn MediaLoader>>,
+        loader: Arc<dyn MediaLoader>,
     ) -> Self {
         let manager = Self {
             inner: Arc::new(InnerPlaylistManager::new(
@@ -161,7 +161,7 @@ struct InnerPlaylistManager {
     player_manager: Arc<Box<dyn PlayerManager>>,
     player_duration: Mutex<u64>,
     player_playing_in: Mutex<Option<(Option<u64>, PlaylistItem)>>,
-    loader: Arc<Box<dyn MediaLoader>>,
+    loader: Arc<dyn MediaLoader>,
     loading_handle: Arc<Mutex<Option<LoadingHandle>>>,
     state: Arc<Mutex<PlaylistState>>,
     callbacks: MultiThreadedCallback<PlaylistManagerEvent>,
@@ -173,7 +173,7 @@ impl InnerPlaylistManager {
     fn new(
         player_manager: Arc<Box<dyn PlayerManager>>,
         event_publisher: EventPublisher,
-        loader: Arc<Box<dyn MediaLoader>>,
+        loader: Arc<dyn MediaLoader>,
     ) -> Self {
         let instance = Self {
             playlist: Default::default(),
@@ -472,7 +472,7 @@ mod test {
         let manager = PlaylistManager::new(
             player_manager.clone(),
             event_publisher.clone(),
-            Arc::new(Box::new(loader)),
+            Arc::new(loader),
         );
 
         playlist.add(playlist_item.clone());
@@ -525,7 +525,7 @@ mod test {
         let manager = PlaylistManager::new(
             player_manager.clone(),
             event_publisher.clone(),
-            Arc::new(Box::new(loader)),
+            Arc::new(loader),
         );
 
         playlist.add(PlaylistItem {
@@ -588,7 +588,7 @@ mod test {
         let manager = PlaylistManager::new(
             player_manager.clone(),
             event_publisher.clone(),
-            Arc::new(Box::new(loader)),
+            Arc::new(loader),
         );
 
         playlist.add(PlaylistItem {
@@ -668,7 +668,7 @@ mod test {
         let manager = PlaylistManager::new(
             player_manager.clone(),
             event_publisher.clone(),
-            Arc::new(Box::new(loader)),
+            Arc::new(loader),
         );
 
         playlist.add(PlaylistItem {
@@ -742,7 +742,7 @@ mod test {
         let manager = PlaylistManager::new(
             player_manager.clone(),
             event_publisher.clone(),
-            Arc::new(Box::new(loader)),
+            Arc::new(loader),
         );
 
         playlist.add(PlaylistItem {
@@ -841,7 +841,7 @@ mod test {
         let manager = PlaylistManager::new(
             player_manager.clone(),
             event_publisher.clone(),
-            Arc::new(Box::new(loader)),
+            Arc::new(loader),
         );
 
         let mut playlist = Playlist::default();
@@ -920,7 +920,7 @@ mod test {
         let manager = PlaylistManager::new(
             Arc::new(Box::new(player_manager)),
             event_publisher.clone(),
-            Arc::new(Box::new(loader)),
+            Arc::new(loader),
         );
 
         playlist.add(PlaylistItem {
@@ -999,7 +999,7 @@ mod test {
         let manager = PlaylistManager::new(
             player_manager.clone(),
             event_publisher.clone(),
-            Arc::new(Box::new(loader)),
+            Arc::new(loader),
         );
 
         playlist.add(PlaylistItem {

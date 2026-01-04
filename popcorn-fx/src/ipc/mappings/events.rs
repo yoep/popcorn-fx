@@ -88,9 +88,9 @@ mod tests {
 
     use crate::ipc::proto::torrent::torrent;
 
+    use fx_torrent::{TorrentFileInfo, TorrentHandle};
     use popcorn_fx_core::core::event::{PlayerStartedEvent, PlayerStoppedEvent};
     use popcorn_fx_core::core::torrents::TorrentInfo;
-    use popcorn_fx_torrent::torrent::{TorrentFileInfo, TorrentHandle};
 
     #[test]
     fn test_event_from_player_started() {
@@ -145,7 +145,7 @@ mod tests {
             name: "FooBar".to_string(),
             directory_name: Some("torDir".to_string()),
             total_files: 13,
-            files: vec![popcorn_fx_torrent::torrent::File {
+            files: vec![fx_torrent::File {
                 index: 1,
                 torrent_path: PathBuf::from("torDir/my-file.mp4"),
                 torrent_offset: 1000,

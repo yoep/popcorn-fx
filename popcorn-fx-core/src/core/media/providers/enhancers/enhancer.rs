@@ -1,6 +1,6 @@
-use std::fmt::{Debug, Display};
 #[cfg(any(test, feature = "testing"))]
 use std::fmt::Formatter;
+use std::fmt::{Debug, Display};
 
 use async_trait::async_trait;
 #[cfg(any(test, feature = "testing"))]

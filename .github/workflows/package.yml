@@ -7,11 +7,13 @@ on:
     tags: [ '*' ]
 
 jobs:
-  package-linux:
+  package_linux:
+    name: Package (Linux)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v5
       - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
@@ -20,6 +22,7 @@ jobs:
           cache: 'maven'
       - uses: Swatinem/rust-cache@v2
         with:
+          shared-key: "main-linux"
           cache-on-failure: "true"
       - name: Prepare packaging
         run: make prerequisites
@@ -34,11 +37,14 @@ jobs:
           path: |
             target/popcorn-time_*.deb
             target/patch_*.tar.gz
-  package-windows:
-    runs-on: windows-latest
+
+  package_macos:
+    name: Package (MacOS)
+    runs-on: macos-latest
+    timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v5
       - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
@@ -47,6 +53,36 @@ jobs:
           cache: 'maven'
       - uses: Swatinem/rust-cache@v2
         with:
+          shared-key: "main-macos"
+          cache-on-failure: "true"
+      - name: Prepare packaging
+        run: make prerequisites
+      - name: Package
+        run: make package
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-package
+          path: |
+            target/popcorn-time_*.dmg
+            target/patch_*.tar.gz
+  
+  package_windows:
+    name: Package (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'adopt'
+          java-version: 21
+          cache: 'maven'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "main-windows"
           cache-on-failure: "true"
       - name: Prepare libraries
         run: cd ./assets/windows && ./prepare-libs.bat
@@ -60,29 +96,4 @@ jobs:
           name: windows-package
           path: |
             target/popcorn-time_*.exe
-            target/patch_*.tar.gz
-  package-macos:
-    runs-on: macos-latest
-
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set up JDK 21
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'adopt'
-          java-version: 21
-          cache: 'maven'
-      - uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: "true"
-      - name: Prepare packaging
-        run: make prerequisites
-      - name: Package
-        run: make package
-      - name: Archive artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-package
-          path: |
-            target/popcorn-time_*.dmg
             target/patch_*.tar.gz

@@ -1,9 +1,3 @@
-use std::env;
-use std::fmt::{Debug, Formatter};
-use std::path::PathBuf;
-use std::str::FromStr;
-use std::sync::{Arc, Once};
-
 use clap::Parser;
 use derive_more::Display;
 use directories::{BaseDirs, UserDirs};
@@ -57,6 +51,12 @@ use popcorn_fx_players::dlna::DlnaDiscovery;
 use popcorn_fx_players::vlc::VlcDiscovery;
 use popcorn_fx_players::Discovery;
 use popcorn_fx_trakt::trakt::TraktProvider;
+use std::env;
+use std::fmt::{Debug, Formatter};
+use std::path::PathBuf;
+use std::str::FromStr;
+use std::sync::{Arc, Once};
+use std::time::Duration;
 use thiserror::Error;
 
 static INIT: Once = Once::new();
@@ -173,13 +173,13 @@ pub enum Error {
 /// ```
 #[repr(C)]
 pub struct PopcornFX {
-    auto_resume_service: Arc<Box<dyn AutoResumeService>>,
+    auto_resume_service: Arc<dyn AutoResumeService>,
     cache_manager: CacheManager,
     event_publisher: EventPublisher,
     favorite_cache_updater: Arc<FavoriteCacheUpdater>,
-    favorites_service: Arc<Box<dyn FavoriteService>>,
-    image_loader: Arc<Box<dyn ImageLoader>>,
-    media_loader: Arc<Box<dyn MediaLoader>>,
+    favorites_service: Arc<dyn FavoriteService>,
+    image_loader: Arc<dyn ImageLoader>,
+    media_loader: Arc<dyn MediaLoader>,
     platform: Arc<Box<dyn PlatformData>>,
     playback_controls: PlaybackControls,
     player_discovery_services: Vec<Arc<Box<dyn Discovery>>>,
@@ -194,10 +194,10 @@ pub struct PopcornFX {
     torrent_collection: TorrentCollection,
     torrent_manager: Arc<Box<dyn TorrentManager>>,
     torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
-    tracking_provider: Arc<Box<dyn TrackingProvider>>,
+    tracking_provider: Arc<dyn TrackingProvider>,
     tracking_sync: Arc<SyncMediaTracking>,
     updater: Arc<Updater>,
-    watched_service: Arc<Box<dyn WatchedService>>,
+    watched_service: Arc<dyn WatchedService>,
     /// The options that were used to create this instance
     opts: PopcornFxArgs,
 }
@@ -240,13 +240,12 @@ impl PopcornFX {
             DefaultSubtitleManager::new(settings.clone()).await,
         ) as Box<dyn SubtitleManager>);
         let platform = Arc::new(Box::new(DefaultPlatform::default()) as Box<dyn PlatformData>);
-        let favorites_service = Arc::new(
-            Box::new(FXFavoriteService::new(app_directory_path)) as Box<dyn FavoriteService>
-        );
-        let watched_service = Arc::new(Box::new(DefaultWatchedService::new(
+        let favorites_service =
+            Arc::new(FXFavoriteService::new(app_directory_path)) as Arc<dyn FavoriteService>;
+        let watched_service = Arc::new(DefaultWatchedService::new(
             app_directory_path,
             event_publisher.clone(),
-        )) as Box<dyn WatchedService>);
+        )) as Arc<dyn WatchedService>;
         let providers = Arc::new(
             Self::default_providers(
                 &settings,
@@ -258,19 +257,23 @@ impl PopcornFX {
             .await,
         );
         let torrent_manager = Arc::new(Box::new(
-            FxTorrentManager::new(settings.clone(), event_publisher.clone())
-                .await
-                .map_err(|e| Error::Initialization(e.to_string()))?,
+            FxTorrentManager::new(
+                Duration::from_hours(10 * 24),
+                settings.clone(),
+                event_publisher.clone(),
+            )
+            .await
+            .map_err(|e| Error::Initialization(e.to_string()))?,
         ) as Box<dyn TorrentManager>);
         let torrent_stream_server =
             Arc::new(Box::new(FXTorrentStreamServer::new()) as Box<dyn TorrentStreamServer>);
         let torrent_collection = TorrentCollection::new(app_directory_path);
-        let auto_resume_service = Arc::new(Box::new(
+        let auto_resume_service = Arc::new(
             DefaultAutoResumeService::builder()
                 .storage_directory(app_directory_path)
                 .event_publisher(event_publisher.clone())
                 .build(),
-        ) as Box<dyn AutoResumeService>);
+        ) as Arc<dyn AutoResumeService>;
         let favorite_cache_updater = Arc::new(
             FavoriteCacheUpdater::builder()
                 .favorite_service(favorites_service.clone())
@@ -289,9 +292,8 @@ impl PopcornFX {
             .platform(platform.clone())
             .event_publisher(event_publisher.clone())
             .build();
-        let image_loader = Arc::new(
-            Box::new(DefaultImageLoader::new(cache_manager.clone())) as Box<dyn ImageLoader>
-        );
+        let image_loader =
+            Arc::new(DefaultImageLoader::new(cache_manager.clone())) as Arc<dyn ImageLoader>;
         let screen_service =
             Arc::new(Box::new(DefaultScreenService::new()) as Box<dyn ScreenService>);
         let player_manager = Arc::new(Box::new(DefaultPlayerManager::new(
@@ -322,16 +324,14 @@ impl PopcornFX {
             )),
             Box::new(PlayerLoadingStrategy::new(player_manager.clone())),
         ];
-        let media_loader =
-            Arc::new(Box::new(DefaultMediaLoader::new(loading_chain)) as Box<dyn MediaLoader>);
+        let media_loader = Arc::new(DefaultMediaLoader::new(loading_chain)) as Arc<dyn MediaLoader>;
         let playlist_manager = PlaylistManager::new(
             player_manager.clone(),
             event_publisher.clone(),
             media_loader.clone(),
         );
         let tracking_provider =
-            Arc::new(Box::new(TraktProvider::new(settings.clone()).unwrap())
-                as Box<dyn TrackingProvider>);
+            Arc::new(TraktProvider::new(settings.clone()).unwrap()) as Arc<dyn TrackingProvider>;
         let tracking_sync = Arc::new(
             SyncMediaTracking::builder()
                 .config(settings.clone())
@@ -432,12 +432,12 @@ impl PopcornFX {
     }
 
     /// The favorite service of [PopcornFX] which handles all liked items and actions.
-    pub fn favorite_service(&self) -> &Arc<Box<dyn FavoriteService>> {
+    pub fn favorite_service(&self) -> &Arc<dyn FavoriteService> {
         &self.favorites_service
     }
 
     /// The watched service of [PopcornFX] which handles all watched items and actions.
-    pub fn watched_service(&self) -> &Arc<Box<dyn WatchedService>> {
+    pub fn watched_service(&self) -> &Arc<dyn WatchedService> {
         &self.watched_service
     }
 
@@ -457,7 +457,7 @@ impl PopcornFX {
     }
 
     /// The auto-resume service which handles the resume timestamps of videos.
-    pub fn auto_resume_service(&mut self) -> &Arc<Box<dyn AutoResumeService>> {
+    pub fn auto_resume_service(&mut self) -> &Arc<dyn AutoResumeService> {
         &self.auto_resume_service
     }
 
@@ -472,7 +472,7 @@ impl PopcornFX {
     }
 
     /// The image loader of the Popcorn FX application.
-    pub fn image_loader(&self) -> &Arc<Box<dyn ImageLoader>> {
+    pub fn image_loader(&self) -> &Arc<dyn ImageLoader> {
         &self.image_loader
     }
 
@@ -498,7 +498,7 @@ impl PopcornFX {
     }
 
     /// Retrieve the media loader of the FX instance.
-    pub fn media_loader(&self) -> &Arc<Box<dyn MediaLoader>> {
+    pub fn media_loader(&self) -> &Arc<dyn MediaLoader> {
         &self.media_loader
     }
 
@@ -508,7 +508,7 @@ impl PopcornFX {
     }
 
     /// Retrieve the tracking provider of the FX instance.
-    pub fn tracking_provider(&self) -> &Arc<Box<dyn TrackingProvider>> {
+    pub fn tracking_provider(&self) -> &Arc<dyn TrackingProvider> {
         &self.tracking_provider
     }
 
@@ -632,8 +632,8 @@ impl PopcornFX {
         settings: &ApplicationConfig,
         args: &PopcornFxArgs,
         cache_manager: &CacheManager,
-        favorites: &Arc<Box<dyn FavoriteService>>,
-        watched: &Arc<Box<dyn WatchedService>>,
+        favorites: &Arc<dyn FavoriteService>,
+        watched: &Arc<dyn WatchedService>,
     ) -> ProviderManager {
         let movie_provider =
             Box::new(MovieProvider::new(settings, cache_manager.clone(), args.insecure).await);
@@ -749,7 +749,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_popcorn_fx_torrent_collection() {
+    async fn test_fx_torrent_collection() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();

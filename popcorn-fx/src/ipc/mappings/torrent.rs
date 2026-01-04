@@ -1,11 +1,9 @@
 use crate::ipc::proto;
 use crate::ipc::proto::message;
 use crate::ipc::proto::torrent::{torrent, torrent_event};
+use fx_torrent::{Metrics, TorrentEvent, TorrentHealth, TorrentHealthState, TorrentState};
 use popcorn_fx_core::core::torrents::collection::MagnetInfo;
 use popcorn_fx_core::core::torrents::{Error, TorrentInfo, TorrentStreamState};
-use popcorn_fx_torrent::torrent::{
-    Metrics, TorrentEvent, TorrentHealth, TorrentHealthState, TorrentState,
-};
 use protobuf::MessageField;
 
 impl From<&TorrentHealth> for torrent::Health {
@@ -82,8 +80,8 @@ impl From<&TorrentInfo> for torrent::Info {
     }
 }
 
-impl From<&popcorn_fx_torrent::torrent::File> for torrent::info::File {
-    fn from(value: &popcorn_fx_torrent::torrent::File) -> Self {
+impl From<&fx_torrent::File> for torrent::info::File {
+    fn from(value: &fx_torrent::File) -> Self {
         Self {
             index: value.index as u32,
             filename: value.filename(),
@@ -213,9 +211,9 @@ impl From<&Error> for torrent::Error {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use fx_torrent::metrics::Metric;
+    use fx_torrent::TorrentMetadata;
     use popcorn_fx_core::testing::read_test_file_to_bytes;
-    use popcorn_fx_torrent::torrent::metrics::Metric;
-    use popcorn_fx_torrent::torrent::TorrentMetadata;
     use std::time::Duration;
 
     #[test]

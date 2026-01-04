@@ -26,14 +26,16 @@ impl WatchedMessageHandler {
             while let Some(event) = receiver.recv().await {
                 let mut proto_event = watched::WatchedEvent::new();
 
-                if let WatchedEvent::WatchedStateChanged(imdb_id, state) = &*event {
-                    proto_event.event = watched::watched_event::Event::STATE_CHANGED.into();
-                    proto_event.watched_state_changed =
-                        MessageField::some(watched::watched_event::WatchedStateChanged {
-                            imdb_id: imdb_id.clone(),
-                            new_state: *state,
-                            special_fields: Default::default(),
-                        });
+                match &*event {
+                    WatchedEvent::WatchedStateChanged(imdb_id, state) => {
+                        proto_event.event = watched::watched_event::Event::STATE_CHANGED.into();
+                        proto_event.watched_state_changed =
+                            MessageField::some(watched::watched_event::WatchedStateChanged {
+                                imdb_id: imdb_id.clone(),
+                                new_state: *state,
+                                special_fields: Default::default(),
+                            });
+                    }
                 }
 
                 if let Err(e) = channel.send(proto_event, watched::WatchedEvent::NAME).await {

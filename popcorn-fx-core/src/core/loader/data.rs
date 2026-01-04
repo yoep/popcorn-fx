@@ -1,11 +1,11 @@
 use crate::core::media::MediaIdentifier;
 use crate::core::playlist::PlaylistItem;
 use crate::core::subtitles::model::{Subtitle, SubtitleInfo};
-use crate::core::torrents::{Torrent, TorrentEvent, TorrentHandle, TorrentState, TorrentStream};
+use crate::core::torrents::{Torrent, TorrentHandle, TorrentStream};
 use async_trait::async_trait;
 use fx_callback::{Callback, Subscriber, Subscription};
-use popcorn_fx_torrent::torrent;
-use popcorn_fx_torrent::torrent::{Metrics, PieceIndex, PiecePriority};
+use fx_torrent;
+use fx_torrent::{Metrics, PieceIndex, PiecePriority, TorrentEvent, TorrentState};
 use std::collections::BTreeMap;
 use std::ops::Range;
 use std::path::PathBuf;
@@ -131,28 +131,28 @@ impl Torrent for TorrentData {
         }
     }
 
-    async fn absolute_file_path(&self, file: &torrent::File) -> PathBuf {
+    async fn absolute_file_path(&self, file: &fx_torrent::File) -> PathBuf {
         match self {
             TorrentData::Torrent(e) => e.absolute_file_path(file).await,
             TorrentData::Stream(e) => e.absolute_file_path(file).await,
         }
     }
 
-    async fn files(&self) -> Vec<torrent::File> {
+    async fn files(&self) -> Vec<fx_torrent::File> {
         match self {
             TorrentData::Torrent(e) => e.files().await,
             TorrentData::Stream(e) => e.files().await,
         }
     }
 
-    async fn file_by_name(&self, name: &str) -> Option<torrent::File> {
+    async fn file_by_name(&self, name: &str) -> Option<fx_torrent::File> {
         match self {
             TorrentData::Torrent(e) => e.file_by_name(name).await,
             TorrentData::Stream(e) => e.file_by_name(name).await,
         }
     }
 
-    async fn largest_file(&self) -> Option<torrent::File> {
+    async fn largest_file(&self) -> Option<fx_torrent::File> {
         match self {
             TorrentData::Torrent(e) => e.largest_file().await,
             TorrentData::Stream(e) => e.largest_file().await,

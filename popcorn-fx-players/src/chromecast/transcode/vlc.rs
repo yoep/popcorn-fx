@@ -532,44 +532,49 @@ mod tests {
     use popcorn_fx_core::testing::write_tmp_dir_file;
     use tempfile::tempdir;
 
-    #[tokio::test]
-    async fn test_vlc_transcoder_state() {
-        init_logger!();
-        let transcoder = VlcTranscoderDiscovery::discover().unwrap();
+    #[cfg(not(target_os = "windows"))]
+    mod vlc_transcoder {
+        use super::*;
 
-        let result = transcoder.state().await;
+        #[tokio::test]
+        async fn test_vlc_transcoder_discovery() {
+            init_logger!();
 
-        assert_eq!(TranscodeState::Unknown, result);
-    }
+            let result = VlcTranscoderDiscovery::discover();
 
-    #[tokio::test]
-    async fn test_vlc_transcoder_discovery() {
-        init_logger!();
+            assert!(
+                result.is_some(),
+                "expected a VLC transcoder to have been found"
+            );
+        }
 
-        let result = VlcTranscoderDiscovery::discover();
+        #[tokio::test]
+        async fn test_vlc_transcoder_state() {
+            init_logger!();
+            let transcoder = VlcTranscoderDiscovery::discover().unwrap();
 
-        assert!(
-            result.is_some(),
-            "expected a VLC transcoder to have been found"
-        );
-    }
+            let result = transcoder.state().await;
 
-    #[tokio::test]
-    async fn test_vlc_transcoder_transcode() {
-        init_logger!();
-        let transcoder = VlcTranscoderDiscovery::discover().unwrap();
+            assert_eq!(TranscodeState::Unknown, result);
+        }
 
-        let result = transcoder
-            .transcode("http://localhost:8900/my-video.mp4")
-            .await
-            .unwrap();
+        #[tokio::test]
+        async fn test_vlc_transcoder_transcode() {
+            init_logger!();
+            let transcoder = VlcTranscoderDiscovery::discover().unwrap();
 
-        assert_ne!(String::new(), result.url);
-        assert_eq!(TranscodeType::Live, result.output_type);
-        assert_eq!(TranscodeState::Transcoding, transcoder.state().await);
+            let result = transcoder
+                .transcode("http://localhost:8900/my-video.mp4")
+                .await
+                .unwrap();
 
-        transcoder.stop().await;
-        assert_eq!(TranscodeState::Stopped, transcoder.state().await);
+            assert_ne!(String::new(), result.url);
+            assert_eq!(TranscodeType::Live, result.output_type);
+            assert_eq!(TranscodeState::Transcoding, transcoder.state().await);
+
+            transcoder.stop().await;
+            assert_eq!(TranscodeState::Stopped, transcoder.state().await);
+        }
     }
 
     #[test]

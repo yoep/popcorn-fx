@@ -6,7 +6,7 @@ use downcast_rs::{impl_downcast, DowncastSync};
 use futures::Stream;
 use fx_callback::Callback;
 use fx_handle::Handle;
-use popcorn_fx_torrent::torrent::Metrics;
+use fx_torrent::Metrics;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use url::Url;

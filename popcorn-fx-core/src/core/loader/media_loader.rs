@@ -10,10 +10,10 @@ use async_trait::async_trait;
 use derive_more::Display;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use fx_handle::Handle;
+use fx_torrent::Metrics;
 use log::{debug, trace};
 #[cfg(any(test, feature = "testing"))]
 pub use mock::*;
-use popcorn_fx_torrent::torrent::Metrics;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;

@@ -6,7 +6,7 @@ use regex::Regex;
 
 use crate::core::subtitles::cue::SubtitleCue;
 use crate::core::subtitles::error::SubtitleParseError;
-use crate::core::subtitles::parsers::{NEWLINE, Parser, StyleParser};
+use crate::core::subtitles::parsers::{Parser, StyleParser, NEWLINE};
 use crate::core::utils::time::parse_time_from_millis;
 
 const HEADER: &str = "WEBVTT";

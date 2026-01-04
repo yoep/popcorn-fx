@@ -26,13 +26,7 @@ popcorn:
       level: error
     popcorn_fx_players::vlc:
       level: info
-    popcorn_fx_torrent:
+    fx_torrent:
       level: info
-    popcorn_fx_torrent::torrent::dht:
-      level: info
-    popcorn_fx_torrent::torrent::operation:
-      level: info
-    popcorn_fx_torrent::torrent::peer::protocol:
-      level: info
-    popcorn_fx_torrent::torrent::tracker:
+    fx_torrent::dht:
       level: info

@@ -52,8 +52,8 @@ impl SyncMediaTracking {
 
     pub fn new(
         config: ApplicationConfig,
-        provider: Arc<Box<dyn TrackingProvider>>,
-        watched_service: Arc<Box<dyn WatchedService>>,
+        provider: Arc<dyn TrackingProvider>,
+        watched_service: Arc<dyn WatchedService>,
     ) -> Self {
         let (command_sender, command_receiver) = unbounded_channel();
         let inner = Arc::new(InnerSyncMediaTracking {
@@ -98,8 +98,8 @@ impl Drop for SyncMediaTracking {
 #[derive(Debug, Default)]
 pub struct SyncMediaTrackingBuilder {
     config: Option<ApplicationConfig>,
-    provider: Option<Arc<Box<dyn TrackingProvider>>>,
-    watched_service: Option<Arc<Box<dyn WatchedService>>>,
+    provider: Option<Arc<dyn TrackingProvider>>,
+    watched_service: Option<Arc<dyn WatchedService>>,
 }
 
 impl SyncMediaTrackingBuilder {
@@ -115,13 +115,13 @@ impl SyncMediaTrackingBuilder {
     }
 
     /// Sets the tracking provider for the builder.
-    pub fn tracking_provider(mut self, tracking_provider: Arc<Box<dyn TrackingProvider>>) -> Self {
+    pub fn tracking_provider(mut self, tracking_provider: Arc<dyn TrackingProvider>) -> Self {
         self.provider = Some(tracking_provider);
         self
     }
 
     /// Sets the watched service for the builder.
-    pub fn watched_service(mut self, watched_service: Arc<Box<dyn WatchedService>>) -> Self {
+    pub fn watched_service(mut self, watched_service: Arc<dyn WatchedService>) -> Self {
         self.watched_service = Some(watched_service);
         self
     }
@@ -147,8 +147,8 @@ enum SyncMediaTrackingCommand {
 #[derive(Debug)]
 struct InnerSyncMediaTracking {
     config: ApplicationConfig,
-    provider: Arc<Box<dyn TrackingProvider>>,
-    watched_service: Arc<Box<dyn WatchedService>>,
+    provider: Arc<dyn TrackingProvider>,
+    watched_service: Arc<dyn WatchedService>,
     state: Mutex<SyncState>,
     command_sender: UnboundedSender<SyncMediaTrackingCommand>,
     cancellation_token: CancellationToken,
@@ -339,8 +339,8 @@ mod tests {
         watched_service.expect_add().return_const(Ok(()));
         let sync = SyncMediaTracking::builder()
             .config(config)
-            .tracking_provider(Arc::new(Box::new(provider)))
-            .watched_service(Arc::new(Box::new(watched_service)))
+            .tracking_provider(Arc::new(provider))
+            .watched_service(Arc::new(watched_service))
             .build();
 
         assert_timeout_eq!(
@@ -374,8 +374,8 @@ mod tests {
 
         let sync = SyncMediaTracking::builder()
             .config(config)
-            .tracking_provider(Arc::new(Box::new(provider)))
-            .watched_service(Arc::new(Box::new(watched_service)))
+            .tracking_provider(Arc::new(provider))
+            .watched_service(Arc::new(watched_service))
             .build();
 
         drop(sync);
@@ -407,8 +407,8 @@ mod tests {
             .return_const(Ok(vec![]));
         let sync = SyncMediaTracking::builder()
             .config(config)
-            .tracking_provider(Arc::new(Box::new(provider)))
-            .watched_service(Arc::new(Box::new(watched_service)))
+            .tracking_provider(Arc::new(provider))
+            .watched_service(Arc::new(watched_service))
             .build();
 
         sync.start_sync();
@@ -450,8 +450,8 @@ mod tests {
             .return_const(Ok(vec![]));
         let sync = SyncMediaTracking::builder()
             .config(config)
-            .tracking_provider(Arc::new(Box::new(provider)))
-            .watched_service(Arc::new(Box::new(watched_service)))
+            .tracking_provider(Arc::new(provider))
+            .watched_service(Arc::new(watched_service))
             .build();
 
         sync.start_sync();
@@ -493,8 +493,8 @@ mod tests {
             .return_const(Ok(vec![]));
         let sync = SyncMediaTracking::builder()
             .config(config)
-            .tracking_provider(Arc::new(Box::new(provider)))
-            .watched_service(Arc::new(Box::new(watched_service)))
+            .tracking_provider(Arc::new(provider))
+            .watched_service(Arc::new(watched_service))
             .build();
 
         callbacks.invoke(TrackingEvent::AuthorizationStateChanged(true));

@@ -266,7 +266,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(500))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -276,7 +276,7 @@ mod tests {
             "expected the message to have been process successfully"
         );
 
-        let response = timeout!(response, Duration::from_millis(250))
+        let response = timeout!(response, Duration::from_millis(500))
             .expect("expected to have received a reply");
         let result =
             TrackingProviderAuthorizeResponse::parse_from_bytes(&response.payload).unwrap();

@@ -46,7 +46,7 @@ pub type DeviceFactory<D> = Box<dyn Fn(String, u16) -> chromecast::Result<D> + S
 
 /// The Chromecast player allows the playback of media items on a specific Chromecast device.
 #[derive(Debug, Display)]
-#[display(fmt = "Chromecast player {}", "self.name()")]
+#[display("Chromecast player {}", self.name())]
 pub struct ChromecastPlayer<D: FxCastDevice + 'static> {
     inner: Arc<InnerChromecastPlayer<D>>,
 }

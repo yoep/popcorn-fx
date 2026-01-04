@@ -9,11 +9,11 @@ pub type PlaybackControlCallback = CoreCallback<PlaybackControlEvent>;
 /// These events can be used to modify the player state based on the given media event.
 #[derive(Debug, Clone, Display)]
 pub enum PlaybackControlEvent {
-    #[display(fmt = "Toggle the playback state")]
+    #[display("Toggle the playback state")]
     TogglePlaybackState = 0,
-    #[display(fmt = "Forward media")]
+    #[display("Forward media")]
     Forward = 1,
-    #[display(fmt = "Rewind media")]
+    #[display("Rewind media")]
     Rewind = 2,
 }
 

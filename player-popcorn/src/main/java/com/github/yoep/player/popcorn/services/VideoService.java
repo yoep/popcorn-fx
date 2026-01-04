@@ -7,11 +7,15 @@ import com.github.yoep.popcorn.backend.adapters.video.VideoPlayerException;
 import com.github.yoep.popcorn.backend.adapters.video.listeners.AbstractVideoListener;
 import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
 import com.github.yoep.popcorn.backend.adapters.video.state.VideoState;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.events.MaximizeEvent;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
@@ -23,11 +27,15 @@ import java.util.Optional;
  * The video service is responsible for handling the active video player and surface.
  */
 @Slf4j
+@RequiredArgsConstructor
 public class VideoService extends AbstractListenerService<PlaybackListener> {
     public static final int HIGHEST_ORDER = Integer.MIN_VALUE;
     public static final int DEFAULT_ORDER = 0;
     public static final int LOWEST_ORDER = Integer.MAX_VALUE;
     public static final String VIDEO_PLAYER_PROPERTY = "videoPlayer";
+
+    final EventPublisher eventPublisher;
+    final ApplicationConfig applicationConfig;
 
     final List<PlaybackOrder> videoPlaybacks = new ArrayList<>();
     final ObjectProperty<VideoPlayback> videoPlayer = new SimpleObjectProperty<>(this, VIDEO_PLAYER_PROPERTY);
@@ -66,6 +74,18 @@ public class VideoService extends AbstractListenerService<PlaybackListener> {
     public void onPlay(Player.PlayRequest request) {
         Objects.requireNonNull(request, "request cannot be null");
         var url = request.getUrl();
+
+        // maximize the player if needed
+        applicationConfig.getSettings().whenComplete((settings, throwable) -> {
+           if (throwable == null) {
+               if (settings.getPlaybackSettings().getFullscreen()) {
+                   log.trace("Open playback in fullscreen mode");
+                   eventPublisher.publish(new MaximizeEvent(this, true));
+               }
+           } else {
+               log.error("Failed to retrieve application settings", throwable);
+           }
+        });
 
         try {
             videoPlayer.set(switchSupportedVideoPlayer(url));

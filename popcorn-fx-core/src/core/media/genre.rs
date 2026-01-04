@@ -2,7 +2,7 @@ use derive_more::Display;
 
 /// Represents a genre with a key and text.
 #[derive(Debug, Display, Clone, PartialEq)]
-#[display(fmt = "genre {}", key)]
+#[display("genre {}", key)]
 pub struct Genre {
     /// The key of the genre.
     key: String,

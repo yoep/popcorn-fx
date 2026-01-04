@@ -5,6 +5,7 @@ import com.github.yoep.player.popcorn.controllers.sections.PopcornPlayerSectionC
 import com.github.yoep.player.popcorn.player.EmbeddablePopcornPlayer;
 import com.github.yoep.player.popcorn.player.PopcornPlayer;
 import com.github.yoep.player.popcorn.services.*;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.lib.FxChannel;
 import com.github.yoep.popcorn.backend.lib.FxLib;
 import com.github.yoep.popcorn.backend.logging.LoggingBridge;
@@ -121,7 +122,8 @@ public class PopcornTimeStarter {
     }
 
     private static void onInitVideoPlaybacks(IoC ioC, ApplicationConfig applicationConfig) {
-        var videoService = ioC.registerInstance(new VideoService());
+        var eventPublisher = ioC.getInstance(EventPublisher.class);
+        var videoService = ioC.registerInstance(new VideoService(eventPublisher, applicationConfig));
 
         // youtube video player
         if (applicationConfig.isYoutubeVideoPlayerEnabled() && Platform.isSupported(ConditionalFeature.WEB)) {

@@ -16,7 +16,7 @@ use std::sync::Arc;
 use tokio::select;
 
 #[derive(Display)]
-#[display(fmt = "Torrent stream loading strategy")]
+#[display("Torrent stream loading strategy")]
 pub struct TorrentStreamLoadingStrategy {
     torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
 }

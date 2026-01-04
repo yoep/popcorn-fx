@@ -15,7 +15,7 @@ use crate::core::players::{PlayRequest, PlayerManager};
 /// A loading strategy specifically designed for player loading.
 /// This strategy will translate the [PlaylistItem] into a [PlayRequest] which is invoked on the [PlayerManager].
 #[derive(Display)]
-#[display(fmt = "Player loading strategy")]
+#[display("Player loading strategy")]
 pub struct PlayerLoadingStrategy {
     player_manager: Arc<Box<dyn PlayerManager>>,
 }

@@ -53,7 +53,7 @@ impl Collection {
 }
 
 #[derive(Debug, Clone, Default, Display, Serialize, Deserialize, PartialEq)]
-#[display(fmt = "name: {}, magnet_uri: {}", name, magnet_uri)]
+#[display("name: {}, magnet_uri: {}", name, magnet_uri)]
 pub struct MagnetInfo {
     /// The name of the magnet
     pub name: String,

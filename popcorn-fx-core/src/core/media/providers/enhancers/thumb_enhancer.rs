@@ -28,7 +28,7 @@ enum ThumbEnhancerError {
 
 /// The [Episode] thumb enhancer which allows the retrieval of thumbs for episode media items.
 #[derive(Debug, Display)]
-#[display(fmt = "ThumbEnhancer uri: {}", "self.properties.uri")]
+#[display("ThumbEnhancer uri: {}", "self.properties.uri")]
 pub struct ThumbEnhancer {
     /// The properties for this enhancer
     properties: EnhancerProperties,

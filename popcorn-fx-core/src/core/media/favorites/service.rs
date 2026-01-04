@@ -26,7 +26,7 @@ pub enum FavoriteEvent {
     ///
     /// * The IMDB ID of the media item for which the state changed.
     /// * The new state.
-    #[display(fmt = "Like state changed of {} to {}", _0, _1)]
+    #[display("Like state changed of {} to {}", _0, _1)]
     LikedStateChanged(String, bool),
 }
 

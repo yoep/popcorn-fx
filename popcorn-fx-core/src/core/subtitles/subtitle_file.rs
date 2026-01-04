@@ -11,7 +11,7 @@ const QUALITY_PATTERN: &str = "([0-9]{3,4})p";
 /// a decision of which subtitle file should be used for a media item playback.
 #[derive(Debug, Clone, PartialEq, Display)]
 #[display(
-    fmt = "name: {}, url: {}, quality: {:?}, downloads: {}",
+    "name: {}, url: {}, quality: {:?}, downloads: {}",
     name,
     url,
     quality,

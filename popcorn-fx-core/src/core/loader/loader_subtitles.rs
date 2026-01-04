@@ -22,7 +22,7 @@ use crate::core::subtitles::{
 
 /// Represents a strategy for loading subtitles.
 #[derive(Display)]
-#[display(fmt = "Subtitles loading strategy")]
+#[display("Subtitles loading strategy")]
 pub struct SubtitlesLoadingStrategy {
     subtitle_provider: Arc<Box<dyn SubtitleProvider>>,
     subtitle_manager: Arc<Box<dyn SubtitleManager>>,

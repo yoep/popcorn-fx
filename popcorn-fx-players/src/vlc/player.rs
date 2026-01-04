@@ -42,7 +42,7 @@ const COMMAND_VOLUME: &str = "volume";
 
 /// Represents an external VLC player instance.
 #[derive(Debug, Display)]
-#[display(fmt = "VLC player")]
+#[display("VLC player")]
 pub struct VlcPlayer {
     inner: Arc<InnerVlcPlayer>,
 }
@@ -250,7 +250,7 @@ enum VlcPlayerCommand {
 }
 
 #[derive(Debug, Display)]
-#[display(fmt = "inner VLC player")]
+#[display("inner VLC player")]
 struct InnerVlcPlayer {
     password: String,
     client: Client,
@@ -496,7 +496,7 @@ impl InnerVlcPlayer {
 }
 
 #[derive(Debug, Display)]
-#[display(fmt = "{}={:?}", name, value)]
+#[display("{}={:?}", name, value)]
 struct VlcCommand {
     pub name: String,
     pub value: Option<String>,

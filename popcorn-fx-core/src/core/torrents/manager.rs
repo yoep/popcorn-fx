@@ -28,9 +28,9 @@ const CLEANUP_WATCH_THRESHOLD: f64 = 85f64;
 /// The events of the torrent manager.
 #[derive(Debug, Display, Clone)]
 pub enum TorrentManagerEvent {
-    #[display(fmt = "torrent {} has been added", _0)]
+    #[display("torrent {} has been added", _0)]
     TorrentAdded(TorrentHandle),
-    #[display(fmt = "torrent {} has been removed", _0)]
+    #[display("torrent {} has been removed", _0)]
     TorrentRemoved(TorrentHandle),
 }
 

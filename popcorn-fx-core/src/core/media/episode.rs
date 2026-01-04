@@ -9,7 +9,7 @@ use crate::core::media::{MediaIdentifier, MediaType, TorrentInfo};
 /// The episode media information of a show media item.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Display)]
 #[display(
-    fmt = "tvdb_id: {}, title: {}, season: {}, episode: {}",
+    "tvdb_id: {}, title: {}, season: {}, episode: {}",
     tvdb_id,
     title,
     season,

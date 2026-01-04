@@ -1,10 +1,8 @@
-use crate::core::config::ApplicationConfig;
 use crate::core::event::{Event, EventPublisher, PlayerStartedEvent, PlayerStoppedEvent};
 use crate::core::media::MediaIdentifier;
 use crate::core::players::{
     ManagerError, ManagerResult, PlayRequest, Player, PlayerEvent, PlayerState,
 };
-use crate::core::screen::ScreenService;
 use crate::core::torrents::{TorrentManager, TorrentStreamServer};
 use async_trait::async_trait;
 use derive_more::Display;
@@ -23,31 +21,31 @@ use tokio_util::sync::CancellationToken;
 #[derive(Debug, Clone, Display)]
 pub enum PlayerManagerEvent {
     /// Event indicating that the active player has changed.
-    #[display(fmt = "Active player changed")]
+    #[display("Active player changed")]
     ActivePlayerChanged(PlayerChange),
     /// Indicates that the list of players has changed.
-    #[display(fmt = "Available players have been changed")]
+    #[display("Available players have been changed")]
     PlayersChanged,
     /// Indicates that the active player playback has been changed with a new [PlayRequest].
-    #[display(fmt = "Player playback changed to {:?}", _0)]
+    #[display("Player playback changed to {:?}", _0)]
     PlayerPlaybackChanged(PlayRequest),
     /// Indicates that the duration of the active player has changed.
     ///
     /// This event acts as a convenient wrapper around the [Player]'s [PlayerEvent] callbacks,
     /// automatically switching to the new active player whenever it changes.
-    #[display(fmt = "Active player duration changed to {}", _0)]
+    #[display("Active player duration changed to {}", _0)]
     PlayerDurationChanged(u64),
     /// Indicates that the time of the active player has changed.
     ///
     /// This event acts as a convenient wrapper around the [Player]'s [PlayerEvent] callbacks,
     /// automatically switching to the new active player whenever it changes.
-    #[display(fmt = "Active player time changed to {}", _0)]
+    #[display("Active player time changed to {}", _0)]
     PlayerTimeChanged(u64),
     /// Indicates that the state of the active player has changed.
     ///
     /// This event acts as a convenient wrapper around the [Player]'s [PlayerEvent] callbacks,
     /// automatically switching to the new active player whenever it changes.
-    #[display(fmt = "Active player state changed to {}", _0)]
+    #[display("Active player state changed to {}", _0)]
     PlayerStateChanged(PlayerState),
 }
 
@@ -82,7 +80,7 @@ impl PartialEq for PlayerManagerEvent {
 
 /// A struct representing changes in the active player.
 #[derive(Debug, Display, Clone, PartialEq)]
-#[display(fmt = "Active player changed to {}", new_player_id)]
+#[display("Active player changed to {}", new_player_id)]
 pub struct PlayerChange {
     pub old_player_id: Option<String>,
     pub new_player_id: String,
@@ -153,32 +151,17 @@ pub struct DefaultPlayerManager {
 
 impl DefaultPlayerManager {
     /// Create a new `DefaultPlayerManager` instance.
-    ///
-    /// # Arguments
-    ///
-    /// * `application_config` - An Arc wrapped Mutex containing the application configuration.
-    /// * `event_publisher` - An Arc wrapped EventPublisher for publishing player-related events.
-    /// * `torrent_stream_server` - An Arc wrapped Box of a trait object implementing TorrentStreamServer.
-    /// * `screen_service` - An Arc wrapped Box of a trait object implementing ScreenService.
-    ///
-    /// # Returns
-    ///
-    /// A new `DefaultPlayerManager` instance.
     pub fn new(
-        application_config: ApplicationConfig,
         event_publisher: EventPublisher,
         torrent_manager: Arc<Box<dyn TorrentManager>>,
         torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
-        screen_service: Arc<Box<dyn ScreenService>>,
     ) -> Self {
         let (player_event_sender, player_event_receiver) = unbounded_channel();
         let inner = Arc::new(InnerPlayerManager::new(
-            application_config,
             player_event_sender,
             event_publisher,
             torrent_manager,
             torrent_stream_server,
-            screen_service,
         ));
 
         let inner_main = inner.clone();
@@ -240,7 +223,6 @@ impl Drop for DefaultPlayerManager {
 /// A default implementation of the `PlayerManager` trait.
 #[derive(Debug)]
 struct InnerPlayerManager {
-    application_config: ApplicationConfig,
     active_player: Mutex<Option<String>>,
     last_known_player_info: Arc<Mutex<PlayerData>>,
     players: RwLock<Vec<Arc<Box<dyn Player>>>>,
@@ -248,7 +230,6 @@ struct InnerPlayerManager {
     player_listener_cancellation: Mutex<CancellationToken>,
     torrent_manager: Arc<Box<dyn TorrentManager>>,
     torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
-    screen_service: Arc<Box<dyn ScreenService>>,
     callbacks: MultiThreadedCallback<PlayerManagerEvent>,
     event_publisher: EventPublisher,
     cancellation_token: CancellationToken,
@@ -256,15 +237,12 @@ struct InnerPlayerManager {
 
 impl InnerPlayerManager {
     fn new(
-        application_config: ApplicationConfig,
         listener_sender: UnboundedSender<PlayerEvent>,
         event_publisher: EventPublisher,
         torrent_manager: Arc<Box<dyn TorrentManager>>,
         torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
-        screen_service: Arc<Box<dyn ScreenService>>,
     ) -> Self {
         let instance = Self {
-            application_config,
             active_player: Mutex::default(),
             last_known_player_info: Arc::new(Default::default()),
             players: RwLock::default(),
@@ -272,7 +250,6 @@ impl InnerPlayerManager {
             player_listener_cancellation: Mutex::new(CancellationToken::new()),
             torrent_manager,
             torrent_stream_server,
-            screen_service,
             callbacks: MultiThreadedCallback::new(),
             event_publisher,
             cancellation_token: Default::default(),
@@ -424,18 +401,6 @@ impl InnerPlayerManager {
             .invoke(PlayerManagerEvent::PlayerStateChanged(new_state))
     }
 
-    async fn handle_fullscreen_mode(&self) {
-        let is_fullscreen_enabled: bool = self
-            .application_config
-            .user_settings_ref(|e| e.playback_settings.fullscreen)
-            .await;
-
-        debug!("Playback fullscreen mode is {}", is_fullscreen_enabled);
-        if is_fullscreen_enabled {
-            self.screen_service.fullscreen(is_fullscreen_enabled);
-        }
-    }
-
     async fn active_player(&self) -> Option<Weak<Box<dyn Player>>> {
         self.active_player
             .lock()
@@ -573,9 +538,6 @@ impl InnerPlayerManager {
         } else {
             error!("Unable to start playback, no active player found");
         }
-
-        // verify if we need to active the fullscreen mode
-        self.handle_fullscreen_mode().await;
     }
 }
 
@@ -618,9 +580,7 @@ mod mock {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::config::{PlaybackSettings, PopcornSettings};
     use crate::core::event;
-    use crate::core::screen::MockScreenService;
     use crate::core::torrents::{MockTorrentManager, MockTorrentStreamServer, TorrentHandle};
     use crate::testing::{MockPlayer, MockTorrentStream};
     use crate::{init_logger, recv_timeout};
@@ -634,7 +594,7 @@ mod tests {
     use tokio::{select, time};
 
     #[derive(Debug, Display, Clone)]
-    #[display(fmt = "DummyPlayer")]
+    #[display("DummyPlayer")]
     struct DummyPlayer {
         id: String,
         callbacks: MultiThreadedCallback<PlayerEvent>,
@@ -713,8 +673,6 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_active_player() {
         init_logger!();
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
         let player_id = "MyPlayerId";
         let mut player = MockPlayer::default();
         player.expect_id().return_const(player_id.to_string());
@@ -726,14 +684,10 @@ mod tests {
         let player = Box::new(player) as Box<dyn Player>;
         let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
-        let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
-        let settings = ApplicationConfig::builder().storage(temp_path).build();
         let manager = DefaultPlayerManager::new(
-            settings,
             EventPublisher::default(),
             Arc::new(Box::new(torrent_manager)),
             Arc::new(Box::new(torrent_stream_server)),
-            screen_service,
         );
 
         let _ = manager.add_player(player);
@@ -754,8 +708,6 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_set_active_player() {
         init_logger!();
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
         let player_id = "FooBar654";
         let mut player = MockPlayer::default();
         player.expect_id().return_const(player_id.to_string());
@@ -771,14 +723,10 @@ mod tests {
         let event_publisher = EventPublisher::default();
         let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
-        let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
-        let settings = ApplicationConfig::builder().storage(temp_path).build();
         let manager = DefaultPlayerManager::new(
-            settings,
             event_publisher.clone(),
             Arc::new(Box::new(torrent_manager)),
             Arc::new(Box::new(torrent_stream_server)),
-            screen_service,
         );
 
         let mut receiver = manager.subscribe();
@@ -808,8 +756,6 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_set_active_player_twice() {
         init_logger!();
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
         let player_id = "FooBar654";
         let mut player = MockPlayer::default();
         player.expect_id().return_const(player_id.to_string());
@@ -825,14 +771,10 @@ mod tests {
         let event_publisher = EventPublisher::default();
         let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
-        let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
-        let settings = ApplicationConfig::builder().storage(temp_path).build();
         let manager = DefaultPlayerManager::new(
-            settings,
             event_publisher.clone(),
             Arc::new(Box::new(torrent_manager)),
             Arc::new(Box::new(torrent_stream_server)),
-            screen_service,
         );
 
         let mut receiver = manager.subscribe();
@@ -869,8 +811,6 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_set_active_player_switch_listener() {
         init_logger!();
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
         let player2_id = "Id2";
         let player1 = Box::new(DummyPlayer::new("Id1"));
         let player2 = Box::new(DummyPlayer::new(player2_id));
@@ -878,14 +818,10 @@ mod tests {
         let event_publisher = EventPublisher::default();
         let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
-        let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
-        let settings = ApplicationConfig::builder().storage(temp_path).build();
         let manager = DefaultPlayerManager::new(
-            settings,
             event_publisher.clone(),
             Arc::new(Box::new(torrent_manager)),
             Arc::new(Box::new(torrent_stream_server)),
-            screen_service,
         );
 
         let mut receiver = manager.subscribe();
@@ -935,22 +871,16 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_register_new_player() {
         init_logger!();
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
         let player_id = "MyPlayerId";
         let mut player = MockPlayer::new();
         player.expect_id().return_const(player_id.to_string());
         let player = Box::new(player) as Box<dyn Player>;
         let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
-        let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
-        let settings = ApplicationConfig::builder().storage(temp_path).build();
         let manager = DefaultPlayerManager::new(
-            settings,
             EventPublisher::default(),
             Arc::new(Box::new(torrent_manager)),
             Arc::new(Box::new(torrent_stream_server)),
-            screen_service,
         );
 
         let _ = manager.add_player(player);
@@ -965,8 +895,6 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_register_duplicate_player_id() {
         init_logger!();
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
         let player_id = "SomePlayer123";
         let mut player1 = MockPlayer::default();
         player1.expect_id().return_const(player_id.to_string());
@@ -976,14 +904,10 @@ mod tests {
         let player2 = Box::new(player2) as Box<dyn Player>;
         let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
-        let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
-        let settings = ApplicationConfig::builder().storage(temp_path).build();
         let manager = DefaultPlayerManager::new(
-            settings,
             EventPublisher::default(),
             Arc::new(Box::new(torrent_manager)),
             Arc::new(Box::new(torrent_stream_server)),
-            screen_service,
         );
 
         let _ = manager.add_player(player);
@@ -1005,8 +929,6 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_player_stopped_event() {
         init_logger!();
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
         let player_id = "SomeId123";
         let torrent_handle = TorrentHandle::new();
         let mut stream = MockTorrentStream::new();
@@ -1044,16 +966,12 @@ mod tests {
             .times(1)
             .withf(move |handle| handle.clone() == torrent_handle)
             .return_const(());
-        let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
-        let settings = ApplicationConfig::builder().storage(temp_path).build();
         let (tx_player_manager, mut rx_player_manager) = unbounded_channel();
         let (tx_events, mut rx_events) = unbounded_channel();
         let manager = DefaultPlayerManager::new(
-            settings,
             EventPublisher::default(),
             Arc::new(Box::new(torrent_manager)),
             Arc::new(Box::new(torrent_stream_server)),
-            screen_service,
         );
 
         // subscribe to the player manager events
@@ -1148,35 +1066,10 @@ mod tests {
         player.expect_request().return_const(request.clone());
         let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
-        let (tx_screen, mut rx_screen) = unbounded_channel();
-        let mut screen_service = MockScreenService::new();
-        screen_service
-            .expect_fullscreen()
-            .times(1)
-            .returning(move |fullscreen| {
-                tx_screen.send(fullscreen).unwrap();
-            });
-        let settings = ApplicationConfig::builder()
-            .storage(temp_path)
-            .settings(PopcornSettings {
-                subtitle_settings: Default::default(),
-                ui_settings: Default::default(),
-                server_settings: Default::default(),
-                torrent_settings: Default::default(),
-                playback_settings: PlaybackSettings {
-                    quality: None,
-                    fullscreen: true,
-                    auto_play_next_episode_enabled: false,
-                },
-                tracking_settings: Default::default(),
-            })
-            .build();
         let manager = DefaultPlayerManager::new(
-            settings,
             EventPublisher::default(),
             Arc::new(Box::new(torrent_manager)),
             Arc::new(Box::new(torrent_stream_server)),
-            Arc::new(Box::new(screen_service) as Box<dyn ScreenService>),
         );
 
         let _ = manager.add_player(Box::new(player));
@@ -1187,30 +1080,21 @@ mod tests {
 
         assert_eq!(url, result.url());
         assert_eq!(title, result.title());
-
-        let result = recv_timeout!(&mut rx_screen, Duration::from_millis(200));
-        assert_eq!(true, result);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_remove() {
         init_logger!();
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
         let player_id = "SomePlayer123";
         let mut player1 = MockPlayer::default();
         player1.expect_id().return_const(player_id.to_string());
         let player = Box::new(player1) as Box<dyn Player>;
         let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
-        let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
-        let settings = ApplicationConfig::builder().storage(temp_path).build();
         let manager = DefaultPlayerManager::new(
-            settings,
             EventPublisher::default(),
             Arc::new(Box::new(torrent_manager)),
             Arc::new(Box::new(torrent_stream_server)),
-            screen_service,
         );
 
         let result = manager.add_player(player);

@@ -102,7 +102,7 @@ public class PopcornTimeApplication extends Application {
             IOC.registerInstance(new PlayerExternalComponentService(playerManagerService, eventPublisher, torrentService));
             IOC.registerInstance(new TraktTrackingService(fxChannel, authorization));
             IOC.registerInstance(new UpdateService(fxChannel, platformProvider, eventPublisher, localeText));
-            IOC.registerInstance(new ScreenServiceImpl(viewManager, applicationConfig, eventPublisher, maximizeService, fxChannel));
+            IOC.registerInstance(new ScreenServiceImpl(viewManager, applicationConfig, eventPublisher, maximizeService));
 
             // components
             IOC.register(EpisodeComponent.class);

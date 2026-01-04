@@ -15,7 +15,7 @@ use crate::{Discovery, DiscoveryError, DiscoveryState};
 
 /// VLC discovery service responsible for searching and registering an external VLC player.
 #[derive(Debug, Display)]
-#[display(fmt = "VLC local player discovery")]
+#[display("VLC local player discovery")]
 pub struct VlcDiscovery {
     subtitle_manager: Arc<Box<dyn SubtitleManager>>,
     subtitle_provider: Arc<Box<dyn SubtitleProvider>>,

@@ -25,7 +25,7 @@ const DEFAULT_INTERVAL_SECONDS: u64 = 120;
 
 /// Represents a DLNA discovery service responsible for discovering DLNA devices within the local network.
 #[derive(Display, Clone)]
-#[display(fmt = "DLNA device discovery")]
+#[display("DLNA device discovery")]
 pub struct DlnaDiscovery {
     inner: Arc<InnerDlnaDiscovery>,
 }

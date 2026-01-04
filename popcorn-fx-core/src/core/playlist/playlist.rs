@@ -131,7 +131,7 @@ impl PartialEq for PlaylistMedia {
 }
 
 #[derive(Debug, Default, Display, Clone, PartialEq)]
-#[display(fmt = "enabled: {}, info: {:?}", enabled, info)]
+#[display("enabled: {}, info: {:?}", enabled, info)]
 pub struct PlaylistSubtitle {
     pub enabled: bool,
     pub info: Option<SubtitleInfo>,
@@ -146,7 +146,7 @@ pub struct PlaylistTorrent {
 /// Represents an item in a playlist, which can be a media file, a stream URL, or other media content.
 #[derive(Debug, Display, Clone)]
 #[display(
-    fmt = "url: {:?}, title: {}, quality: {:?}, subtitle: {}",
+    "url: {:?}, title: {}, quality: {:?}, subtitle: {}",
     url,
     title,
     quality,

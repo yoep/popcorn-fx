@@ -12,28 +12,25 @@ use crate::core::torrents::TorrentInfo;
 #[derive(Debug, Clone, Display, PartialEq)]
 pub enum Event {
     /// Invoked when the player playback has started for a new media item
-    #[display(fmt = "Player has started playback of {}", "_0.title.as_str()")]
+    #[display("Player has started playback of {}", "_0.title.as_str()")]
     PlayerStarted(PlayerStartedEvent),
     /// Invoked when the player playback has stopped
-    #[display(
-        fmt = "Player has been stopped with last known timestamp {:?}",
-        "_0.time()"
-    )]
+    #[display("Player has been stopped with last known timestamp {:?}", "_0.time()")]
     PlayerStopped(PlayerStoppedEvent),
     /// Invoked when the player/playback state is changed
-    #[display(fmt = "Playback state has changed to {}", "_0")]
+    #[display("Playback state has changed to {}", "_0")]
     PlaybackStateChanged(PlaybackState),
     /// Invoked when the loading of a media item has started
-    #[display(fmt = "Loading of a media item has started")]
+    #[display("Loading of a media item has started")]
     LoadingStarted,
     /// Invoked when the loading of a media item has completed
-    #[display(fmt = "Loading of a media item has completed")]
+    #[display("Loading of a media item has completed")]
     LoadingCompleted,
     /// Invoked when the torrent details have been loaded of a magnet uri
-    #[display(fmt = "Torrent details have been loaded of {}", _0)]
+    #[display("Torrent details have been loaded of {}", _0)]
     TorrentDetailsLoaded(TorrentInfo),
     /// Invoked when the player should be closed
-    #[display(fmt = "Closing player")]
+    #[display("Closing player")]
     ClosePlayer,
 }
 

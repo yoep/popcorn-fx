@@ -159,7 +159,7 @@ pub struct ExpiredCacheEntry {
 
 /// Cache entry containing information about a cache item.
 #[derive(Debug, Display, Clone, PartialEq, Serialize, Deserialize)]
-#[display(fmt = "key: {}, path: {}", key, path)]
+#[display("key: {}, path: {}", key, path)]
 pub struct CacheEntry {
     pub key: String,
     pub path: String,

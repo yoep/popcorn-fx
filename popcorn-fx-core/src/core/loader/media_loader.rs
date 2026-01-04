@@ -33,16 +33,16 @@ pub type Result<T> = std::result::Result<T, LoadingError>;
 #[derive(Debug, Display, Clone, PartialEq)]
 pub enum MediaLoaderEvent {
     /// Indicates that loading has started for a media item with the associated event details.
-    #[display(fmt = "Loading started for {}", _1)]
+    #[display("Loading started for {}", _1)]
     LoadingStarted(LoadingHandle, LoadingStartedEvent),
     /// Indicates a change in the loading state with the associated event details.
-    #[display(fmt = "Loading state changed to {}", _1)]
+    #[display("Loading state changed to {}", _1)]
     StateChanged(LoadingHandle, LoadingState),
     /// Indicates a change in loading progress with the associated event details.
-    #[display(fmt = "Loading progress changed to {}", _1)]
+    #[display("Loading progress changed to {}", _1)]
     ProgressChanged(LoadingHandle, LoadingProgress),
     /// Indicates that an error has occurred during loading with the associated error details.
-    #[display(fmt = "Loading {} encountered an error, {}", _0, _1)]
+    #[display("Loading {} encountered an error, {}", _0, _1)]
     LoadingError(LoadingHandle, LoadingError),
 }
 
@@ -62,34 +62,34 @@ pub type CancellationResult = std::result::Result<(), LoadingError>;
 
 #[derive(Debug, Copy, Clone, Display, PartialOrd, PartialEq)]
 pub enum LoadingState {
-    #[display(fmt = "Loader is initializing")]
+    #[display("Loader is initializing")]
     Initializing,
-    #[display(fmt = "Loader is starting")]
+    #[display("Loader is starting")]
     Starting,
-    #[display(fmt = "Loader is retrieving subtitles")]
+    #[display("Loader is retrieving subtitles")]
     RetrievingSubtitles,
-    #[display(fmt = "Loader is downloading a subtitle")]
+    #[display("Loader is downloading a subtitle")]
     DownloadingSubtitle,
-    #[display(fmt = "Loader is retrieving the metadata")]
+    #[display("Loader is retrieving the metadata")]
     RetrievingMetadata,
-    #[display(fmt = "Loader is verifying the files")]
+    #[display("Loader is verifying the files")]
     VerifyingFiles,
-    #[display(fmt = "Loader is connecting")]
+    #[display("Loader is connecting")]
     Connecting,
-    #[display(fmt = "Loader is downloading the media")]
+    #[display("Loader is downloading the media")]
     Downloading,
-    #[display(fmt = "Loader has finished downloading the media")]
+    #[display("Loader has finished downloading the media")]
     DownloadFinished,
-    #[display(fmt = "Loader is ready to start the playback")]
+    #[display("Loader is ready to start the playback")]
     Ready,
-    #[display(fmt = "Loader is playing media")]
+    #[display("Loader is playing media")]
     Playing,
-    #[display(fmt = "Loader is cancelled")]
+    #[display("Loader is cancelled")]
     Cancelled,
 }
 
 #[derive(Debug, Display, Clone, PartialEq)]
-#[display(fmt = "url: {}, title: {}, thumbnail: {:?}", url, title, thumbnail)]
+#[display("url: {}, title: {}, thumbnail: {:?}", url, title, thumbnail)]
 pub struct LoadingStartedEvent {
     pub url: String,
     pub title: String,
@@ -156,7 +156,7 @@ impl From<&LoadingData> for LoadingStartedEvent {
 
 #[derive(Debug, Clone, Display, PartialEq)]
 #[display(
-    fmt = "progress: {}, seeds: {}, peers: {}, download_speed: {}",
+    "progress: {}, seeds: {}, peers: {}, download_speed: {}",
     progress,
     seeds,
     peers,

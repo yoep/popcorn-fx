@@ -6,7 +6,7 @@ const DEFAULT_API_SERVER: fn() -> Option<String> = || None;
 
 /// The api server preferences of the user for the application.
 #[derive(Debug, Display, Clone, Serialize, Deserialize, PartialEq)]
-#[display(fmt = "api_server: {:?}", api_server)]
+#[display("api_server: {:?}", api_server)]
 pub struct ServerSettings {
     /// The api server to use
     #[serde(default = "DEFAULT_API_SERVER")]

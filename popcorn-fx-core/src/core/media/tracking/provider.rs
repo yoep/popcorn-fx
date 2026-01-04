@@ -43,10 +43,10 @@ pub enum TrackingError {
 #[derive(Debug, Clone, Display)]
 pub enum TrackingEvent {
     /// Indicates a change in authorization state.
-    #[display(fmt = "Authorization state changed to {}", _0)]
+    #[display("Authorization state changed to {}", _0)]
     AuthorizationStateChanged(bool),
     /// Indicates a new authorization uri needs to be opened.
-    #[display(fmt = "Opening authorization uri {}", _0)]
+    #[display("Opening authorization uri {}", _0)]
     OpenAuthorization(Url),
 }
 

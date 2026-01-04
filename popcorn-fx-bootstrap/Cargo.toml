@@ -21,7 +21,7 @@ log4rs = { workspace = true, features = ["console_appender"] }
 mockall = "0"
 serde.workspace = true
 serde_yaml.workspace = true
-signal-hook = { version = "0.3" }
+signal-hook = { version = "0.4" }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 

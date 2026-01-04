@@ -24,7 +24,7 @@ pub(crate) const SERVICE_TYPE: &str = "_googlecast._tcp.local.";
 const INFO_UNKNOWN: &str = "Unknown";
 
 #[derive(Debug, Display)]
-#[display(fmt = "Chromecast device discovery")]
+#[display("Chromecast device discovery")]
 pub struct ChromecastDiscovery {
     inner: Arc<InnerChromecastDiscovery>,
 }

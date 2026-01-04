@@ -68,7 +68,7 @@ pub type libvlc_media_player_stop = extern "C" fn(media_player: libvlc_media_pla
 
 /// Represents a handle to the VLC library and associated plugins.
 #[derive(Debug, Display)]
-#[display(fmt = "lib: {}, plugins: {}", lib_path, plugin_path)]
+#[display("lib: {}, plugins: {}", lib_path, plugin_path)]
 pub struct LibraryHandle {
     lib_path: String,
     plugin_path: String,

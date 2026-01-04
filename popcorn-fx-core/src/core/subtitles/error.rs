@@ -43,11 +43,11 @@ pub enum SubtitleError {
 
 #[derive(PartialEq, Debug, Display)]
 pub enum SubtitleParseError {
-    #[display(fmt = "Parsing failed with {}", _0)]
+    #[display("Parsing failed with {}", _0)]
     Failed(String),
-    #[display(fmt = "Extension {} is not supported", _0)]
+    #[display("Extension {} is not supported", _0)]
     ExtensionNotSupported(String),
-    #[display(fmt = "File contains invalid time, {}", _0)]
+    #[display("File contains invalid time, {}", _0)]
     InvalidTime(String),
 }
 

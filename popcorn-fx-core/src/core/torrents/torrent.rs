@@ -172,7 +172,7 @@ impl Torrent for fx_torrent::Torrent {
 /// The torrent information
 #[derive(Debug, Display, Clone, PartialEq)]
 #[display(
-    fmt = "handle: {}, info_hash: {}, name: {}, directory_name: {:?}, total_files: {}",
+    "handle: {}, info_hash: {}, name: {}, directory_name: {:?}, total_files: {}",
     handle,
     info_hash,
     name,

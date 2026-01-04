@@ -17,13 +17,13 @@ const PLAYING_NEXT_IN_THRESHOLD_SECONDS: u64 = 60;
 #[derive(Debug, Display, Clone, PartialEq)]
 pub enum PlaylistManagerEvent {
     /// Event indicating that the playlist has been changed.
-    #[display(fmt = "Playlist has been changed")]
+    #[display("Playlist has been changed")]
     PlaylistChanged,
     /// Event indicating that the next item will start playing after a specified delay.
-    #[display(fmt = "Playing next item in {:?} seconds", "_0.playing_in")]
+    #[display("Playing next item in {:?} seconds", "_0.playing_in")]
     PlayingNext(PlayingNextInfo),
     /// Event indicating a change in the playlist state.
-    #[display(fmt = "Playlist state changed to {}", _0)]
+    #[display("Playlist state changed to {}", _0)]
     StateChanged(PlaylistState),
 }
 

@@ -39,17 +39,17 @@ pub trait PlatformData: Platform {
 #[derive(Debug, Clone, Display, PartialEq)]
 pub enum PlatformEvent {
     /// Invoked when the play/pause state of the application needs to be toggled
-    #[display(fmt = "Toggle the media playback state")]
+    #[display("Toggle the media playback state")]
     TogglePlaybackState,
-    #[display(fmt = "Forward the current media playback time")]
+    #[display("Forward the current media playback time")]
     ForwardMedia,
-    #[display(fmt = "Rewind the current media playback time")]
+    #[display("Rewind the current media playback time")]
     RewindMedia,
 }
 
 /// PlatformInfo defines the info of the current platform
 #[derive(Debug, Clone, Display, PartialEq)]
-#[display(fmt = "platform_type: {}, arch: {}", platform_type, arch)]
+#[display("platform_type: {}, arch: {}", platform_type, arch)]
 pub struct PlatformInfo {
     /// The platform type
     pub platform_type: PlatformType,

@@ -46,7 +46,7 @@ const UPNP_PLAYER_VOLUME_PAYLOAD: &str = r#"
 
 /// Represents a DLNA/UPnP player that supports devices such as TVs for remote media playback.
 #[derive(Debug, Display)]
-#[display(fmt = "{}", inner)]
+#[display("{}", inner)]
 pub struct DlnaPlayer {
     inner: Arc<InnerPlayer>,
 }
@@ -179,7 +179,7 @@ enum DlnaPlayerCommand {
 }
 
 #[derive(Debug, Display)]
-#[display(fmt = "{}", id)]
+#[display("{}", id)]
 struct InnerPlayer {
     id: String,
     device: Device,

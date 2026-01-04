@@ -8,7 +8,7 @@ use log::trace;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Display, Clone, Serialize, Deserialize, PartialEq)]
-#[display(fmt = "trackers: {:?}", "self.trackers()")]
+#[display("trackers: {:?}", "self.trackers()")]
 pub struct TrackingSettings {
     last_sync: Option<LastSync>,
     trackers: HashMap<String, Tracker>,
@@ -70,9 +70,9 @@ pub struct Tracker {
 #[derive(Debug, Display, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum MediaTrackingSyncState {
-    #[display(fmt = "success")]
+    #[display("success")]
     Success = 0,
-    #[display(fmt = "failed")]
+    #[display("failed")]
     Failed = 1,
 }
 

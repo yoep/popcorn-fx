@@ -34,7 +34,6 @@ use popcorn_fx_core::core::platform::PlatformData;
 use popcorn_fx_core::core::playback::PlaybackControls;
 use popcorn_fx_core::core::players::{DefaultPlayerManager, PlayerManager};
 use popcorn_fx_core::core::playlist::PlaylistManager;
-use popcorn_fx_core::core::screen::{DefaultScreenService, ScreenService};
 use popcorn_fx_core::core::subtitles::model::SubtitleType;
 use popcorn_fx_core::core::subtitles::parsers::{SrtParser, VttParser};
 use popcorn_fx_core::core::subtitles::{
@@ -91,7 +90,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// The options for the [PopcornFX] instance.
 #[derive(Debug, Clone, Display, Parser)]
 #[command(name = "popcorn-fx")]
-#[display(fmt = "app_directory: {:?}", app_directory)]
+#[display("app_directory: {:?}", app_directory)]
 pub struct PopcornFxArgs {
     /// The directory containing the application files.
     /// This directory is also referred to as the `storage_directory` or `storage_path` within the application.
@@ -186,7 +185,6 @@ pub struct PopcornFX {
     player_manager: Arc<Box<dyn PlayerManager>>,
     playlist_manager: PlaylistManager,
     providers: Arc<ProviderManager>,
-    screen_service: Arc<Box<dyn ScreenService>>,
     settings: ApplicationConfig,
     subtitle_manager: Arc<Box<dyn SubtitleManager>>,
     subtitle_provider: Arc<Box<dyn SubtitleProvider>>,
@@ -294,14 +292,10 @@ impl PopcornFX {
             .build();
         let image_loader =
             Arc::new(DefaultImageLoader::new(cache_manager.clone())) as Arc<dyn ImageLoader>;
-        let screen_service =
-            Arc::new(Box::new(DefaultScreenService::new()) as Box<dyn ScreenService>);
         let player_manager = Arc::new(Box::new(DefaultPlayerManager::new(
-            settings.clone(),
             event_publisher.clone(),
             torrent_manager.clone(),
             torrent_stream_server.clone(),
-            screen_service.clone(),
         )) as Box<dyn PlayerManager>);
         let loading_chain: Vec<Box<dyn LoadingStrategy>> = vec![
             Box::new(MediaTorrentUrlLoadingStrategy::new()),
@@ -384,7 +378,6 @@ impl PopcornFX {
             player_manager,
             playlist_manager,
             providers,
-            screen_service,
             settings,
             subtitle_manager,
             subtitle_provider,
@@ -500,11 +493,6 @@ impl PopcornFX {
     /// Retrieve the media loader of the FX instance.
     pub fn media_loader(&self) -> &Arc<dyn MediaLoader> {
         &self.media_loader
-    }
-
-    /// Retrieve the screen service of the FX instance.
-    pub fn screen_service(&self) -> &Arc<Box<dyn ScreenService>> {
-        &self.screen_service
     }
 
     /// Retrieve the tracking provider of the FX instance.

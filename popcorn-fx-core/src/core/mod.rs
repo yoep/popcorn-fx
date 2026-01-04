@@ -13,7 +13,6 @@ pub mod platform;
 pub mod playback;
 pub mod players;
 pub mod playlist;
-pub mod screen;
 pub mod storage;
 pub mod subtitles;
 pub mod torrents;

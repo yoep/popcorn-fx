@@ -285,7 +285,7 @@ enum StreamRefType {
 }
 
 #[derive(Debug, Display)]
-#[display(fmt = "{}", "torrent.handle()")]
+#[display("{}", "torrent.handle()")]
 struct TorrentStreamContext {
     /// The backing torrent of this stream
     torrent: Arc<dyn Torrent>,
@@ -640,7 +640,7 @@ impl TorrentStream for TorrentStreamContext {
 
 /// The default implementation of a [Stream] for torrents.
 #[derive(Debug, Display)]
-#[display(fmt = "{}", "torrent.handle()")]
+#[display("{}", "torrent.handle()")]
 pub struct FXTorrentStreamingResource {
     torrent: Arc<dyn Torrent>,
     torrent_filename: String,

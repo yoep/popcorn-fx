@@ -100,7 +100,7 @@ impl AutoResume {
 
 #[derive(Debug, Display, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[display(
-    fmt = "id: {:?}, filename: {}, last_known_time: {}",
+    "id: {:?}, filename: {}, last_known_time: {}",
     id,
     filename,
     last_known_time

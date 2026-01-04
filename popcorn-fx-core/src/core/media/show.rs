@@ -9,7 +9,7 @@ use crate::core::media::{
 /// The show media information of a specific serie.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Display)]
 #[display(
-    fmt = "{{ShowOverview: imdb_id: {}, tvdb_id: {}, title: {}}}",
+    "{{ShowOverview: imdb_id: {}, tvdb_id: {}, title: {}}}",
     imdb_id,
     tvdb_id,
     title
@@ -93,7 +93,7 @@ impl MediaOverview for ShowOverview {
 /// The details of a show/serie which contains one or more [Episode] items.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Display)]
 #[display(
-    fmt = "{{ShowDetails: imdb_id: {}, tvdb_id: {}, title: {}}}",
+    "{{ShowDetails: imdb_id: {}, tvdb_id: {}, title: {}}}",
     imdb_id,
     tvdb_id,
     title

@@ -23,7 +23,7 @@ const DEFAULT_UPLOAD_RATE_LIMIT: fn() -> u32 = || 0;
 
 /// The torrent user's settings for the application.
 #[derive(Debug, Display, Clone, Serialize, Deserialize, PartialEq)]
-#[display(fmt = "directory: {:?}, cleaning mode: {}", directory, cleaning_mode)]
+#[display("directory: {:?}, cleaning mode: {}", directory, cleaning_mode)]
 pub struct TorrentSettings {
     /// The path to the torrent directory
     #[serde(default = "DEFAULT_DIRECTORY")]
@@ -65,13 +65,13 @@ impl Default for TorrentSettings {
 #[derive(Debug, Clone, Display, Serialize, Deserialize, PartialEq)]
 pub enum CleaningMode {
     /// Cleaning is disabled.
-    #[display(fmt = "Disabled")]
+    #[display("Disabled")]
     Off = 0,
     /// Files are cleaned on application shutdown.
-    #[display(fmt = "On application shutdown")]
+    #[display("On application shutdown")]
     OnShutdown = 1,
     /// Files are cleaned when fully watched.
-    #[display(fmt = "When fully watched")]
+    #[display("When fully watched")]
     Watched = 2,
 }
 

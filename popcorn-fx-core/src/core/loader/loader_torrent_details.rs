@@ -16,7 +16,7 @@ use crate::core::torrents::{Torrent, TorrentManager};
 ///
 /// This strategy is responsible for processing torrent-related data and publishing events when torrent details are loaded.
 #[derive(Display)]
-#[display(fmt = "Torrent details loading strategy")]
+#[display("Torrent details loading strategy")]
 pub struct TorrentDetailsLoadingStrategy {
     event_publisher: EventPublisher,
     torrent_manager: Arc<Box<dyn TorrentManager>>,

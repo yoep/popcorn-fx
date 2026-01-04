@@ -23,7 +23,7 @@ const TORRENT_EXTENSION: &str = ".torrent";
 
 /// Represent the loading strategy for loading the torrent information from a media item or a magnet link.
 #[derive(Display)]
-#[display(fmt = "Torrent info loading strategy")]
+#[display("Torrent info loading strategy")]
 pub struct TorrentInfoLoadingStrategy {
     torrent_manager: Arc<Box<dyn TorrentManager>>,
 }

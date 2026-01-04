@@ -18,7 +18,7 @@ use tokio_util::sync::{
 ///
 /// The `LoadingTask` manages loading processes, including handling loading events, canceling loading, and more.
 #[derive(Debug, Display)]
-#[display(fmt = "{}", context)]
+#[display("{}", context)]
 pub struct LoadingTask {
     context: Arc<LoadingTaskContext>,
 }
@@ -117,7 +117,7 @@ enum LoadingCommandEvent {
 
 /// The context information of a loading task.
 #[derive(Debug, Display)]
-#[display(fmt = "{}", handle)]
+#[display("{}", handle)]
 pub struct LoadingTaskContext {
     /// The unique task handle identifier
     handle: LoadingHandle,

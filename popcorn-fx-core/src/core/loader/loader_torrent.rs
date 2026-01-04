@@ -15,7 +15,7 @@ use log::{debug, trace};
 use tokio::select;
 
 #[derive(Display)]
-#[display(fmt = "Torrent loading strategy")]
+#[display("Torrent loading strategy")]
 pub struct TorrentLoadingStrategy {
     torrent_manager: Arc<Box<dyn TorrentManager>>,
     application_settings: ApplicationConfig,

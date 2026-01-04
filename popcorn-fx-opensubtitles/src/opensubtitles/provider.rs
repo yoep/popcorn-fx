@@ -33,7 +33,7 @@ const PAGE_PARAM_KEY: &str = "page";
 const DEFAULT_FILENAME_EXTENSION: &str = ".srt";
 
 #[derive(Debug, Display)]
-#[display(fmt = "Opensubtitles subtitle provider")]
+#[display("Opensubtitles subtitle provider")]
 pub struct OpensubtitlesProvider {
     settings: ApplicationConfig,
     client: Client,

@@ -589,7 +589,6 @@ mod tests {
 
     use async_trait::async_trait;
     use std::time::Duration;
-    use tempfile::tempdir;
     use tokio::sync::mpsc::unbounded_channel;
     use tokio::{select, time};
 
@@ -1050,8 +1049,6 @@ mod tests {
             .title(title)
             .subtitles_enabled(false)
             .build();
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
         let (tx, mut rx) = unbounded_channel();
         let mut player = MockPlayer::default();
         player.expect_id().return_const(player_id.to_string());

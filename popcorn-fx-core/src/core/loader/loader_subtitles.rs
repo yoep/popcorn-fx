@@ -358,15 +358,11 @@ mod tests {
         provider
             .expect_file_subtitles()
             .times(0)
-            .return_const(Ok(Vec::new()));
+            .returning(|_| Ok(Vec::new()));
         provider
             .expect_download_and_parse()
             .times(1)
-            .return_const(Ok(Subtitle::new(
-                vec![],
-                None,
-                "MySubtitleFile".to_string(),
-            )));
+            .returning(|_, _| Ok(Subtitle::new(vec![], None, "MySubtitleFile".to_string())));
         let mut manager = MockSubtitleManager::new();
         manager
             .expect_preference_async()
@@ -416,7 +412,7 @@ mod tests {
         provider
             .expect_movie_subtitles()
             .times(0)
-            .return_const(Ok(Vec::new()));
+            .returning(|_| Ok(Vec::new()));
         provider
             .expect_file_subtitles()
             .times(1)
@@ -427,11 +423,7 @@ mod tests {
         provider
             .expect_download_and_parse()
             .times(1)
-            .return_const(Ok(Subtitle::new(
-                vec![],
-                None,
-                "MySubtitleFile".to_string(),
-            )));
+            .returning(|_, _| Ok(Subtitle::new(vec![], None, "MySubtitleFile".to_string())));
         let mut manager = MockSubtitleManager::new();
         manager
             .expect_preference_async()
@@ -526,15 +518,15 @@ mod tests {
         provider
             .expect_movie_subtitles()
             .times(0)
-            .return_const(subtitles::Result::Ok(Vec::new()));
+            .returning(|_| Ok(Vec::new()));
         provider
             .expect_episode_subtitles()
             .times(0)
-            .return_const(subtitles::Result::Ok(Vec::new()));
+            .returning(|_, _| Ok(Vec::new()));
         provider
             .expect_file_subtitles()
             .times(0)
-            .return_const(subtitles::Result::Ok(Vec::new()));
+            .returning(|_| Ok(Vec::new()));
         let mut manager = MockSubtitleManager::new();
         manager
             .expect_preference_async()
@@ -581,15 +573,15 @@ mod tests {
         provider
             .expect_movie_subtitles()
             .times(0)
-            .return_const(subtitles::Result::Ok(Vec::new()));
+            .returning(|_| Ok(Vec::new()));
         provider
             .expect_episode_subtitles()
             .times(0)
-            .return_const(subtitles::Result::Ok(Vec::new()));
+            .returning(|_, _| Ok(Vec::new()));
         provider
             .expect_file_subtitles()
             .times(0)
-            .return_const(subtitles::Result::Ok(Vec::new()));
+            .returning(|_| Ok(Vec::new()));
         let mut manager = MockSubtitleManager::new();
         manager
             .expect_preference_async()

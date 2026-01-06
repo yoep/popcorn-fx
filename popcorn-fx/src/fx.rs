@@ -191,7 +191,7 @@ pub struct PopcornFX {
     subtitle_server: Arc<SubtitleServer>,
     torrent_collection: TorrentCollection,
     torrent_manager: Arc<Box<dyn TorrentManager>>,
-    torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
+    torrent_stream_server: Arc<dyn TorrentStreamServer>,
     tracking_provider: Arc<dyn TrackingProvider>,
     tracking_sync: Arc<SyncMediaTracking>,
     updater: Arc<Updater>,
@@ -263,8 +263,11 @@ impl PopcornFX {
             .await
             .map_err(|e| Error::Initialization(e.to_string()))?,
         ) as Box<dyn TorrentManager>);
-        let torrent_stream_server =
-            Arc::new(Box::new(FXTorrentStreamServer::new()) as Box<dyn TorrentStreamServer>);
+        let torrent_stream_server = Arc::new(
+            FXTorrentStreamServer::new()
+                .await
+                .map_err(|e| Error::Initialization(e.to_string()))?,
+        ) as Arc<dyn TorrentStreamServer>;
         let torrent_collection = TorrentCollection::new(app_directory_path);
         let auto_resume_service = Arc::new(
             DefaultAutoResumeService::builder()

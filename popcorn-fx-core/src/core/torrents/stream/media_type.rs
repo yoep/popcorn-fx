@@ -1,10 +1,9 @@
+use axum::http::HeaderValue;
+use log::{debug, error};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::path::Path;
-
-use log::{debug, error};
 use thiserror::Error;
-use warp::http::HeaderValue;
 
 /// The default known mime types supported by HTTPD.
 /// More info: https://svn.apache.org/viewvc/httpd/httpd/trunk/docs/conf/mime.types
@@ -80,7 +79,7 @@ impl From<MediaType> for HeaderValue {
 }
 
 /// The media type factory which can convert file extensions into [MediaType].
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MediaTypeFactory {
     /// The extension to media type mapping
     media_types: HashMap<String, MediaType>,

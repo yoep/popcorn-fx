@@ -18,11 +18,11 @@ use tokio::select;
 #[derive(Display)]
 #[display("Torrent stream loading strategy")]
 pub struct TorrentStreamLoadingStrategy {
-    torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
+    torrent_stream_server: Arc<dyn TorrentStreamServer>,
 }
 
 impl TorrentStreamLoadingStrategy {
-    pub fn new(torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>) -> Self {
+    pub fn new(torrent_stream_server: Arc<dyn TorrentStreamServer>) -> Self {
         Self {
             torrent_stream_server,
         }
@@ -163,7 +163,7 @@ mod tests {
         let task = create_loading_task!();
         let context = task.context();
         let strategy = TorrentStreamLoadingStrategy {
-            torrent_stream_server: Arc::new(Box::new(stream_server) as Box<dyn TorrentStreamServer>),
+            torrent_stream_server: Arc::new(stream_server),
         };
 
         // when no specific torrent file has been specified,
@@ -201,7 +201,7 @@ mod tests {
                 tx.send(e).unwrap();
             });
         let strategy = TorrentStreamLoadingStrategy {
-            torrent_stream_server: Arc::new(Box::new(stream_server) as Box<dyn TorrentStreamServer>),
+            torrent_stream_server: Arc::new(stream_server),
         };
 
         let _ = strategy

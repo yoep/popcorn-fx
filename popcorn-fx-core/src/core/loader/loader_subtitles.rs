@@ -24,7 +24,7 @@ use crate::core::subtitles::{
 #[derive(Display)]
 #[display("Subtitles loading strategy")]
 pub struct SubtitlesLoadingStrategy {
-    subtitle_provider: Arc<Box<dyn SubtitleProvider>>,
+    subtitle_provider: Arc<dyn SubtitleProvider>,
     subtitle_manager: Arc<Box<dyn SubtitleManager>>,
 }
 
@@ -40,7 +40,7 @@ impl SubtitlesLoadingStrategy {
     ///
     /// A new `SubtitlesLoadingStrategy` instance.
     pub fn new(
-        subtitle_provider: Arc<Box<dyn SubtitleProvider>>,
+        subtitle_provider: Arc<dyn SubtitleProvider>,
         subtitle_manager: Arc<Box<dyn SubtitleManager>>,
     ) -> Self {
         Self {
@@ -374,10 +374,7 @@ mod tests {
             .returning(|_| SubtitleInfo::none());
         let task = create_loading_task!();
         let context = task.context();
-        let loader = SubtitlesLoadingStrategy::new(
-            Arc::new(Box::new(provider)),
-            Arc::new(Box::new(manager)),
-        );
+        let loader = SubtitlesLoadingStrategy::new(Arc::new(provider), Arc::new(Box::new(manager)));
 
         let result = loader.process(&mut data, &*context).await;
         assert_eq!(LoadingResult::Ok, result);
@@ -435,10 +432,7 @@ mod tests {
             .returning(|_| SubtitleInfo::none());
         let task = create_loading_task!();
         let context = task.context();
-        let loader = SubtitlesLoadingStrategy::new(
-            Arc::new(Box::new(provider)),
-            Arc::new(Box::new(manager)),
-        );
+        let loader = SubtitlesLoadingStrategy::new(Arc::new(provider), Arc::new(Box::new(manager)));
 
         let result = loader.process(&mut data, &*context).await;
         assert_eq!(LoadingResult::Ok, result);
@@ -492,7 +486,7 @@ mod tests {
         let manager = Arc::new(Box::new(manager) as Box<dyn SubtitleManager>);
         let task = create_loading_task!();
         let context = task.context();
-        let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), manager);
+        let loader = SubtitlesLoadingStrategy::new(Arc::new(provider), manager);
 
         let result = loader.process(&mut data, &*context).await;
 
@@ -533,10 +527,7 @@ mod tests {
             .return_const(SubtitlePreference::Disabled);
         let task = create_loading_task!();
         let context = task.context();
-        let loader = SubtitlesLoadingStrategy::new(
-            Arc::new(Box::new(provider)),
-            Arc::new(Box::new(manager)),
-        );
+        let loader = SubtitlesLoadingStrategy::new(Arc::new(provider), Arc::new(Box::new(manager)));
 
         let result = loader.process(&mut data, &*context).await;
         assert_eq!(LoadingResult::Ok, result);
@@ -588,10 +579,7 @@ mod tests {
             .return_const(SubtitlePreference::Language(SubtitleLanguage::Custom));
         let task = create_loading_task!();
         let context = task.context();
-        let loader = SubtitlesLoadingStrategy::new(
-            Arc::new(Box::new(provider)),
-            Arc::new(Box::new(manager)),
-        );
+        let loader = SubtitlesLoadingStrategy::new(Arc::new(provider), Arc::new(Box::new(manager)));
 
         let result = loader.process(&mut data, &*context).await;
         assert_eq!(LoadingResult::Ok, result);
@@ -622,7 +610,7 @@ mod tests {
         let mut manager = MockSubtitleManager::new();
         manager.expect_reset().times(1).return_const(());
         let manager = Arc::new(Box::new(manager) as Box<dyn SubtitleManager>);
-        let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), manager);
+        let loader = SubtitlesLoadingStrategy::new(Arc::new(provider), manager);
 
         let _ = loader
             .cancel(&mut data)

@@ -1,10 +1,4 @@
-use std::collections::HashMap;
-use std::net::{SocketAddr, TcpListener};
-use std::path::Path;
-use std::process::{Child, Command};
-use std::sync::Arc;
-use std::time::Duration;
-
+use crate::vlc::{Result, VlcError, VlcStatus};
 use async_trait::async_trait;
 use chbs::config::BasicConfigBuilder;
 use chbs::prelude::ToScheme;
@@ -13,20 +7,24 @@ use chbs::word::{WordList, WordSampler};
 use derive_more::Display;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, error, info, trace, warn};
+use popcorn_fx_core::core::players::{PlayRequest, Player, PlayerEvent, PlayerState};
+use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
+use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider};
 use reqwest::header::HeaderMap;
 use reqwest::{Client, ClientBuilder, Error, Response};
 use serde_xml_rs::from_reader;
+use std::collections::HashMap;
+use std::net::{SocketAddr, TcpListener};
+use std::path::Path;
+use std::process::{Child, Command};
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::select;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
 use tokio::time::interval;
 use tokio_util::sync::CancellationToken;
 use url::Url;
-
-use crate::vlc::{Result, VlcError, VlcStatus};
-use popcorn_fx_core::core::players::{PlayRequest, Player, PlayerEvent, PlayerState};
-use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
-use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider};
 
 pub const VLC_ID: &str = "vlc";
 const VLC_GRAPHIC_RESOURCE: &[u8] = include_bytes!("../../resources/external-vlc-icon.png");
@@ -135,7 +133,7 @@ impl Drop for VlcPlayer {
 #[derive(Debug, Default)]
 pub struct VlcPlayerBuilder {
     subtitle_manager: Option<Arc<Box<dyn SubtitleManager>>>,
-    subtitle_provider: Option<Arc<Box<dyn SubtitleProvider>>>,
+    subtitle_provider: Option<Arc<dyn SubtitleProvider>>,
     password: Option<String>,
     address: Option<SocketAddr>,
 }
@@ -153,7 +151,7 @@ impl VlcPlayerBuilder {
     }
 
     /// Sets the subtitle provider for the VLC player.
-    pub fn subtitle_provider(mut self, subtitle_provider: Arc<Box<dyn SubtitleProvider>>) -> Self {
+    pub fn subtitle_provider(mut self, subtitle_provider: Arc<dyn SubtitleProvider>) -> Self {
         self.subtitle_provider = Some(subtitle_provider);
         self
     }
@@ -261,7 +259,7 @@ struct InnerVlcPlayer {
     state: Mutex<PlayerState>,
     callbacks: MultiThreadedCallback<PlayerEvent>,
     subtitle_manager: Arc<Box<dyn SubtitleManager>>,
-    subtitle_provider: Arc<Box<dyn SubtitleProvider>>,
+    subtitle_provider: Arc<dyn SubtitleProvider>,
     command_sender: UnboundedSender<VlcPlayerCommand>,
     cancellation_token: CancellationToken,
 }
@@ -568,7 +566,7 @@ mod tests {
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
             .subtitle_manager(Arc::new(Box::new(manager)))
-            .subtitle_provider(Arc::new(Box::new(provider)))
+            .subtitle_provider(Arc::new(provider))
             .build();
 
         assert_eq!("vlc", player.id());
@@ -581,7 +579,7 @@ mod tests {
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
             .subtitle_manager(Arc::new(Box::new(manager)))
-            .subtitle_provider(Arc::new(Box::new(provider)))
+            .subtitle_provider(Arc::new(provider))
             .build();
 
         assert_eq!("VLC", player.name());
@@ -594,7 +592,7 @@ mod tests {
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
             .subtitle_manager(Arc::new(Box::new(manager)))
-            .subtitle_provider(Arc::new(Box::new(provider)))
+            .subtitle_provider(Arc::new(provider))
             .build();
 
         assert_eq!(VLC_DESCRIPTION, player.description());
@@ -607,7 +605,7 @@ mod tests {
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
             .subtitle_manager(Arc::new(Box::new(manager)))
-            .subtitle_provider(Arc::new(Box::new(provider)))
+            .subtitle_provider(Arc::new(provider))
             .build();
 
         assert!(
@@ -623,7 +621,7 @@ mod tests {
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
             .subtitle_manager(Arc::new(Box::new(manager)))
-            .subtitle_provider(Arc::new(Box::new(provider)))
+            .subtitle_provider(Arc::new(provider))
             .build();
 
         let result = player.state().await;
@@ -657,10 +655,10 @@ mod tests {
         provider
             .expect_download()
             .times(1)
-            .return_const(Ok(subtitle_url.to_string()));
+            .returning(|_, _| Ok(subtitle_url.to_string()));
         let player = VlcPlayer::builder()
             .subtitle_manager(Arc::new(Box::new(manager)))
-            .subtitle_provider(Arc::new(Box::new(provider)))
+            .subtitle_provider(Arc::new(provider))
             .build();
 
         player.play(request).await;
@@ -700,7 +698,7 @@ mod tests {
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
             .subtitle_manager(Arc::new(Box::new(manager)))
-            .subtitle_provider(Arc::new(Box::new(provider)))
+            .subtitle_provider(Arc::new(provider))
             .address(server.address().clone())
             .build();
 
@@ -740,7 +738,7 @@ mod tests {
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
             .subtitle_manager(Arc::new(Box::new(manager)))
-            .subtitle_provider(Arc::new(Box::new(provider)))
+            .subtitle_provider(Arc::new(provider))
             .address(server.address().clone())
             .build();
 
@@ -798,7 +796,7 @@ mod tests {
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
             .subtitle_manager(Arc::new(Box::new(manager)))
-            .subtitle_provider(Arc::new(Box::new(provider)))
+            .subtitle_provider(Arc::new(provider))
             .address(server.address().clone())
             .build();
 
@@ -822,7 +820,7 @@ mod tests {
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
             .subtitle_manager(Arc::new(Box::new(manager)))
-            .subtitle_provider(Arc::new(Box::new(provider)))
+            .subtitle_provider(Arc::new(provider))
             .address(server.address().clone())
             .build();
 
@@ -847,7 +845,7 @@ mod tests {
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
             .subtitle_manager(Arc::new(Box::new(manager)))
-            .subtitle_provider(Arc::new(Box::new(provider)))
+            .subtitle_provider(Arc::new(provider))
             .address(server.address().clone())
             .build();
 
@@ -872,7 +870,7 @@ mod tests {
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
             .subtitle_manager(Arc::new(Box::new(manager)))
-            .subtitle_provider(Arc::new(Box::new(provider)))
+            .subtitle_provider(Arc::new(provider))
             .address(server.address().clone())
             .build();
 

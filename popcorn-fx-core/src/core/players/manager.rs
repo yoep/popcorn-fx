@@ -154,7 +154,7 @@ impl DefaultPlayerManager {
     pub fn new(
         event_publisher: EventPublisher,
         torrent_manager: Arc<Box<dyn TorrentManager>>,
-        torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
+        torrent_stream_server: Arc<dyn TorrentStreamServer>,
     ) -> Self {
         let (player_event_sender, player_event_receiver) = unbounded_channel();
         let inner = Arc::new(InnerPlayerManager::new(
@@ -229,7 +229,7 @@ struct InnerPlayerManager {
     player_listener_sender: UnboundedSender<PlayerEvent>,
     player_listener_cancellation: Mutex<CancellationToken>,
     torrent_manager: Arc<Box<dyn TorrentManager>>,
-    torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
+    torrent_stream_server: Arc<dyn TorrentStreamServer>,
     callbacks: MultiThreadedCallback<PlayerManagerEvent>,
     event_publisher: EventPublisher,
     cancellation_token: CancellationToken,
@@ -240,7 +240,7 @@ impl InnerPlayerManager {
         listener_sender: UnboundedSender<PlayerEvent>,
         event_publisher: EventPublisher,
         torrent_manager: Arc<Box<dyn TorrentManager>>,
-        torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
+        torrent_stream_server: Arc<dyn TorrentStreamServer>,
     ) -> Self {
         let instance = Self {
             active_player: Mutex::default(),
@@ -686,7 +686,7 @@ mod tests {
         let manager = DefaultPlayerManager::new(
             EventPublisher::default(),
             Arc::new(Box::new(torrent_manager)),
-            Arc::new(Box::new(torrent_stream_server)),
+            Arc::new(torrent_stream_server),
         );
 
         let _ = manager.add_player(player);
@@ -725,7 +725,7 @@ mod tests {
         let manager = DefaultPlayerManager::new(
             event_publisher.clone(),
             Arc::new(Box::new(torrent_manager)),
-            Arc::new(Box::new(torrent_stream_server)),
+            Arc::new(torrent_stream_server),
         );
 
         let mut receiver = manager.subscribe();
@@ -773,7 +773,7 @@ mod tests {
         let manager = DefaultPlayerManager::new(
             event_publisher.clone(),
             Arc::new(Box::new(torrent_manager)),
-            Arc::new(Box::new(torrent_stream_server)),
+            Arc::new(torrent_stream_server),
         );
 
         let mut receiver = manager.subscribe();
@@ -820,7 +820,7 @@ mod tests {
         let manager = DefaultPlayerManager::new(
             event_publisher.clone(),
             Arc::new(Box::new(torrent_manager)),
-            Arc::new(Box::new(torrent_stream_server)),
+            Arc::new(torrent_stream_server),
         );
 
         let mut receiver = manager.subscribe();
@@ -879,7 +879,7 @@ mod tests {
         let manager = DefaultPlayerManager::new(
             EventPublisher::default(),
             Arc::new(Box::new(torrent_manager)),
-            Arc::new(Box::new(torrent_stream_server)),
+            Arc::new(torrent_stream_server),
         );
 
         let _ = manager.add_player(player);
@@ -906,7 +906,7 @@ mod tests {
         let manager = DefaultPlayerManager::new(
             EventPublisher::default(),
             Arc::new(Box::new(torrent_manager)),
-            Arc::new(Box::new(torrent_stream_server)),
+            Arc::new(torrent_stream_server),
         );
 
         let _ = manager.add_player(player);
@@ -970,7 +970,7 @@ mod tests {
         let manager = DefaultPlayerManager::new(
             EventPublisher::default(),
             Arc::new(Box::new(torrent_manager)),
-            Arc::new(Box::new(torrent_stream_server)),
+            Arc::new(torrent_stream_server),
         );
 
         // subscribe to the player manager events
@@ -1066,7 +1066,7 @@ mod tests {
         let manager = DefaultPlayerManager::new(
             EventPublisher::default(),
             Arc::new(Box::new(torrent_manager)),
-            Arc::new(Box::new(torrent_stream_server)),
+            Arc::new(torrent_stream_server),
         );
 
         let _ = manager.add_player(Box::new(player));
@@ -1091,7 +1091,7 @@ mod tests {
         let manager = DefaultPlayerManager::new(
             EventPublisher::default(),
             Arc::new(Box::new(torrent_manager)),
-            Arc::new(Box::new(torrent_stream_server)),
+            Arc::new(torrent_stream_server),
         );
 
         let result = manager.add_player(player);

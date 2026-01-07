@@ -187,7 +187,7 @@ pub struct PopcornFX {
     providers: Arc<ProviderManager>,
     settings: ApplicationConfig,
     subtitle_manager: Arc<Box<dyn SubtitleManager>>,
-    subtitle_provider: Arc<Box<dyn SubtitleProvider>>,
+    subtitle_provider: Arc<dyn SubtitleProvider>,
     subtitle_server: Arc<SubtitleServer>,
     torrent_collection: TorrentCollection,
     torrent_manager: Arc<Box<dyn TorrentManager>>,
@@ -225,15 +225,19 @@ impl PopcornFX {
             .properties(args.properties.clone())
             .build();
         let cache_manager = CacheManager::new(app_directory_path);
-        let subtitle_provider: Arc<Box<dyn SubtitleProvider>> = Arc::new(Box::new(
+        let subtitle_provider: Arc<dyn SubtitleProvider> = Arc::new(
             OpensubtitlesProvider::builder()
                 .settings(settings.clone())
                 .with_parser(SubtitleType::Srt, Box::new(SrtParser::default()))
                 .with_parser(SubtitleType::Vtt, Box::new(VttParser::default()))
                 .insecure(args.insecure)
                 .build(),
-        ));
-        let subtitle_server = Arc::new(SubtitleServer::new(subtitle_provider.clone()));
+        );
+        let subtitle_server = Arc::new(
+            SubtitleServer::new(subtitle_provider.clone())
+                .await
+                .map_err(|e| Error::Initialization(e.to_string()))?,
+        );
         let subtitle_manager = Arc::new(Box::new(
             DefaultSubtitleManager::new(settings.clone()).await,
         ) as Box<dyn SubtitleManager>);
@@ -403,7 +407,7 @@ impl PopcornFX {
     }
 
     /// The platform service of the popcorn FX instance.
-    pub fn subtitle_provider(&self) -> &Arc<Box<dyn SubtitleProvider>> {
+    pub fn subtitle_provider(&self) -> &Arc<dyn SubtitleProvider> {
         &self.subtitle_provider
     }
 
@@ -443,7 +447,7 @@ impl PopcornFX {
     }
 
     /// The torrent stream server which handles the video streams.
-    pub fn torrent_stream_server(&self) -> &Arc<Box<dyn TorrentStreamServer>> {
+    pub fn torrent_stream_server(&self) -> &Arc<dyn TorrentStreamServer> {
         &self.torrent_stream_server
     }
 

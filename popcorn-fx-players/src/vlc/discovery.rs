@@ -18,7 +18,7 @@ use crate::{Discovery, DiscoveryError, DiscoveryState};
 #[display("VLC local player discovery")]
 pub struct VlcDiscovery {
     subtitle_manager: Arc<Box<dyn SubtitleManager>>,
-    subtitle_provider: Arc<Box<dyn SubtitleProvider>>,
+    subtitle_provider: Arc<dyn SubtitleProvider>,
     player_manager: Arc<Box<dyn PlayerManager>>,
     state: Mutex<DiscoveryState>,
 }
@@ -27,7 +27,7 @@ impl VlcDiscovery {
     /// Creates a new instance of `VlcDiscovery`.
     pub fn new(
         subtitle_manager: Arc<Box<dyn SubtitleManager>>,
-        subtitle_provider: Arc<Box<dyn SubtitleProvider>>,
+        subtitle_provider: Arc<dyn SubtitleProvider>,
         player_manager: Arc<Box<dyn PlayerManager>>,
     ) -> Self {
         Self {
@@ -145,7 +145,7 @@ mod tests {
             });
         let discovery = VlcDiscovery::new(
             Arc::new(Box::new(manager)),
-            Arc::new(Box::new(provider)),
+            Arc::new(provider),
             Arc::new(Box::new(player_manager)),
         );
 
@@ -164,7 +164,7 @@ mod tests {
         let player_manager = MockPlayerManager::new();
         let discovery = VlcDiscovery::new(
             Arc::new(Box::new(manager)),
-            Arc::new(Box::new(provider)),
+            Arc::new(provider),
             Arc::new(Box::new(player_manager)),
         );
 

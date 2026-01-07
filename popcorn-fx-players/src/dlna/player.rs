@@ -965,7 +965,11 @@ mod tests {
         let device = Device::from_url(addr.parse().unwrap()).await.unwrap();
         let service = device.find_service(&AV_TRANSPORT).cloned().unwrap();
         let subtitle_provider = MockSubtitleProvider::new();
-        let subtitle_server = Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider))));
+        let subtitle_server = Arc::new(
+            SubtitleServer::new(Arc::new(subtitle_provider))
+                .await
+                .unwrap(),
+        );
         let player = Arc::new(DlnaPlayer::new(device, service, subtitle_server));
 
         TestInstance { server, player }

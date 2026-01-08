@@ -586,7 +586,7 @@ mod tests {
         let (tx_data, mut rx_data) = unbounded_channel();
         let (tx_event, mut rx_event) = unbounded_channel();
         let strategy = TestingLoadingStrategy::builder()
-            .data_peeker(move |e| {
+            .data_peeker(move |_| {
                 let _ = tx_data.send(());
             })
             .delay(Duration::from_secs(1))

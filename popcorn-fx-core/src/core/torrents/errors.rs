@@ -1,3 +1,4 @@
+use std::io;
 use thiserror::Error;
 
 use crate::core::torrents::TorrentStreamState;
@@ -25,4 +26,10 @@ pub enum Error {
     TorrentError(String),
     #[error("an io error occurred, {0}")]
     Io(String),
+}
+
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Self {
+        Error::Io(err.to_string())
+    }
 }

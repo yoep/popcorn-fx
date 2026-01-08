@@ -663,7 +663,6 @@ mod tests {
             torrent: Default::default(),
         };
         let (tx, mut rx) = unbounded_channel();
-        let expected_result = LoadingData::from(item.clone());
         let strategy = TestingLoadingStrategy::builder()
             .data_peeker(move |e| {
                 let _ = tx.send(e.title.clone());
@@ -709,7 +708,7 @@ mod tests {
         let (tx_data, mut rx_data) = unbounded_channel();
         let (tx_event, mut rx_event) = unbounded_channel();
         let strategy = TestingLoadingStrategy::builder()
-            .data_peeker(move |e| {
+            .data_peeker(move |_| {
                 let _ = tx_data.send(());
             })
             .event(LoadingEvent::ProgressChanged(expected_result.clone()))

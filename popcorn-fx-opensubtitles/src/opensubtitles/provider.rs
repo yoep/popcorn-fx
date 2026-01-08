@@ -334,9 +334,7 @@ impl OpensubtitlesProvider {
                     "Creating subtitle directory {}",
                     directory.to_str().unwrap()
                 );
-                fs::create_dir_all(directory).map_err(|e| {
-                    SubtitleError::IO(directory.to_str().unwrap().to_string(), e.to_string())
-                })?;
+                fs::create_dir_all(directory).map_err(|e| SubtitleError::IO(e))?;
 
                 // open the subtitle file that will be written
                 let filepath = path.to_str().unwrap();
@@ -347,7 +345,7 @@ impl OpensubtitlesProvider {
                     .truncate(true)
                     .open(path)
                     .await
-                    .map_err(|e| SubtitleError::IO(filepath.to_string(), e.to_string()))?;
+                    .map_err(|e| SubtitleError::IO(e))?;
 
                 // stream the bytes to the opened file
                 debug!("Writing subtitle file {} to {}", file_id, filepath);
@@ -362,7 +360,7 @@ impl OpensubtitlesProvider {
                         .await
                         .map_err(|e| {
                             error!("Failed to write subtitle file, {}", e);
-                            SubtitleError::IO(filepath.to_string(), e.to_string())
+                            SubtitleError::IO(e)
                         })?;
                 }
 
@@ -1172,7 +1170,7 @@ mod test {
             .settings(settings)
             .with_parser(SubtitleType::Srt, Box::new(SrtParser::new()))
             .build();
-        let destination = copy_test_file(temp_dir.into_path().to_str().unwrap(), test_file, None);
+        let destination = copy_test_file(temp_dir.path().to_str().unwrap(), test_file, None);
         let expected_result = Subtitle::new(
             vec![SubtitleCue::new(
                 "1".to_string(),

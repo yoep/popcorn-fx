@@ -1,4 +1,5 @@
 use derive_more::Display;
+use std::io;
 use thiserror::Error;
 
 use crate::core::subtitles::model::SubtitleType;
@@ -7,7 +8,7 @@ use crate::core::subtitles::model::SubtitleType;
 pub type Result<T> = std::result::Result<T, SubtitleError>;
 
 /// Represents errors specific to subtitles.
-#[derive(PartialEq, Debug, Clone, Error)]
+#[derive(Debug, Error)]
 pub enum SubtitleError {
     /// Failed to create a valid URL.
     #[error("failed to create valid URL: {0}")]
@@ -19,8 +20,8 @@ pub enum SubtitleError {
     #[error("failed to download subtitle {0}: {1}")]
     DownloadFailed(String, String),
     /// IO error occurred while handling the subtitle.
-    #[error("failed to write subtitle file to {0}: {1}")]
-    IO(String, String),
+    #[error("an io error occurred, {0}")]
+    IO(io::Error),
     /// Failed to parse the subtitle file.
     #[error("failed to parse file {0}: {1}")]
     ParseFileError(String, String),
@@ -39,6 +40,30 @@ pub enum SubtitleError {
     /// Invalid subtitle file.
     #[error("file {0} is invalid: {1}")]
     InvalidFile(String, String),
+}
+
+impl PartialEq for SubtitleError {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::InvalidUrl(_), Self::InvalidUrl(_)) => true,
+            (Self::SearchFailed(_), Self::SearchFailed(_)) => true,
+            (Self::DownloadFailed(_, _), Self::DownloadFailed(_, _)) => true,
+            (Self::IO(_), Self::IO(_)) => true,
+            (Self::ParseFileError(_, _), Self::ParseFileError(_, _)) => true,
+            (Self::ParseUrlError(_), Self::ParseUrlError(_)) => true,
+            (Self::ConversionFailed(_, _), Self::ConversionFailed(_, _)) => true,
+            (Self::TypeNotSupported(_), Self::TypeNotSupported(_)) => true,
+            (Self::NoFilesFound, Self::NoFilesFound) => true,
+            (Self::InvalidFile(_, _), Self::InvalidFile(_, _)) => true,
+            _ => false,
+        }
+    }
+}
+
+impl From<io::Error> for SubtitleError {
+    fn from(e: io::Error) -> Self {
+        SubtitleError::IO(e)
+    }
 }
 
 #[derive(PartialEq, Debug, Display)]

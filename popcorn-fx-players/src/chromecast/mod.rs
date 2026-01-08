@@ -128,24 +128,25 @@ mod tests {
             instance
         }
 
-        pub fn new_player(device: Box<dyn Fn() -> MockFxCastDevice + Send + Sync>) -> Self {
+        pub async fn new_player(device: Box<dyn Fn() -> MockFxCastDevice + Send + Sync>) -> Self {
             let mut transcoder = MockTranscoder::new();
             transcoder.expect_stop().return_const(());
             Self::new_player_with_additions(
                 device,
-                Box::new(MockSubtitleProvider::new()),
+                Arc::new(MockSubtitleProvider::new()),
                 Box::new(transcoder),
             )
+            .await
         }
 
-        pub fn new_player_with_additions(
+        pub async fn new_player_with_additions(
             device: Box<dyn Fn() -> MockFxCastDevice + Send + Sync>,
-            subtitle_provider: Box<dyn SubtitleProvider>,
+            subtitle_provider: Arc<dyn SubtitleProvider>,
             transcoder: Box<dyn Transcoder>,
         ) -> Self {
             let mut instance = Self::new();
             let addr = available_socket();
-            let subtitle_server = SubtitleServer::new(Arc::new(subtitle_provider));
+            let subtitle_server = SubtitleServer::new(subtitle_provider).await.unwrap();
             let player = ChromecastPlayer::builder()
                 .id("MyChromecastId")
                 .name("MyChromecastName")

@@ -292,7 +292,7 @@ impl From<&SubtitleError> for subtitle::Error {
                     special_fields: Default::default(),
                 });
             }
-            SubtitleError::IO(_, _) => {
+            SubtitleError::IO(_) => {
                 err.type_ = subtitle::error::Type::IO.into();
             }
             SubtitleError::ParseFileError(_, _) => {

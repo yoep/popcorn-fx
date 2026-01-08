@@ -328,7 +328,11 @@ mod tests {
         init_logger!();
         let player_manager = MockPlayerManager::new();
         let subtitle_provider = MockSubtitleProvider::new();
-        let subtitle_server = Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider))));
+        let subtitle_server = Arc::new(
+            SubtitleServer::new(Arc::new(subtitle_provider))
+                .await
+                .unwrap(),
+        );
         let discovery = ChromecastDiscovery::builder()
             .player_manager(Arc::new(Box::new(player_manager)))
             .subtitle_server(subtitle_server)
@@ -359,7 +363,11 @@ mod tests {
         let mut test_instance = TestInstance::new_mdns().await;
         let mdns = test_instance.mdns.take().unwrap();
         let subtitle_provider = MockSubtitleProvider::new();
-        let subtitle_server = Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider))));
+        let subtitle_server = Arc::new(
+            SubtitleServer::new(Arc::new(subtitle_provider))
+                .await
+                .unwrap(),
+        );
         let discovery = ChromecastDiscovery::builder()
             .player_manager(Arc::new(Box::new(player_manager)))
             .subtitle_server(subtitle_server)
@@ -382,7 +390,11 @@ mod tests {
         let mut test_instance = TestInstance::new_mdns().await;
         let mdns = test_instance.mdns.take().unwrap();
         let subtitle_provider = MockSubtitleProvider::new();
-        let subtitle_server = Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider))));
+        let subtitle_server = Arc::new(
+            SubtitleServer::new(Arc::new(subtitle_provider))
+                .await
+                .unwrap(),
+        );
         let discovery = ChromecastDiscovery::builder()
             .player_manager(Arc::new(Box::new(player_manager)))
             .subtitle_server(subtitle_server)

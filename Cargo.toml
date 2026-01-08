@@ -13,7 +13,7 @@ members = [
 
 [workspace.dependencies]
 async-trait = "0.1"
-axum = "0.8.7"
+axum = "0.8.8"
 base32 = "0.5.1"
 base64 = "0.22.1"
 byteorder = "1.5"
@@ -46,7 +46,6 @@ tokio = "1.48.0"
 tokio-stream = "0.1.17"
 tokio-util = "0.7.16"
 url = "2.5.7"
-warp = "0.3.7"
 
 # dev-dependencies
 httpmock = "0.8"

@@ -1,7 +1,6 @@
 use crate::core::torrents;
 use crate::core::torrents::{Torrent, TorrentStream, TorrentStreamEvent};
 use async_trait::async_trait;
-use derive_more::Display;
 use downcast_rs::{impl_downcast, DowncastSync};
 use fx_callback::Subscription;
 use fx_handle::Handle;
@@ -9,27 +8,12 @@ use fx_handle::Handle;
 use mockall::automock;
 use std::fmt::Debug;
 
-/// The state of the torrent stream server.
-#[derive(Debug, Clone, Display, PartialEq)]
-pub enum TorrentStreamServerState {
-    Stopped,
-    Running,
-    Error,
-}
-
 /// A trait for a torrent stream server that allows streaming torrents over HTTP.
 ///
 /// This trait defines methods for managing the state of the torrent stream server and starting/stopping torrent streams.
 #[cfg_attr(any(test, feature = "testing"), automock)]
 #[async_trait]
 pub trait TorrentStreamServer: Debug + DowncastSync {
-    /// Get the current state of the torrent stream server.
-    ///
-    /// # Returns
-    ///
-    /// The current state of the torrent stream server.
-    async fn state(&self) -> TorrentStreamServerState;
-
     /// Start streaming a torrent.
     ///
     /// # Arguments

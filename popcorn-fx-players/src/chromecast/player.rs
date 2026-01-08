@@ -1133,7 +1133,11 @@ mod tests {
             "127.0.0.1",
             9870,
             Box::new(|_, _| Ok(create_default_device())),
-            Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider)))),
+            Arc::new(
+                SubtitleServer::new(Arc::new(subtitle_provider))
+                    .await
+                    .unwrap(),
+            ),
             Arc::new(Box::new(transcoder)),
             500,
         );
@@ -1147,7 +1151,8 @@ mod tests {
     #[tokio::test]
     async fn test_player_id() {
         init_logger!();
-        let mut test_instance = TestInstance::new_player(Box::new(|| create_default_device()));
+        let mut test_instance =
+            TestInstance::new_player(Box::new(|| create_default_device())).await;
         let player = test_instance.player.take().unwrap();
 
         let result = player.id();
@@ -1158,7 +1163,8 @@ mod tests {
     #[tokio::test]
     async fn test_player_name() {
         init_logger!();
-        let mut test_instance = TestInstance::new_player(Box::new(|| create_default_device()));
+        let mut test_instance =
+            TestInstance::new_player(Box::new(|| create_default_device())).await;
         let player = test_instance.player.take().unwrap();
 
         let result = player.name();
@@ -1169,7 +1175,8 @@ mod tests {
     #[tokio::test]
     async fn test_player_description() {
         init_logger!();
-        let mut test_instance = TestInstance::new_player(Box::new(|| create_default_device()));
+        let mut test_instance =
+            TestInstance::new_player(Box::new(|| create_default_device())).await;
         let player = test_instance.player.take().unwrap();
 
         let result = player.description();
@@ -1180,7 +1187,8 @@ mod tests {
     #[tokio::test]
     async fn test_player_graphic_resource() {
         init_logger!();
-        let mut test_instance = TestInstance::new_player(Box::new(|| create_default_device()));
+        let mut test_instance =
+            TestInstance::new_player(Box::new(|| create_default_device())).await;
         let player = test_instance.player.take().unwrap();
 
         let result = player.graphic_resource();
@@ -1191,7 +1199,8 @@ mod tests {
     #[tokio::test]
     async fn test_player_state() {
         init_logger!();
-        let mut test_instance = TestInstance::new_player(Box::new(|| create_default_device()));
+        let mut test_instance =
+            TestInstance::new_player(Box::new(|| create_default_device())).await;
         let player = test_instance.player.take().unwrap();
 
         let result = player.state().await;
@@ -1249,7 +1258,8 @@ mod tests {
             }));
             default_device_status_response(&mut device);
             device
-        }));
+        }))
+        .await;
         let movie = MovieOverview {
             title: "MyMovie".to_string(),
             imdb_id: "tt011000".to_string(),
@@ -1312,7 +1322,8 @@ mod tests {
                     Ok(status_entry(media::PlayerState::Paused))
                 });
             device
-        }));
+        }))
+        .await;
         let player = test_instance.player.take().unwrap();
 
         *player.inner.cast_app.lock().await = Some(Application {
@@ -1339,7 +1350,8 @@ mod tests {
     #[tokio::test]
     async fn test_player_resume() {
         init_logger!();
-        let mut test_instance = TestInstance::new_player(Box::new(|| create_default_device()));
+        let mut test_instance =
+            TestInstance::new_player(Box::new(|| create_default_device())).await;
         let player = test_instance.player.take().unwrap();
 
         player.resume().await;
@@ -1361,7 +1373,8 @@ mod tests {
                     Ok(status_entry(media::PlayerState::Playing))
                 });
             device
-        }));
+        }))
+        .await;
         let player = test_instance.player.take().unwrap();
 
         *player.inner.cast_app.lock().await = Some(Application {
@@ -1396,7 +1409,8 @@ mod tests {
                     Ok(())
                 });
             device
-        }));
+        }))
+        .await;
         let player = test_instance.player.take().unwrap();
 
         *player.inner.cast_app.lock().await = Some(Application {
@@ -1462,7 +1476,7 @@ mod tests {
         provider
             .expect_convert()
             .times(2)
-            .return_const(Ok(subtitle_url.to_string()));
+            .returning(|_, _| Ok(subtitle_url.to_string()));
         let (tx_ready, mut rx_ready) = unbounded_channel();
         let (tx_transcode, mut rx_transcode) = unbounded_channel();
         let mut load_transcoding_url = Some(());
@@ -1532,9 +1546,10 @@ mod tests {
                     }));
                 device
             }),
-            Box::new(provider),
+            Arc::new(provider),
             Box::new(transcoder),
-        );
+        )
+        .await;
         let player = test_instance.player.take().unwrap();
 
         player.play(request).await;
@@ -1570,7 +1585,7 @@ mod tests {
     #[tokio::test]
     async fn test_player_handle_event_error() {
         init_logger!();
-        let mut test_instance = create_default_test_instance();
+        let mut test_instance = create_default_test_instance().await;
         let player = test_instance.player.take().unwrap();
 
         player
@@ -1616,7 +1631,8 @@ mod tests {
                 ),
             ));
             device
-        }));
+        }))
+        .await;
         let player = test_instance.player.take().unwrap();
 
         let result = player.inner.start_app().await.unwrap();
@@ -1629,12 +1645,13 @@ mod tests {
         assert_eq!(transport_id.to_string(), result.transport_id);
     }
 
-    fn create_default_test_instance() -> TestInstance {
+    async fn create_default_test_instance() -> TestInstance {
         TestInstance::new_player(Box::new(move || {
             let mut device = create_default_device();
             device.expect_ping().return_const(Ok(()));
             device
         }))
+        .await
     }
 
     fn create_default_device() -> MockFxCastDevice {

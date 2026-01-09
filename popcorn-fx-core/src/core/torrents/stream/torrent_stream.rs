@@ -22,7 +22,7 @@ use std::fs;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::PathBuf;
-use std::pin::{pin, Pin};
+use std::pin::Pin;
 use std::sync::{Arc, Weak};
 use std::task::{ready, Context, Poll};
 use tokio::select;

@@ -6,8 +6,9 @@ use crate::core::torrents::{
 };
 use async_trait::async_trait;
 use derive_more::Display;
+use futures::future::BoxFuture;
 use futures::task::AtomicWaker;
-use futures::Future;
+use futures::FutureExt;
 use futures::Stream;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use fx_torrent;
@@ -16,14 +17,14 @@ use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
 use std::cmp::{max, min};
 use std::collections::BTreeMap;
-use std::fmt::Debug;
+use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::PathBuf;
 use std::pin::{pin, Pin};
 use std::sync::{Arc, Weak};
-use std::task::{Context, Poll};
+use std::task::{ready, Context, Poll};
 use tokio::select;
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
@@ -639,7 +640,7 @@ impl TorrentStream for TorrentStreamContext {
 }
 
 /// The default implementation of a [Stream] for torrents.
-#[derive(Debug, Display)]
+#[derive(Display)]
 #[display("{}", "torrent.handle()")]
 pub struct FXTorrentStreamingResource {
     torrent: Arc<dyn Torrent>,
@@ -659,6 +660,7 @@ pub struct FXTorrentStreamingResource {
     /// The total len of the stream
     len: u64,
     waker: Arc<AtomicWaker>,
+    pending_has_bytes: Option<BoxFuture<'static, bool>>,
     cancellation_token: CancellationToken,
 }
 
@@ -763,6 +765,7 @@ impl FXTorrentStreamingResource {
                         offset,
                         len: stream_length,
                         waker,
+                        pending_has_bytes: None,
                         cancellation_token,
                     })
                 })
@@ -878,12 +881,6 @@ impl FXTorrentStreamingResource {
         value.as_ref().trim().to_lowercase()
     }
 
-    /// Returns `true` if all bytes within the given stream buffer are available.
-    async fn has_bytes(&self, bytes: &Buffer) -> bool {
-        let torrent_range = self.as_torrent_range(bytes);
-        self.torrent.has_bytes(&torrent_range).await
-    }
-
     async fn start_torrent_event_handler(
         mut receiver: Subscription<TorrentEvent>,
         event_waker: Arc<AtomicWaker>,
@@ -958,10 +955,20 @@ impl Stream for FXTorrentStreamingResource {
 
         // get the next buffer to read from
         let buffer = self.next_buffer();
-        let is_available = match pin!(self.has_bytes(&buffer)).poll(cx) {
-            Poll::Ready(e) => e,
-            Poll::Pending => return Poll::Pending,
+        if self.pending_has_bytes.is_none() {
+            let torrent = self.torrent.clone();
+            let torrent_range = self.as_torrent_range(&buffer);
+
+            self.pending_has_bytes =
+                Some(async move { torrent.has_bytes(&torrent_range).await }.boxed());
+        }
+
+        let is_available = match self.pending_has_bytes.as_mut() {
+            None => return Poll::Ready(None),
+            Some(future) => ready!(future.as_mut().poll(cx)),
         };
+        self.pending_has_bytes = None;
+
         if !is_available {
             return self.as_mut().wait_for(&buffer, cx);
         }
@@ -974,6 +981,23 @@ impl Stream for FXTorrentStreamingResource {
         let total_buffers = length / DEFAULT_BUFFER_SIZE as f64;
 
         (0, Some(total_buffers.ceil() as usize))
+    }
+}
+
+impl Debug for FXTorrentStreamingResource {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FXTorrentStreamingResource")
+            .field("torrent", &self.torrent)
+            .field("torrent_filename", &self.torrent_filename)
+            .field("torrent_offset", &self.torrent_offset)
+            .field("file", &self.filepath)
+            .field("resource_length", &self.resource_length)
+            .field("cursor", &self.cursor)
+            .field("offset", &self.offset)
+            .field("len", &self.len)
+            .field("waker", &self.waker)
+            .field("cancellation_token", &self.cancellation_token)
+            .finish()
     }
 }
 
@@ -1453,47 +1477,6 @@ mod test {
                 assert_eq!(TorrentStreamState::Stopped, state)
             }
             _ => assert!(false, "expected TorrentError::InvalidStreamState"),
-        }
-    }
-
-    mod fx_torrent_streaming_resource {
-        use super::*;
-
-        #[tokio::test]
-        async fn test_has_bytes() {
-            init_logger!();
-            let filename = "movie.mp4";
-            let temp_dir = tempdir().unwrap();
-            let temp_path = temp_dir.path().join(filename);
-            let absolute_filepath = PathBuf::from(copy_test_file(
-                temp_dir.path().to_str().unwrap(),
-                "huge.txt",
-                Some(filename),
-            ));
-            let buffer: Buffer = 200..600;
-            let files = vec![create_torrent_file!(temp_path.clone(), 2000)];
-            let mut torrent = MockTorrent::new();
-            torrent.expect_handle().return_const(TorrentHandle::new());
-            torrent
-                .expect_has_bytes()
-                .withf(|bytes| bytes.eq(&(2200..2600)))
-                .times(1)
-                .return_const(true);
-            torrent.expect_files().returning(move || files.clone());
-            torrent
-                .expect_absolute_file_path()
-                .returning(move |_| absolute_filepath.clone());
-            torrent.expect_subscribe().returning(|| {
-                let (_, rx) = unbounded_channel();
-                rx
-            });
-            let stream = FXTorrentStreamingResource::new(Arc::new(torrent), filename)
-                .await
-                .unwrap();
-
-            let result = stream.has_bytes(&buffer).await;
-
-            assert_eq!(true, result, "expected the bytes to have been present");
         }
     }
 

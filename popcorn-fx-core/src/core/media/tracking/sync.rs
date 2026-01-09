@@ -89,7 +89,6 @@ impl SyncMediaTracking {
 
 impl Drop for SyncMediaTracking {
     fn drop(&mut self) {
-        trace!("Dropping {:?}", self);
         self.inner.cancellation_token.cancel();
     }
 }

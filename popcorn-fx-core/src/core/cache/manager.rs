@@ -652,7 +652,7 @@ impl InnerCacheManager {
             .options()
             .make_dirs(true)
             .serializer(FILENAME)
-            .write_async(&*info)
+            .write(&*info)
             .await
             .map(|e| debug!("Cache info has been saved at {}", e.to_str().unwrap()))
             .map_err(|e| {
@@ -1387,6 +1387,7 @@ mod test {
                 .into_iter()
                 .collect(),
             })
+            .await
             .unwrap();
         let _cache_manager = Arc::new(
             CacheManagerBuilder::default()
@@ -1394,7 +1395,7 @@ mod test {
                 .build(),
         );
 
-        assert_timeout!(time::Duration::from_millis(100), !path.exists());
+        assert_timeout!(Duration::from_millis(100), !path.exists());
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -1422,6 +1423,7 @@ mod test {
                 .into_iter()
                 .collect(),
             })
+            .await
             .unwrap();
 
         let cache_manager = Arc::new(

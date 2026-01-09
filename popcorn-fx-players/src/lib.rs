@@ -76,7 +76,7 @@ mod tests {
     pub async fn wait_for_hit<'a>(mock: &'a Mock<'a>) {
         let _ = timeout(Duration::from_millis(500), async {
             loop {
-                let result = mock.hits_async().await;
+                let result = mock.calls_async().await;
                 if result > 0 {
                     break;
                 }

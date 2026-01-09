@@ -536,7 +536,7 @@ impl InnerApplicationConfig {
             .storage
             .options()
             .serializer(DEFAULT_SETTINGS_FILENAME)
-            .write_async(&*settings)
+            .write(&*settings)
             .await
         {
             Ok(_) => {
@@ -708,7 +708,7 @@ mod test {
             .storage
             .options()
             .serializer(DEFAULT_SETTINGS_FILENAME)
-            .write_async(&PopcornSettings::default())
+            .write(&PopcornSettings::default())
             .await
             .expect("expected the test file to have been written");
 
@@ -788,7 +788,7 @@ mod test {
             .storage
             .options()
             .serializer(DEFAULT_SETTINGS_FILENAME)
-            .write_async(&PopcornSettings {
+            .write(&PopcornSettings {
                 subtitle_settings: expected_result.clone(),
                 ui_settings: Default::default(),
                 server_settings: Default::default(),

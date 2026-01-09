@@ -64,6 +64,7 @@ pub mod testing {
                 .logger(Logger::builder().build("async_io", LevelFilter::Info))
                 .logger(Logger::builder().build("fx_callback", LevelFilter::Info))
                 .logger(Logger::builder().build("fx_torrent", LevelFilter::Info))
+                .logger(Logger::builder().build("h2", LevelFilter::Info))
                 .logger(Logger::builder().build("httpmock::server", LevelFilter::Debug))
                 .logger(Logger::builder().build("hyper", LevelFilter::Info))
                 .logger(Logger::builder().build("hyper_util", LevelFilter::Info))
@@ -258,13 +259,13 @@ pub mod testing {
         #[async_trait]
         impl Torrent for InnerTorrentStream {
             fn handle(&self) -> TorrentHandle;
-            async fn absolute_file_path(&self, file: &fx_torrent::File) -> PathBuf;
-            async fn files(&self) -> Vec<fx_torrent::File>;
+            async fn absolute_file_path(&self, file: &File) -> PathBuf;
+            async fn files(&self) -> Vec<File>;
             async fn file_by_name(&self, name: &str) -> Option<File>;
-            async fn largest_file(&self) -> Option<fx_torrent::File>;
-            async fn has_bytes(&self, bytes: &std::ops::Range<usize>) -> bool;
+            async fn largest_file(&self) -> Option<File>;
+            async fn has_bytes(&self, bytes: &Range<usize>) -> bool;
             async fn has_piece(&self, piece: usize) -> bool;
-            async fn prioritize_bytes(&self, bytes: &std::ops::Range<usize>);
+            async fn prioritize_bytes(&self, bytes: &Range<usize>);
             async fn prioritize_pieces(&self, pieces: &[PieceIndex]);
             async fn piece_priorities(&self) -> BTreeMap<PieceIndex, PiecePriority>;
             async fn total_pieces(&self) -> usize;

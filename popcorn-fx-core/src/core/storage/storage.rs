@@ -9,8 +9,8 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+use crate::core::storage;
 use crate::core::storage::StorageError;
-use crate::core::{block_in_place, storage};
 
 /// The storage module is responsible for storing and retrieving files from the file system.
 ///
@@ -516,48 +516,6 @@ impl SerializerStorage {
         }
     }
 
-    /// Writes the given value to the storage file.
-    ///
-    /// The data will be stored under the storage file with the given `filename`.
-    ///
-    /// This method blocks the current thread until the write operation completes.
-    /// Use `write_async` instead if you don't want to block the current thread.
-    ///
-    /// # Arguments
-    ///
-    /// * `value` - The value to write to the storage file.
-    ///
-    /// # Returns
-    ///
-    /// The path of the storage file if successful, or a `StorageError` if writing failed.
-    ///
-    /// # Generic Parameters
-    ///
-    /// * `T` - The type of the value to write.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use popcorn_fx_core::core::storage::SerializerStorage;
-    ///
-    /// let storage = SerializerStorage::from_path("/path/to/storage.json");
-    ///
-    /// let data = vec![1, 2, 3];
-    ///
-    /// match storage.write(&data) {
-    ///     Ok(path) => println!("Data written to: {:?}", path),
-    ///     Err(err) => eprintln!("Failed to write data: {}", err),
-    /// }
-    /// ```
-    ///
-    /// This example demonstrates how to use the `write` method to serialize and write data to the storage file. If the operation is successful, the path of the storage file is printed; otherwise, an error message is printed.
-    pub fn write<T>(self, value: &T) -> storage::Result<PathBuf>
-    where
-        T: Serialize + DeserializeOwned,
-    {
-        block_in_place(async { self.write_async(value).await })
-    }
-
     /// Writes the given value to the storage file asynchronously.
     ///
     /// The data will be stored under the storage file with the given `filename`.
@@ -576,28 +534,18 @@ impl SerializerStorage {
     ///
     /// # Examples
     ///
-    /// ```no_run
-    /// use tokio::runtime::Runtime;
+    /// ```rust,no_run
     /// use popcorn_fx_core::core::storage::SerializerStorage;
-    ///
-    /// let mut rt = Runtime::new().expect("Failed to create Tokio runtime");
     ///
     /// let storage = SerializerStorage::from_path("/path/to/storage.json");
     ///
     /// let data = vec![1, 2, 3];
-    ///
-    /// let result = rt.block_on(async {
-    ///     storage.write_async(&data).await
-    /// });
-    ///
-    /// match result {
+    /// match storage.write_async(&data).await {
     ///     Ok(path) => println!("Data written to: {:?}", path),
     ///     Err(err) => eprintln!("Failed to write data: {}", err),
     /// }
     /// ```
-    ///
-    /// This example demonstrates how to use the `write_async` method to serialize and write data to the storage file asynchronously using the Tokio runtime. The `block_on` function is used to await the asynchronous operation and obtain the result. If the operation is successful, the path of the storage file is printed; otherwise, an error message is printed.
-    pub async fn write_async<T>(self, value: &T) -> storage::Result<PathBuf>
+    pub async fn write<T>(self, value: &T) -> storage::Result<PathBuf>
     where
         T: Serialize + DeserializeOwned,
     {
@@ -761,14 +709,10 @@ impl BinaryStorage {
 #[cfg(test)]
 mod test {
     use tempfile::tempdir;
-    use tokio::runtime::Runtime;
 
     use crate::core::config::{PopcornSettings, SubtitleSettings, UiSettings};
     use crate::init_logger;
-    use crate::testing::{
-        copy_test_file, read_temp_dir_file_as_bytes, read_temp_dir_file_as_string,
-        read_test_file_to_bytes,
-    };
+    use crate::testing::{copy_test_file, read_temp_dir_file_as_bytes, read_test_file_to_bytes};
 
     use super::*;
 
@@ -803,27 +747,8 @@ mod test {
         )
     }
 
-    #[test]
-    fn test_write() {
-        init_logger!();
-        let filename = "test";
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = Storage {
-            base_path: PathBuf::from(temp_path),
-        };
-        let settings = UiSettings::default();
-        let expected_result = "{\"default_language\":\"en\",\"ui_scale\":{\"value\":1.0},\"start_screen\":\"MOVIES\",\"maximized\":false,\"native_window_enabled\":false}".to_string();
-
-        let result = storage.options().serializer(filename).write(&settings);
-        assert!(result.is_ok(), "expected no error to have occurred");
-        let contents = read_temp_dir_file_as_string(&temp_dir, filename);
-
-        assert_eq!(expected_result, contents)
-    }
-
-    #[test]
-    fn test_write_async() {
+    #[tokio::test]
+    async fn test_write() {
         init_logger!();
         let filename = "test.json";
         let temp_dir = tempdir().unwrap();
@@ -832,23 +757,21 @@ mod test {
             base_path: PathBuf::from(temp_path),
         };
         let settings = UiSettings::default();
-        let runtime = Runtime::new().unwrap();
 
-        let _ = runtime
-            .block_on(
-                storage
-                    .options()
-                    .serializer(filename)
-                    .write_async(&settings),
-            )
-            .expect("expected no error to have been returned");
-        let path = temp_dir.path().join(filename);
+        let path = storage
+            .options()
+            .serializer(filename)
+            .write(&settings)
+            .await
+            .unwrap();
+        let expected_path = temp_dir.path().join(filename);
 
         assert!(path.exists(), "expected the storage {:?} exists", path);
+        assert_eq!(expected_path, path, "expected the storage paths to match");
     }
 
-    #[test]
-    fn test_write_invalid_storage() {
+    #[tokio::test]
+    async fn test_write_invalid_storage() {
         init_logger!();
         let storage = Storage {
             base_path: PathBuf::from("/invalid/file/path"),
@@ -858,7 +781,8 @@ mod test {
         let result = storage
             .options()
             .serializer("my-random-filename.txt")
-            .write(&settings);
+            .write(&settings)
+            .await;
 
         assert_eq!(true, result.is_err(), "expected an error to be returned");
         match result.err().unwrap() {
@@ -932,8 +856,8 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_binary_storage_write() {
+    #[tokio::test]
+    async fn test_binary_storage_write() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -943,9 +867,11 @@ mod test {
             base_path: PathBuf::from(temp_path),
         };
 
-        if let Err(e) = storage.options().binary(filename).write(&bytes) {
-            assert!(false, "expected the write operation to succeed, {}", e)
-        }
+        let _ = storage
+            .options()
+            .binary(filename)
+            .write(&bytes)
+            .expect("expected the write operation to succeed");
         let result = read_temp_dir_file_as_bytes(&temp_dir, filename);
 
         assert_eq!(bytes, result)

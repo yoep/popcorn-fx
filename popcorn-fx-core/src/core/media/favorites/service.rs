@@ -302,7 +302,7 @@ impl InnerFavoriteService {
             .storage
             .options()
             .serializer(FILENAME)
-            .write_async(favorites)
+            .write(favorites)
             .await
         {
             Ok(_) => info!("Favorites have been saved"),

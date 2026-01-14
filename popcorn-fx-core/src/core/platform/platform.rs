@@ -1,19 +1,16 @@
+use crate::core::playback::MediaNotificationEvent;
+use derive_more::Display;
+use fx_callback::{Callback, Subscription};
+#[cfg(any(test, feature = "testing"))]
+pub use mock::*;
 use std::fmt::Debug;
 
-use derive_more::Display;
-#[cfg(any(test, feature = "testing"))]
-use mockall::automock;
-
-use crate::core::playback::MediaNotificationEvent;
-use crate::core::CoreCallback;
-
 /// The platform event specific callback type.
-pub type PlatformCallback = CoreCallback<PlatformEvent>;
+pub type PlatformCallback = Subscription<PlatformEvent>;
 
 /// The platform system specific functions trait.
 /// This trait defines actions which should be performed on the current platform.
-#[cfg_attr(any(test, feature = "testing"), automock)]
-pub trait Platform: Debug + Send + Sync {
+pub trait Platform: Debug + Callback<PlatformEvent> + Send + Sync {
     /// Disable the screensaver on the current platform
     /// It returns `true` if the screensaver was disabled with success, else `false`.
     fn disable_screensaver(&self) -> bool;
@@ -24,9 +21,6 @@ pub trait Platform: Debug + Send + Sync {
 
     /// Notify the system that a new media playback has been started.
     fn notify_media_event(&self, notification: MediaNotificationEvent);
-
-    /// Register a new callback listener for the [PlatformEvent]'s.
-    fn register(&self, callback: PlatformCallback);
 }
 
 /// The information data of the current system platform.
@@ -75,6 +69,30 @@ impl PlatformType {
             PlatformType::Windows => "windows",
             PlatformType::MacOs => "macos",
             PlatformType::Linux => "debian",
+        }
+    }
+}
+
+#[cfg(any(test, feature = "testing"))]
+mod mock {
+    use super::*;
+
+    use fx_callback::Subscriber;
+    use mockall::mock;
+
+    mock! {
+        #[derive(Debug, Clone)]
+        pub Platform {}
+
+        impl Platform for Platform {
+            fn disable_screensaver(&self) -> bool;
+            fn enable_screensaver(&self) -> bool;
+            fn notify_media_event(&self, notification: MediaNotificationEvent);
+        }
+
+        impl Callback<PlatformEvent> for Platform {
+            fn subscribe(&self) -> Subscription<PlatformEvent>;
+            fn subscribe_with(&self, subscriber: Subscriber<PlatformEvent>);
         }
     }
 }

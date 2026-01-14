@@ -1,18 +1,17 @@
+use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use log::{debug, error, info, trace, warn};
+use souvlaki::{MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, PlatformConfig};
 use std::env::consts::{ARCH, OS};
 use std::fmt;
 use std::fmt::Debug;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::Arc;
-
-use log::{debug, error, info, trace, warn};
-use souvlaki::{MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, PlatformConfig};
 use tokio::sync::{Mutex, MutexGuard};
 
 use popcorn_fx_core::core::platform::{
     Platform, PlatformCallback, PlatformData, PlatformEvent, PlatformInfo, PlatformType,
 };
 use popcorn_fx_core::core::playback::{MediaInfo, MediaNotificationEvent};
-use popcorn_fx_core::core::{Callbacks, CoreCallbacks};
 
 #[cfg(target_os = "linux")]
 use crate::platform::platform_linux::PlatformLinux;
@@ -43,7 +42,7 @@ pub trait SystemPlatform: Debug + Send + Sync {
 pub struct DefaultPlatform {
     platform: Arc<Box<dyn SystemPlatform>>,
     controls: Mutex<Option<MediaControls>>,
-    callbacks: Arc<CoreCallbacks<PlatformEvent>>,
+    callbacks: MultiThreadedCallback<PlatformEvent>,
 }
 
 impl DefaultPlatform {
@@ -147,7 +146,10 @@ impl DefaultPlatform {
         }
     }
 
-    fn handle_media_event(event: MediaControlEvent, callbacks: &Arc<CoreCallbacks<PlatformEvent>>) {
+    fn handle_media_event(
+        event: MediaControlEvent,
+        callbacks: &MultiThreadedCallback<PlatformEvent>,
+    ) {
         debug!("Received system media control event {:?}", event);
         match event {
             MediaControlEvent::Play => callbacks.invoke(PlatformEvent::TogglePlaybackState),
@@ -176,6 +178,16 @@ impl DefaultPlatform {
     }
 }
 
+impl Callback<PlatformEvent> for DefaultPlatform {
+    fn subscribe(&self) -> Subscription<PlatformEvent> {
+        self.callbacks.subscribe()
+    }
+
+    fn subscribe_with(&self, subscriber: Subscriber<PlatformEvent>) {
+        self.callbacks.subscribe_with(subscriber);
+    }
+}
+
 impl Platform for DefaultPlatform {
     fn disable_screensaver(&self) -> bool {
         self.platform.disable_screensaver()
@@ -190,10 +202,6 @@ impl Platform for DefaultPlatform {
         if let Err(e) = catch_unwind(AssertUnwindSafe(|| self.internal_notify_media_event(event))) {
             error!("Failed to notify media event, {:?}", e);
         }
-    }
-
-    fn register(&self, callback: PlatformCallback) {
-        self.callbacks.add_callback(callback);
     }
 }
 
@@ -226,7 +234,7 @@ impl Default for DefaultPlatform {
         Self {
             platform: Arc::new(platform),
             controls: Default::default(),
-            callbacks: Arc::new(Default::default()),
+            callbacks: MultiThreadedCallback::new(),
         }
     }
 }
@@ -247,12 +255,13 @@ impl Drop for DefaultPlatform {
 
 #[cfg(test)]
 mod test {
+    use super::*;
+
     use mockall::mock;
     use popcorn_fx_core::init_logger;
-    use std::sync::mpsc::channel;
     use std::time::Duration;
-
-    use super::*;
+    use tokio::sync::oneshot::channel;
+    use tokio::time::timeout;
 
     mock! {
         #[derive(Debug)]
@@ -267,8 +276,8 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_disable_screensaver() {
+    #[tokio::test]
+    async fn test_disable_screensaver() {
         init_logger!();
         let mut sys_platform = MockDummySystemPlatform::new();
         sys_platform.expect_disable_screensaver().returning(|| true);
@@ -276,7 +285,7 @@ mod test {
         let platform = DefaultPlatform {
             platform: Arc::new(Box::new(sys_platform)),
             controls: Default::default(),
-            callbacks: Default::default(),
+            callbacks: MultiThreadedCallback::new(),
         };
 
         assert!(
@@ -285,15 +294,15 @@ mod test {
         )
     }
 
-    #[test]
-    fn test_enable_screensaver() {
+    #[tokio::test]
+    async fn test_enable_screensaver() {
         init_logger!();
         let mut sys_platform = MockDummySystemPlatform::new();
         sys_platform.expect_enable_screensaver().returning(|| true);
         let platform = DefaultPlatform {
             platform: Arc::new(Box::new(sys_platform)),
             controls: Default::default(),
-            callbacks: Default::default(),
+            callbacks: MultiThreadedCallback::new(),
         };
 
         assert!(
@@ -302,8 +311,8 @@ mod test {
         )
     }
 
-    #[test]
-    fn test_drop_default_platform() {
+    #[tokio::test]
+    async fn test_drop_default_platform() {
         init_logger!();
         let mut sys_platform = MockDummySystemPlatform::new();
         sys_platform
@@ -313,7 +322,7 @@ mod test {
         let platform = DefaultPlatform {
             platform: Arc::new(Box::new(sys_platform)),
             controls: Default::default(),
-            callbacks: Default::default(),
+            callbacks: MultiThreadedCallback::new(),
         };
 
         drop(platform);
@@ -358,42 +367,72 @@ mod test {
         platform.notify_media_event(MediaNotificationEvent::StatePaused);
     }
 
-    #[test]
-    fn test_handle_media_play_event() {
+    #[tokio::test]
+    async fn test_handle_media_play_event() {
         let (tx, rx) = channel();
-        let callbacks = Arc::new(CoreCallbacks::default());
+        let callbacks = MultiThreadedCallback::new();
         let event = MediaControlEvent::Play;
 
-        callbacks.add_callback(Box::new(move |event| tx.send(event).unwrap()));
+        let mut receiver = callbacks.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                tx.send(event).unwrap();
+                break;
+            }
+        });
+
         DefaultPlatform::handle_media_event(event, &callbacks.clone());
 
-        let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
-        assert_eq!(PlatformEvent::TogglePlaybackState, result);
+        let result = timeout(Duration::from_millis(100), rx)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(&PlatformEvent::TogglePlaybackState, &*result);
     }
 
-    #[test]
-    fn test_handle_media_pause_event() {
+    #[tokio::test]
+    async fn test_handle_media_pause_event() {
         let (tx, rx) = channel();
-        let callbacks = Arc::new(CoreCallbacks::default());
+        let callbacks = MultiThreadedCallback::new();
         let event = MediaControlEvent::Pause;
 
-        callbacks.add_callback(Box::new(move |event| tx.send(event).unwrap()));
+        let mut receiver = callbacks.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                tx.send(event).unwrap();
+                break;
+            }
+        });
+
         DefaultPlatform::handle_media_event(event, &callbacks.clone());
 
-        let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
-        assert_eq!(PlatformEvent::TogglePlaybackState, result);
+        let result = timeout(Duration::from_millis(100), rx)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(&PlatformEvent::TogglePlaybackState, &*result);
     }
 
-    #[test]
-    fn test_handle_media_next_event() {
+    #[tokio::test]
+    async fn test_handle_media_next_event() {
         let (tx, rx) = channel();
-        let callbacks = Arc::new(CoreCallbacks::default());
+        let callbacks = MultiThreadedCallback::new();
         let event = MediaControlEvent::Next;
 
-        callbacks.add_callback(Box::new(move |event| tx.send(event).unwrap()));
+        let mut receiver = callbacks.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                tx.send(event).unwrap();
+                break;
+            }
+        });
+
         DefaultPlatform::handle_media_event(event, &callbacks.clone());
 
-        let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
-        assert_eq!(PlatformEvent::ForwardMedia, result);
+        let result = timeout(Duration::from_millis(100), rx)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(&PlatformEvent::ForwardMedia, &*result);
     }
 }

@@ -9,8 +9,8 @@ use downcast_rs::{impl_downcast, DowncastSync};
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use fx_torrent::dht::DhtTracker;
 use fx_torrent::{
-    DhtOption, FileIndex, FilePriority, FxTorrentSession, Magnet, Session, TorrentEvent,
-    TorrentFiles, TorrentFlags, TorrentHealth, TorrentState,
+    DhtOption, FileIndex, FilePriority, FxTorrentSession, Magnet, Session, SessionConfig,
+    TorrentEvent, TorrentFiles, TorrentFlags, TorrentHealth, TorrentState,
 };
 use log::{debug, error, info, log_enabled, trace, warn, Level};
 #[cfg(any(test, feature = "testing"))]
@@ -109,8 +109,12 @@ impl FxTorrentManager {
         event_publisher: EventPublisher,
     ) -> Result<Self> {
         let session = FxTorrentSession::builder()
-            .path(settings.user_settings().await.torrent_settings.directory())
-            .client_name("PopcornFX")
+            .config(
+                SessionConfig::builder()
+                    .client_name("PopcornFX")
+                    .path(settings.user_settings().await.torrent_settings.directory())
+                    .build(),
+            )
             .dht(DhtOption::new(
                 DhtTracker::builder()
                     .default_routing_nodes()

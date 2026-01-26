@@ -53,12 +53,13 @@ message Torrent {
     SEEDING = 5;
     PAUSED = 6;
     ERROR = 7;
+    STOPPED = 8;
   }
 
   enum StreamState {
-    PREPARING = 0;
+    STREAM_PREPARING = 0;
     STREAMING = 1;
-    STOPPED = 2;
+    STREAM_STOPPED = 2;
   }
 
   message Stats {

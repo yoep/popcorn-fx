@@ -50,9 +50,8 @@ endif
 
 prerequisites-cargo:  ## Install the requirements for Cargo
 	@echo Installing Cargo plugins
-	@cargo install cargo-nextest
+	@cargo install cargo-nextest --locked
 	@cargo install cargo-llvm-cov
-	@cargo install grcov
 
 prerequisites: prerequisites-cargo ## Install the requirements for the application
 

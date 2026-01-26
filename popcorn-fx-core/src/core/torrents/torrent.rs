@@ -96,7 +96,7 @@ impl Torrent for fx_torrent::Torrent {
     }
 
     async fn absolute_file_path(&self, file: &fx_torrent::File) -> PathBuf {
-        self.absolute_file_path(file).await
+        self.absolute_file_path(file).await.unwrap_or_default()
     }
 
     async fn files(&self) -> Vec<fx_torrent::File> {

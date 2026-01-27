@@ -55,7 +55,7 @@ pub trait SubtitleProvider: Debug + Send + Sync {
     /// Parse the given file path to a subtitle struct.
     ///
     /// It returns a [SubtitleError] when the path doesn't exist of the file failed to be parsed.
-    fn parse(&self, file_path: &Path) -> subtitles::Result<Subtitle>;
+    async fn parse(&self, file_path: &Path) -> subtitles::Result<Subtitle>;
 
     /// Convert the given [Subtitle] back to a raw format of [SubtitleType].
     /// It returns the raw format string for the given type on success, else the error.

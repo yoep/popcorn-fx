@@ -46,7 +46,7 @@ popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
 httpmock.workspace = true
 mockall = "0.12.1"
 protobuf.workspace = true
-rcgen = "0.13.1"
+rcgen = "0.14.7"
 rust_cast = { git = "https://github.com/yoep/rust-cast", features = ["thread_safe", "cast"] }
 socket2 = "0.6.0"
 tempfile.workspace = true

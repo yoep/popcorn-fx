@@ -40,13 +40,17 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - uses: taiki-e/install-action@cargo-llvm-cov
+      - uses: taiki-e/install-action@nextest
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "main-linux"
       - name: Test
         run: |
-          sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config vlc
-          make test-cargo
+          sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config libvlc-dev libvlc-bin
+          make test-cargo-coverage
       - name: 'Upload Coverage'
         uses: actions/upload-artifact@v4
         with:
@@ -134,6 +138,7 @@ jobs:
         distribution: 'adopt'
         java-version: 21
         cache: 'maven'
+    - uses: dtolnay/rust-toolchain@stable
     - uses: Swatinem/rust-cache@v2
       with:
         shared-key: "main-linux"

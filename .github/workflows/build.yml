@@ -49,7 +49,7 @@ jobs:
           shared-key: "main-linux"
       - name: Test
         run: |
-          sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config libvlc-dev libvlc-bin
+          sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config vlc
           make test-cargo-coverage
       - name: 'Upload Coverage'
         uses: actions/upload-artifact@v4

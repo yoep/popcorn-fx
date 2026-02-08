@@ -23,7 +23,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "main-linux"
-          cache-on-failure: "true"
       - name: Prepare packaging
         run: make prerequisites
       - name: Package
@@ -54,7 +53,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "main-macos"
-          cache-on-failure: "true"
       - name: Prepare packaging
         run: make prerequisites
       - name: Package
@@ -83,7 +81,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "main-windows"
-          cache-on-failure: "true"
       - name: Prepare libraries
         run: cd ./assets/windows && ./prepare-libs.bat
       - name: Prepare packaging

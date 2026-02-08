@@ -1,8 +1,8 @@
 use crate::core::config::{ApplicationConfig, CleaningMode, TorrentSettings};
+use crate::core::event;
 use crate::core::event::{Event, EventCallback, EventHandler, EventPublisher, PlayerStoppedEvent};
 use crate::core::storage::Storage;
 use crate::core::torrents::{Error, Result, Torrent, TorrentHandle, TorrentInfo};
-use crate::core::{event, torrents};
 use async_trait::async_trait;
 use derive_more::Display;
 use downcast_rs::{impl_downcast, DowncastSync};
@@ -117,6 +117,7 @@ impl FxTorrentManager {
             )
             .dht(DhtOption::new(
                 DhtTracker::builder()
+                    .enable_indexing(false)
                     .default_routing_nodes()
                     .build()
                     .await
@@ -461,7 +462,7 @@ impl InnerTorrentManager {
                     }
                     TorrentEvent::StateChanged(state) => {
                         if state == &TorrentState::Error {
-                            return Some(Err(torrents::Error::TorrentError(
+                            return Some(Err(Error::TorrentError(
                                 "torrent encountered an error while loading".to_string(),
                             )));
                         }
@@ -469,7 +470,7 @@ impl InnerTorrentManager {
                     _ => {}
                 }
             } else {
-                return Some(Err(torrents::Error::TorrentResolvingFailed(
+                return Some(Err(Error::TorrentResolvingFailed(
                     "handle has been dropped".to_string(),
                 )));
             }

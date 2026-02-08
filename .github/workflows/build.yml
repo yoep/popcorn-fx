@@ -43,7 +43,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "main-linux"
-          cache-on-failure: "true"
       - name: Test
         run: |
           sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config vlc
@@ -66,7 +65,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "main-macos"
-          cache-on-failure: "true"
       - name: Install VLC
         run: |-
           brew update && brew install --cask vlc
@@ -85,7 +83,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "main-windows"
-          cache-on-failure: "true"
       - name: Test
         run: |-
           make test-cargo
@@ -140,7 +137,6 @@ jobs:
     - uses: Swatinem/rust-cache@v2
       with:
         shared-key: "main-linux"
-        cache-on-failure: "true"
     - name: Build
       run: |
         sudo apt install libdbus-1-dev pkg-config

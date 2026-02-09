@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use derive_more::Display;
 use itertools::Itertools;
 use log::{debug, info, trace, warn};
-use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
+use mdns_sd::{ResolvedService, ServiceDaemon, ServiceEvent};
 use popcorn_fx_core::core::players::PlayerManager;
 use popcorn_fx_core::core::subtitles::SubtitleServer;
 use tokio::select;
@@ -268,7 +268,7 @@ impl InnerChromecastDiscovery {
 
     async fn register_device<S: Into<String>>(
         &self,
-        info: ServiceInfo,
+        info: Box<ResolvedService>,
         addr: S,
         port: u16,
     ) -> chromecast::Result<()> {

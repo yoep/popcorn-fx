@@ -569,6 +569,12 @@ impl SerializerStorage {
                 file.write_all(e.as_bytes()).await.map_err(|e| {
                     StorageError::WritingFailed(display_path.to_string(), e.to_string())
                 })?;
+                file.flush().await.map_err(|e| {
+                    StorageError::WritingFailed(display_path.to_string(), e.to_string())
+                })?;
+                file.sync_all().await.map_err(|e| {
+                    StorageError::WritingFailed(display_path.to_string(), e.to_string())
+                })?;
                 debug!("Storage file {} has been saved", display_path);
                 Ok(self.base.path.clone())
             }

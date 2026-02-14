@@ -12,7 +12,7 @@ use futures::FutureExt;
 use futures::Stream;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use fx_torrent;
-use fx_torrent::{FilePriority, Metrics, PieceIndex, PiecePriority};
+use fx_torrent::{Metrics, PieceIndex, PiecePriority};
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
 use std::cmp::{max, min};
@@ -307,7 +307,7 @@ struct TorrentStreamContext {
 impl TorrentStreamContext {
     /// Create a new torrent streaming context for the given torrent and file.
     async fn new(url: Url, torrent: Box<dyn Torrent>, filename: &str) -> Self {
-        let prepare_pieces = Self::preparation_pieces(&torrent).await;
+        let prepare_pieces = Self::preparation_pieces(&torrent, filename).await;
 
         Self {
             torrent: Arc::from(torrent),
@@ -462,51 +462,47 @@ impl TorrentStreamContext {
         }
     }
 
-    async fn preparation_pieces(torrent: &Box<dyn Torrent>) -> Vec<PieceIndex> {
-        if let Some(file) = torrent
-            .files()
-            .await
-            .iter()
-            .find(|e| e.priority != FilePriority::None)
-        {
-            let total_file_pieces = file.pieces.len();
-            trace!(
-                "Calculating preparation pieces of {:?} for a total of {} pieces",
-                file,
-                total_file_pieces
-            );
-            // prepare at least 8 (if available), or the ceil of the PREPARE_FILE_PERCENTAGE
-            let prepare_lower_bound = min(8, total_file_pieces);
-            let percentage_count =
-                ((total_file_pieces as f32) * PREPARE_FILE_PERCENTAGE).ceil() as usize;
-            let number_of_preparation_pieces = max(prepare_lower_bound, percentage_count);
-            let mut pieces = vec![];
-
-            // prepare the first `PREPARE_FILE_PERCENTAGE` of pieces if it doesn't exceed the total file pieces
-            let starting_section_start = file.pieces.start;
-            let starting_section_end = file
-                .pieces
-                .start
-                .saturating_add(number_of_preparation_pieces)
-                .min(file.pieces.end);
-            for i in starting_section_start..starting_section_end {
-                pieces.push(i);
+    async fn preparation_pieces(torrent: &Box<dyn Torrent>, filename: &str) -> Vec<PieceIndex> {
+        let file = match torrent.file_by_name(filename).await {
+            None => {
+                warn!("Unable to find file {} within torrent", filename);
+                return Vec::new();
             }
+            Some(file) => file,
+        };
 
-            // prepare the last 3 pieces
-            // this is done for determining the video length during streaming
-            for i in file.pieces.end.saturating_sub(3)..file.pieces.end {
-                pieces.push(i);
-            }
+        let total_file_pieces = file.pieces.len();
+        trace!(
+            "Calculating preparation pieces of {:?} for a total of {} pieces",
+            file,
+            total_file_pieces
+        );
+        // prepare at least 8 (if available), or the ceil of the PREPARE_FILE_PERCENTAGE
+        let prepare_lower_bound = min(8, total_file_pieces);
+        let percentage_count =
+            ((total_file_pieces as f32) * PREPARE_FILE_PERCENTAGE).ceil() as usize;
+        let number_of_preparation_pieces = max(prepare_lower_bound, percentage_count);
+        let mut pieces = vec![];
 
-            if pieces.is_empty() {
-                warn!("Unable to prepare stream, pieces to prepare couldn't be determined");
-            }
+        // prepare the first `PREPARE_FILE_PERCENTAGE` of pieces if it doesn't exceed the total file pieces
+        let start = file.pieces.start;
+        let end = file
+            .pieces
+            .start
+            .saturating_add(number_of_preparation_pieces)
+            .min(file.pieces.end);
+        pieces.extend(start..end);
 
-            pieces.into_iter().map(|e| e).unique().collect()
-        } else {
-            Vec::with_capacity(0)
+        // prepare the last 3 pieces
+        // this is done for determining the video length during streaming
+        let tail_start = file.pieces.end.saturating_sub(3);
+        pieces.extend(tail_start..file.pieces.end);
+
+        if pieces.is_empty() {
+            warn!("Unable to prepare stream, pieces to prepare couldn't be determined");
         }
+
+        pieces.into_iter().unique().collect()
     }
 }
 
@@ -1017,7 +1013,7 @@ mod test {
     use crate::{assert_timeout, init_logger, recv_timeout};
 
     use futures::TryStreamExt;
-    use fx_torrent::{PieceIndex, TorrentFileInfo};
+    use fx_torrent::{FilePriority, PieceIndex, TorrentFileInfo};
     use std::sync::mpsc::channel;
     use std::time::Duration;
     use tempfile::tempdir;

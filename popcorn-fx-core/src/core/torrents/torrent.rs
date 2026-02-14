@@ -139,11 +139,10 @@ impl Torrent for fx_torrent::Torrent {
     }
 
     async fn prioritize_pieces(&self, pieces: &[PieceIndex]) {
-        let mut priorities = Vec::new();
-
-        for piece in pieces {
-            priorities.push((*piece as PieceIndex, PiecePriority::High));
-        }
+        let priorities = pieces
+            .iter()
+            .map(|e| (*e, PiecePriority::High))
+            .collect::<Vec<_>>();
 
         self.prioritize_pieces(priorities).await;
     }

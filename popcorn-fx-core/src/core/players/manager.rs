@@ -153,7 +153,7 @@ impl DefaultPlayerManager {
     /// Create a new `DefaultPlayerManager` instance.
     pub fn new(
         event_publisher: EventPublisher,
-        torrent_manager: Arc<Box<dyn TorrentManager>>,
+        torrent_manager: Arc<dyn TorrentManager>,
         torrent_stream_server: Arc<dyn TorrentStreamServer>,
     ) -> Self {
         let (player_event_sender, player_event_receiver) = unbounded_channel();
@@ -228,7 +228,7 @@ struct InnerPlayerManager {
     players: RwLock<Vec<Arc<Box<dyn Player>>>>,
     player_listener_sender: UnboundedSender<PlayerEvent>,
     player_listener_cancellation: Mutex<CancellationToken>,
-    torrent_manager: Arc<Box<dyn TorrentManager>>,
+    torrent_manager: Arc<dyn TorrentManager>,
     torrent_stream_server: Arc<dyn TorrentStreamServer>,
     callbacks: MultiThreadedCallback<PlayerManagerEvent>,
     event_publisher: EventPublisher,
@@ -239,7 +239,7 @@ impl InnerPlayerManager {
     fn new(
         listener_sender: UnboundedSender<PlayerEvent>,
         event_publisher: EventPublisher,
-        torrent_manager: Arc<Box<dyn TorrentManager>>,
+        torrent_manager: Arc<dyn TorrentManager>,
         torrent_stream_server: Arc<dyn TorrentStreamServer>,
     ) -> Self {
         let instance = Self {

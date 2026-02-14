@@ -30,11 +30,12 @@ directories.workspace = true
 itertools.workspace = true
 log.workspace = true
 log4rs = { workspace = true, features = ["console_appender", "rolling_file_appender", "compound_policy"] }
+protobuf.workspace = true
+rustls = { version = "0.23", features = ["aws-lc-rs"] }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "fs", "time", "signal"] }
 tokio-util = { workspace = true }
 url.workspace = true
-protobuf.workspace = true
 
 [dev-dependencies]
 popcorn-fx = { path = "." }

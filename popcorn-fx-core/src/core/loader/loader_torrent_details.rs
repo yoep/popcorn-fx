@@ -19,7 +19,7 @@ use crate::core::torrents::{Torrent, TorrentManager};
 #[display("Torrent details loading strategy")]
 pub struct TorrentDetailsLoadingStrategy {
     event_publisher: EventPublisher,
-    torrent_manager: Arc<Box<dyn TorrentManager>>,
+    torrent_manager: Arc<dyn TorrentManager>,
 }
 
 impl TorrentDetailsLoadingStrategy {
@@ -28,10 +28,7 @@ impl TorrentDetailsLoadingStrategy {
     /// # Arguments
     ///
     /// * `event_publisher` - An `EventPublisher` for publishing events related to torrent details.
-    pub fn new(
-        event_publisher: EventPublisher,
-        torrent_manager: Arc<Box<dyn TorrentManager>>,
-    ) -> Self {
+    pub fn new(event_publisher: EventPublisher, torrent_manager: Arc<dyn TorrentManager>) -> Self {
         Self {
             event_publisher,
             torrent_manager,
@@ -147,10 +144,8 @@ mod tests {
             .returning(move |_| Ok(torrent_manager_torrent_info.clone()));
         let task = create_loading_task!();
         let context = task.context();
-        let strategy = TorrentDetailsLoadingStrategy::new(
-            event_publisher.clone(),
-            Arc::new(Box::new(torrent_manager)),
-        );
+        let strategy =
+            TorrentDetailsLoadingStrategy::new(event_publisher.clone(), Arc::new(torrent_manager));
 
         let mut callback = event_publisher.subscribe(DEFAULT_ORDER).unwrap();
         tokio::spawn(async move {
@@ -203,10 +198,8 @@ mod tests {
             .expect_remove()
             .times(1)
             .returning(move |handle| tx.send(handle.clone()).unwrap());
-        let strategy = TorrentDetailsLoadingStrategy::new(
-            event_publisher,
-            Arc::new(Box::new(torrent_manager)),
-        );
+        let strategy =
+            TorrentDetailsLoadingStrategy::new(event_publisher, Arc::new(torrent_manager));
 
         let _ = strategy
             .cancel(&mut data)

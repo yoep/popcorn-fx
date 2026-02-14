@@ -17,13 +17,13 @@ use tokio::select;
 #[derive(Display)]
 #[display("Torrent loading strategy")]
 pub struct TorrentLoadingStrategy {
-    torrent_manager: Arc<Box<dyn TorrentManager>>,
+    torrent_manager: Arc<dyn TorrentManager>,
     application_settings: ApplicationConfig,
 }
 
 impl TorrentLoadingStrategy {
     pub fn new(
-        torrent_manager: Arc<Box<dyn TorrentManager>>,
+        torrent_manager: Arc<dyn TorrentManager>,
         application_settings: ApplicationConfig,
     ) -> Self {
         Self {
@@ -176,7 +176,7 @@ mod tests {
         let torrent_manager = MockTorrentManager::new();
         let task = create_loading_task!();
         let context = task.context();
-        let strategy = TorrentLoadingStrategy::new(Arc::new(Box::new(torrent_manager)), settings);
+        let strategy = TorrentLoadingStrategy::new(Arc::new(torrent_manager), settings);
 
         let result = strategy.process(&mut data, &*context).await;
 
@@ -213,7 +213,7 @@ mod tests {
             .returning(move |e| {
                 tx.send(e.to_string()).unwrap();
             });
-        let strategy = TorrentLoadingStrategy::new(Arc::new(Box::new(torrent_manager)), settings);
+        let strategy = TorrentLoadingStrategy::new(Arc::new(torrent_manager), settings);
 
         let _ = strategy
             .cancel(&mut data)

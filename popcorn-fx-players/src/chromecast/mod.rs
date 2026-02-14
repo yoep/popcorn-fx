@@ -16,13 +16,15 @@ mod tests {
     use std::fmt::Debug;
     use std::io::Cursor;
     use std::net::SocketAddr;
-    use std::sync::Arc;
+    use std::sync::{Arc, Once};
 
     use log::{debug, error, warn};
     use mdns_sd::{ServiceDaemon, ServiceInfo};
     use protobuf::{EnumOrUnknown, Message};
     use rust_cast::cast::cast_channel;
     use rust_cast::cast::cast_channel::cast_message::{PayloadType, ProtocolVersion};
+    use rustls::crypto;
+    use rustls::crypto::CryptoProvider;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::tcp::WriteHalf;
     use tokio::net::{TcpListener, TcpStream};
@@ -40,6 +42,8 @@ mod tests {
     use crate::chromecast::transcode::{MockTranscoder, Transcoder};
 
     use super::*;
+
+    static TLS_INIT: Once = Once::new();
 
     pub struct MdnsInstance {
         pub addr: SocketAddr,
@@ -71,6 +75,10 @@ mod tests {
 
     impl TestInstance {
         pub async fn new_mdns() -> Self {
+            TLS_INIT.call_once(|| {
+                let _ = crypto::aws_lc_rs::default_provider().install_default();
+            });
+
             let mut instance = Self::new();
             let listener = TcpListener::bind("0.0.0.0:0")
                 .await

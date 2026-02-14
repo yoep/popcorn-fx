@@ -23,6 +23,9 @@ pub enum AuthorizationError {
     /// Indicates that the authorization process timed out.
     #[error("authorization timed out")]
     AuthorizationTimeout,
+    /// Indicates an issue while trying to create the authorization client.
+    #[error("a client error occurred, {0}")]
+    Client(String),
 }
 
 /// Represents errors that can occur during tracking operations.

@@ -29,6 +29,10 @@
             <artifactId>application-backend</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-swing</artifactId>
+        </dependency>
 
         <!-- Popcorn Video -->
         <dependency>

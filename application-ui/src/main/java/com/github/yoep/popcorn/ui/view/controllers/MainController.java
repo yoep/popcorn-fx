@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.view.controllers;
 
-import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.events.*;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Playlist;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
@@ -38,20 +37,10 @@ public class MainController extends PopcornScaleAware implements Initializable {
     static final String TV_STYLESHEET = "/styles/tv.css";
     static final String MOUSE_DISABLED_STYLE_CLASS = "mouse-disabled";
 
-    private static final KeyCodeCombination PASTE_KEY_COMBINATION = new KeyCodeCombination(KeyCode.V, KeyCombination.CONTROL_DOWN);
-    private static final KeyCodeCombination MACOS_PASTE_KEY_COMBINATION = new KeyCodeCombination(KeyCode.V, KeyCombination.META_DOWN);
-    private static final KeyCodeCombination UI_ENLARGE_KEY_COMBINATION_1 = new KeyCodeCombination(KeyCode.ADD, KeyCombination.CONTROL_DOWN);
-    private static final KeyCodeCombination UI_ENLARGE_KEY_COMBINATION_2 = new KeyCodeCombination(KeyCode.PLUS, KeyCombination.CONTROL_DOWN);
-    private static final KeyCodeCombination UI_ENLARGE_KEY_COMBINATION_3 = new KeyCodeCombination(KeyCode.EQUALS, KeyCombination.CONTROL_DOWN,
-            KeyCombination.SHIFT_DOWN);
-    private static final KeyCodeCombination UI_REDUCE_KEY_COMBINATION_1 = new KeyCodeCombination(KeyCode.SUBTRACT, KeyCombination.CONTROL_DOWN);
-    private static final KeyCodeCombination UI_REDUCE_KEY_COMBINATION_2 = new KeyCodeCombination(KeyCode.MINUS, KeyCombination.CONTROL_DOWN);
-
     private final EventPublisher eventPublisher;
     private final ViewLoader viewLoader;
     private final UrlService urlService;
     private final ApplicationConfig applicationConfig;
-    private final PlatformProvider platformProvider;
     private final PlaylistManager playlistManager;
     private final ApplicationArgs applicationArgs;
 
@@ -67,14 +56,12 @@ public class MainController extends PopcornScaleAware implements Initializable {
                           ViewLoader viewLoader,
                           UrlService urlService,
                           ApplicationConfig applicationConfig,
-                          PlatformProvider platformProvider,
                           PlaylistManager playlistManager,
                           ApplicationArgs applicationArgs) {
         this.eventPublisher = eventPublisher;
         this.viewLoader = viewLoader;
         this.urlService = urlService;
         this.applicationConfig = applicationConfig;
-        this.platformProvider = platformProvider;
         this.playlistManager = playlistManager;
         this.applicationArgs = applicationArgs;
     }
@@ -241,17 +228,24 @@ public class MainController extends PopcornScaleAware implements Initializable {
      * @param event The key event of the main section view.
      */
     void onKeyPressed(KeyEvent event) {
-        if (isPasteAction(event)) {
+        if (KeyboardShortcuts.isPaste(event)) {
             event.consume();
             onContentPasted();
+            return;
         }
-
-        if (UI_ENLARGE_KEY_COMBINATION_1.match(event) || UI_ENLARGE_KEY_COMBINATION_2.match(event) || UI_ENLARGE_KEY_COMBINATION_3.match(event)) {
+        if (KeyboardShortcuts.isUiEnlarge(event)) {
             event.consume();
             applicationConfig.increaseUIScale();
-        } else if (UI_REDUCE_KEY_COMBINATION_1.match(event) || UI_REDUCE_KEY_COMBINATION_2.match(event)) {
+            return;
+        }
+        if (KeyboardShortcuts.isUiReduce(event)) {
             event.consume();
             applicationConfig.decreaseUIScale();
+            return;
+        }
+        if (KeyboardShortcuts.isUiReset(event)) {
+            event.consume();
+            applicationConfig.resetUIScale();
         }
     }
 
@@ -342,14 +336,6 @@ public class MainController extends PopcornScaleAware implements Initializable {
             default -> new KeyEvent(targetNode, targetNode, KeyEvent.KEY_PRESSED, KeyCode.ENTER.getChar(), KeyCode.ENTER.getName(), KeyCode.ENTER, false, false,
                     false, false);
         };
-    }
-
-    private boolean isPasteAction(KeyEvent event) {
-        if (platformProvider.isMac()) {
-            return MACOS_PASTE_KEY_COMBINATION.match(event);
-        }
-
-        return PASTE_KEY_COMBINATION.match(event);
     }
 
     private static boolean isNotEmpty(List<File> files) {

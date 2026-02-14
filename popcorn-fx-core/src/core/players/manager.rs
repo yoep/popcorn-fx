@@ -685,7 +685,7 @@ mod tests {
         let torrent_stream_server = MockTorrentStreamServer::new();
         let manager = DefaultPlayerManager::new(
             EventPublisher::default(),
-            Arc::new(Box::new(torrent_manager)),
+            Arc::new(torrent_manager),
             Arc::new(torrent_stream_server),
         );
 
@@ -724,7 +724,7 @@ mod tests {
         let torrent_stream_server = MockTorrentStreamServer::new();
         let manager = DefaultPlayerManager::new(
             event_publisher.clone(),
-            Arc::new(Box::new(torrent_manager)),
+            Arc::new(torrent_manager),
             Arc::new(torrent_stream_server),
         );
 
@@ -772,7 +772,7 @@ mod tests {
         let torrent_stream_server = MockTorrentStreamServer::new();
         let manager = DefaultPlayerManager::new(
             event_publisher.clone(),
-            Arc::new(Box::new(torrent_manager)),
+            Arc::new(torrent_manager),
             Arc::new(torrent_stream_server),
         );
 
@@ -819,7 +819,7 @@ mod tests {
         let torrent_stream_server = MockTorrentStreamServer::new();
         let manager = DefaultPlayerManager::new(
             event_publisher.clone(),
-            Arc::new(Box::new(torrent_manager)),
+            Arc::new(torrent_manager),
             Arc::new(torrent_stream_server),
         );
 
@@ -878,7 +878,7 @@ mod tests {
         let torrent_stream_server = MockTorrentStreamServer::new();
         let manager = DefaultPlayerManager::new(
             EventPublisher::default(),
-            Arc::new(Box::new(torrent_manager)),
+            Arc::new(torrent_manager),
             Arc::new(torrent_stream_server),
         );
 
@@ -905,7 +905,7 @@ mod tests {
         let torrent_stream_server = MockTorrentStreamServer::new();
         let manager = DefaultPlayerManager::new(
             EventPublisher::default(),
-            Arc::new(Box::new(torrent_manager)),
+            Arc::new(torrent_manager),
             Arc::new(torrent_stream_server),
         );
 
@@ -969,7 +969,7 @@ mod tests {
         let (tx_events, mut rx_events) = unbounded_channel();
         let manager = DefaultPlayerManager::new(
             EventPublisher::default(),
-            Arc::new(Box::new(torrent_manager)),
+            Arc::new(torrent_manager),
             Arc::new(torrent_stream_server),
         );
 
@@ -1065,7 +1065,7 @@ mod tests {
         let torrent_stream_server = MockTorrentStreamServer::new();
         let manager = DefaultPlayerManager::new(
             EventPublisher::default(),
-            Arc::new(Box::new(torrent_manager)),
+            Arc::new(torrent_manager),
             Arc::new(torrent_stream_server),
         );
 
@@ -1090,7 +1090,7 @@ mod tests {
         let torrent_stream_server = MockTorrentStreamServer::new();
         let manager = DefaultPlayerManager::new(
             EventPublisher::default(),
-            Arc::new(Box::new(torrent_manager)),
+            Arc::new(torrent_manager),
             Arc::new(torrent_stream_server),
         );
 

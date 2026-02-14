@@ -9,7 +9,6 @@ use chrono::{Local, Utc};
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, error, info, trace, warn};
 use oauth2::basic::{BasicClient, BasicTokenResponse};
-use oauth2::reqwest::async_http_client;
 use oauth2::{
     AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, RedirectUrl, TokenResponse,
     TokenUrl,
@@ -23,7 +22,6 @@ use popcorn_fx_core::core::media::tracking::{
 use popcorn_fx_core::core::media::MediaIdentifier;
 use popcorn_fx_core::core::utils::network::ip_addr;
 use reqwest::header::HeaderMap;
-use reqwest::Client;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::net::{Ipv4Addr, SocketAddr};
@@ -77,31 +75,18 @@ pub struct TraktProvider {
 impl TraktProvider {
     pub fn new(config: ApplicationConfig) -> Result<Self> {
         let tracking: TrackingProperties;
-        let client: &TrackingClientProperties;
-        {
+        let client: &TrackingClientProperties = {
             let properties = config.properties_ref();
             tracking = properties
                 .tracker(TRACKING_NAME)
                 .cloned()
                 .map_err(|e| TraktError::Creation(e.to_string()))?;
-            client = tracking.client();
-        }
-
-        let oauth_client = BasicClient::new(
-            ClientId::new(client.client_id.clone()),
-            Some(ClientSecret::new(client.client_secret.clone())),
-            AuthUrl::new(client.user_authorization_uri.clone())
-                .map_err(|e| TraktError::Creation(e.to_string()))?,
-            Some(
-                TokenUrl::new(client.access_token_uri.clone())
-                    .map_err(|e| TraktError::Creation(e.to_string()))?,
-            ),
-        );
+            tracking.client()
+        };
 
         Ok(Self {
             inner: Arc::new(InnerProvider {
                 config,
-                oauth_client,
                 client: Self::create_new_client(client),
                 pending_callbacks: Default::default(),
                 callbacks: MultiThreadedCallback::new(),
@@ -177,10 +162,28 @@ impl TraktProvider {
     ) -> Result<BasicTokenResponse> {
         let refresh_token = refresh_token.into();
         trace!("Exchanging refresh token {}", refresh_token);
-        self.inner
-            .oauth_client
+        let client: TrackingClientProperties = {
+            let properties = self.inner.config.properties_ref();
+            let tracking = properties
+                .tracker(TRACKING_NAME)
+                .cloned()
+                .map_err(|e| TraktError::Creation(e.to_string()))?;
+            tracking.client
+        };
+        let oauth_client = BasicClient::new(ClientId::new(client.client_id))
+            .set_client_secret(ClientSecret::new(client.client_secret))
+            .set_auth_uri(
+                AuthUrl::new(client.user_authorization_uri)
+                    .map_err(|e| TraktError::Creation(e.to_string()))?,
+            )
+            .set_token_uri(
+                TokenUrl::new(client.access_token_uri)
+                    .map_err(|e| TraktError::Creation(e.to_string()))?,
+            );
+
+        oauth_client
             .exchange_refresh_token(&oauth2::RefreshToken::new(refresh_token))
-            .request_async(async_http_client)
+            .request_async(&self.inner.client)
             .await
             .map_err(|e| TraktError::TokenError(e.to_string()))
     }
@@ -204,13 +207,16 @@ impl TraktProvider {
             .await;
     }
 
-    fn create_new_client(properties: &TrackingClientProperties) -> Client {
+    fn create_new_client(properties: &TrackingClientProperties) -> oauth2::reqwest::Client {
         let mut headers = HeaderMap::new();
 
         headers.insert("trakt-api-version", "2".parse().unwrap());
         headers.insert("trakt-api-key", properties.client_id.parse().unwrap());
 
-        Client::builder().default_headers(headers).build().unwrap()
+        oauth2::reqwest::ClientBuilder::new()
+            .default_headers(headers)
+            .build()
+            .expect("expected oauth client")
     }
 
     fn properties(&self) -> TrackingProperties {
@@ -251,10 +257,28 @@ impl TrackingProvider for TraktProvider {
                 error!("Failed to start authorization server, {}", e);
                 AuthorizationError::AuthorizationCode
             })?;
-        let oauth_client = self.inner.oauth_client.clone().set_redirect_uri(
-            RedirectUrl::new(format!("http://localhost:{}/callback", addr.port()))
-                .expect("expected a valid redirect url"),
-        );
+        let client: TrackingClientProperties = {
+            let properties = self.inner.config.properties_ref();
+            let tracking = properties
+                .tracker(TRACKING_NAME)
+                .cloned()
+                .map_err(|e| AuthorizationError::Client(e.to_string()))?;
+            tracking.client
+        };
+        let oauth_client = BasicClient::new(ClientId::new(client.client_id))
+            .set_client_secret(ClientSecret::new(client.client_secret))
+            .set_auth_uri(
+                AuthUrl::new(client.user_authorization_uri)
+                    .map_err(|e| AuthorizationError::Client(e.to_string()))?,
+            )
+            .set_token_uri(
+                TokenUrl::new(client.access_token_uri)
+                    .map_err(|e| AuthorizationError::Client(e.to_string()))?,
+            )
+            .set_redirect_uri(
+                RedirectUrl::new(format!("http://localhost:{}/callback", addr.port()))
+                    .map_err(|e| AuthorizationError::Client(e.to_string()))?,
+            );
         let (auth_url, csrf_token) = oauth_client.authorize_url(CsrfToken::new_random).url();
         {
             let mut pending_callbacks = self.inner.pending_callbacks.lock().await;
@@ -283,11 +307,9 @@ impl TrackingProvider for TraktProvider {
                     return Err(AuthorizationError::CsrfFailure);
                 }
 
-                match self
-                    .inner
-                    .oauth_client
+                match oauth_client
                     .exchange_code(AuthorizationCode::new(callback.authorization_code))
-                    .request_async(async_http_client)
+                    .request_async(&self.inner.client)
                     .await
                 {
                     Ok(e) => {
@@ -419,8 +441,7 @@ impl Callback<TrackingEvent> for TraktProvider {
 #[derive(Debug)]
 struct InnerProvider {
     config: ApplicationConfig,
-    oauth_client: BasicClient,
-    client: Client,
+    client: oauth2::reqwest::Client,
     pending_callbacks: Mutex<HashMap<String, oneshot::Sender<AuthCallbackResult>>>,
     callbacks: MultiThreadedCallback<TrackingEvent>,
 }

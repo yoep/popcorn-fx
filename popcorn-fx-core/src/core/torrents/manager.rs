@@ -1,16 +1,16 @@
 use crate::core::config::{ApplicationConfig, CleaningMode, TorrentSettings};
+use crate::core::event;
 use crate::core::event::{Event, EventCallback, EventHandler, EventPublisher, PlayerStoppedEvent};
 use crate::core::storage::Storage;
 use crate::core::torrents::{Error, Result, Torrent, TorrentHandle, TorrentInfo};
-use crate::core::{event, torrents};
 use async_trait::async_trait;
 use derive_more::Display;
 use downcast_rs::{impl_downcast, DowncastSync};
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use fx_torrent::dht::DhtTracker;
 use fx_torrent::{
-    DhtOption, FileIndex, FilePriority, FxTorrentSession, Magnet, Session, TorrentEvent,
-    TorrentFiles, TorrentFlags, TorrentHealth, TorrentState,
+    DhtOption, FileIndex, FilePriority, FxTorrentSession, Magnet, Session, SessionConfig,
+    TorrentEvent, TorrentFiles, TorrentFlags, TorrentHealth, TorrentState,
 };
 use log::{debug, error, info, log_enabled, trace, warn, Level};
 #[cfg(any(test, feature = "testing"))]
@@ -109,10 +109,15 @@ impl FxTorrentManager {
         event_publisher: EventPublisher,
     ) -> Result<Self> {
         let session = FxTorrentSession::builder()
-            .path(settings.user_settings().await.torrent_settings.directory())
-            .client_name("PopcornFX")
+            .config(
+                SessionConfig::builder()
+                    .client_name("PopcornFX")
+                    .path(settings.user_settings().await.torrent_settings.directory())
+                    .build(),
+            )
             .dht(DhtOption::new(
                 DhtTracker::builder()
+                    .enable_indexing(false)
                     .default_routing_nodes()
                     .build()
                     .await
@@ -457,7 +462,7 @@ impl InnerTorrentManager {
                     }
                     TorrentEvent::StateChanged(state) => {
                         if state == &TorrentState::Error {
-                            return Some(Err(torrents::Error::TorrentError(
+                            return Some(Err(Error::TorrentError(
                                 "torrent encountered an error while loading".to_string(),
                             )));
                         }
@@ -465,7 +470,7 @@ impl InnerTorrentManager {
                     _ => {}
                 }
             } else {
-                return Some(Err(torrents::Error::TorrentResolvingFailed(
+                return Some(Err(Error::TorrentResolvingFailed(
                     "handle has been dropped".to_string(),
                 )));
             }

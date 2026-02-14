@@ -1,14 +1,13 @@
-use std::sync::Arc;
-
 use crate::core::event::{
     Event, EventCallback, EventHandler, EventPublisher, PlayerStartedEvent, DEFAULT_ORDER,
 };
 use crate::core::platform::{PlatformData, PlatformEvent};
 use crate::core::playback::{
-    MediaInfo, MediaNotificationEvent, PlaybackControlCallback, PlaybackControlEvent, PlaybackState,
+    MediaInfo, MediaNotificationEvent, PlaybackControlEvent, PlaybackState,
 };
-use crate::core::{Callbacks, CoreCallbacks};
+use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, trace, warn};
+use std::sync::Arc;
 use tokio::select;
 use tokio_util::sync::CancellationToken;
 
@@ -63,10 +62,15 @@ impl PlaybackControls {
     pub fn builder() -> PlaybackControlsBuilder {
         PlaybackControlsBuilder::default()
     }
+}
 
-    /// Register a new callback listener for the [PlaybackControlEvent]'s.
-    pub fn register(&self, callback: PlaybackControlCallback) {
-        self.inner.register(callback);
+impl Callback<PlaybackControlEvent> for PlaybackControls {
+    fn subscribe(&self) -> Subscription<PlaybackControlEvent> {
+        self.inner.callbacks.subscribe()
+    }
+
+    fn subscribe_with(&self, subscriber: Subscriber<PlaybackControlEvent>) {
+        self.inner.callbacks.subscribe_with(subscriber);
     }
 }
 
@@ -117,16 +121,18 @@ impl PlaybackControlsBuilder {
         let instance = PlaybackControls {
             inner: Arc::new(InnerPlaybackControls {
                 platform: self.platform.expect("Platform not set"),
-                callbacks: Default::default(),
+                callbacks: MultiThreadedCallback::new(),
                 cancellation_token: Default::default(),
             }),
         };
 
         let inner = instance.inner.clone();
-        instance
-            .inner
-            .platform
-            .register(Box::new(move |event| inner.handle_platform_event(event)));
+        let mut receiver = instance.inner.platform.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                inner.handle_platform_event(event);
+            }
+        });
 
         let inner = instance.inner.clone();
         if let Some(event_publisher) = self.event_publisher {
@@ -147,7 +153,7 @@ impl PlaybackControlsBuilder {
 #[derive(Debug)]
 struct InnerPlaybackControls {
     platform: Arc<Box<dyn PlatformData>>,
-    callbacks: CoreCallbacks<PlaybackControlEvent>,
+    callbacks: MultiThreadedCallback<PlaybackControlEvent>,
     cancellation_token: CancellationToken,
 }
 
@@ -210,13 +216,9 @@ impl InnerPlaybackControls {
             .notify_media_event(MediaNotificationEvent::StateStopped)
     }
 
-    fn register(&self, callback: PlaybackControlCallback) {
-        self.callbacks.add_callback(callback);
-    }
-
-    fn handle_platform_event(&self, event: PlatformEvent) {
+    fn handle_platform_event(&self, event: Arc<PlatformEvent>) {
         trace!("Handling platform event {:?}", event);
-        match event {
+        match &*event {
             PlatformEvent::TogglePlaybackState => self
                 .callbacks
                 .invoke(PlaybackControlEvent::TogglePlaybackState),
@@ -228,82 +230,83 @@ impl InnerPlaybackControls {
 
 #[cfg(test)]
 mod test {
+    use super::*;
+    use crate::core::event::PlayerStoppedEvent;
+    use crate::testing::MockDummyPlatformData;
+    use crate::{init_logger, recv_timeout};
     use std::sync::mpsc::channel;
     use std::time::Duration;
+    use tokio::sync::mpsc::unbounded_channel;
+    use tokio::sync::oneshot;
+    use tokio::time::timeout;
 
-    use crate::core::event::PlayerStoppedEvent;
-    use crate::init_logger;
-    use crate::testing::MockDummyPlatformData;
-
-    use super::*;
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[tokio::test]
     async fn test_platform_event_toggle_playback() {
         init_logger!();
-        let (tx, rx) = channel();
-        let (tx_ce, rx_ce) = channel();
+        let (tx, rx) = unbounded_channel();
         let mut platform = MockDummyPlatformData::new();
-        platform
-            .expect_register()
-            .returning(move |callback| tx.send(callback).unwrap());
+        platform.expect_subscribe().return_once(move || rx);
         let event_publisher = EventPublisher::default();
         let controls = PlaybackControls::builder()
             .platform(Arc::new(Box::new(platform)))
             .event_publisher(event_publisher.clone())
             .build();
 
-        // add a callback to the playback control events
-        controls.register(Box::new(move |e| tx_ce.send(e).unwrap()));
-
         // invoke the callback on the platform
-        let callback = rx.recv_timeout(Duration::from_millis(100)).unwrap();
-        callback(PlatformEvent::TogglePlaybackState);
+        let mut receiver = controls.subscribe();
+        tx.send(Arc::new(PlatformEvent::TogglePlaybackState))
+            .unwrap();
 
-        let result = rx_ce.recv_timeout(Duration::from_millis(100)).unwrap();
-        match result {
+        let result = recv_timeout!(&mut receiver, Duration::from_millis(500));
+        match &*result {
             PlaybackControlEvent::TogglePlaybackState => {}
-            _ => panic!("Expected PlaybackControlEvent::TogglePlaybackState"),
+            _ => assert!(
+                false,
+                "expected PlaybackControlEvent::TogglePlaybackState, but got {:?}",
+                result
+            ),
         }
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_platform_event_forward() {
         init_logger!();
-        let (tx, rx) = channel();
-        let (tx_ce, rx_ce) = channel();
+        let (tx, rx) = unbounded_channel();
         let mut platform = MockDummyPlatformData::new();
-        platform
-            .expect_register()
-            .returning(move |callback| tx.send(callback).unwrap());
+        platform.expect_subscribe().return_once(move || rx);
         let event_publisher = EventPublisher::default();
         let controls = PlaybackControls::builder()
             .platform(Arc::new(Box::new(platform)))
             .event_publisher(event_publisher.clone())
             .build();
 
-        // add a callback to the playback control events
-        controls.register(Box::new(move |e| tx_ce.send(e).unwrap()));
-
         // invoke the callback on the platform
-        let callback = rx.recv_timeout(Duration::from_millis(100)).unwrap();
-        callback(PlatformEvent::ForwardMedia);
+        let mut receiver = controls.subscribe();
+        tx.send(Arc::new(PlatformEvent::ForwardMedia)).unwrap();
 
-        let result = rx_ce.recv_timeout(Duration::from_millis(100)).unwrap();
-        match result {
+        let result = recv_timeout!(&mut receiver, Duration::from_millis(500));
+        match &*result {
             PlaybackControlEvent::Forward => {}
-            _ => panic!("Expected PlaybackControlEvent::Forward"),
+            _ => assert!(
+                false,
+                "expected PlaybackControlEvent::Forward, but got {:?}",
+                result
+            ),
         }
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_on_player_started_event() {
         init_logger!();
-        let (tx, rx) = channel();
+        let (tx, rx) = oneshot::channel();
         let mut platform = MockDummyPlatformData::new();
-        platform.expect_register().returning(|_| {});
-        platform
-            .expect_notify_media_event()
-            .returning(move |notification: MediaNotificationEvent| tx.send(notification).unwrap());
+        platform.expect_notify_media_event().return_once(
+            move |notification: MediaNotificationEvent| tx.send(notification).unwrap(),
+        );
+        platform.expect_subscribe().returning(|| {
+            let (_, rx) = unbounded_channel();
+            rx
+        });
         let event_publisher = EventPublisher::default();
         let _controls = PlaybackControls::builder()
             .platform(Arc::new(Box::new(platform)))
@@ -320,7 +323,10 @@ mod test {
             subtitles_enabled: false,
         }));
 
-        let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
+        let result = timeout(Duration::from_millis(500), rx)
+            .await
+            .expect("timed-out waiting for notification event")
+            .unwrap();
         match result {
             MediaNotificationEvent::StateStarting(info) => assert_eq!(
                 info,
@@ -330,7 +336,11 @@ mod test {
                     thumb: Some("MyThumb".to_string()),
                 }
             ),
-            _ => panic!("Expected MediaNotificationEvent::PlaybackStarted"),
+            _ => assert!(
+                false,
+                "Expected MediaNotificationEvent::PlaybackStarted, but got {:?}",
+                result
+            ),
         }
     }
 
@@ -339,10 +349,13 @@ mod test {
         init_logger!();
         let (tx, rx) = channel();
         let mut platform = MockDummyPlatformData::new();
-        platform.expect_register().returning(|_| {});
         platform
             .expect_notify_media_event()
             .returning(move |notification: MediaNotificationEvent| tx.send(notification).unwrap());
+        platform.expect_subscribe().returning(|| {
+            let (_, rx) = unbounded_channel();
+            rx
+        });
         let event_publisher = EventPublisher::default();
         let _controls = PlaybackControls::builder()
             .platform(Arc::new(Box::new(platform)))
@@ -365,10 +378,13 @@ mod test {
         init_logger!();
         let (tx, rx) = channel();
         let mut platform = MockDummyPlatformData::new();
-        platform.expect_register().returning(|_| {});
         platform
             .expect_notify_media_event()
             .returning(move |notification: MediaNotificationEvent| tx.send(notification).unwrap());
+        platform.expect_subscribe().returning(|| {
+            let (_, rx) = unbounded_channel();
+            rx
+        });
         let event_publisher = EventPublisher::default();
         let _controls = PlaybackControls::builder()
             .platform(Arc::new(Box::new(platform)))

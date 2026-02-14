@@ -652,7 +652,7 @@ impl InnerCacheManager {
             .options()
             .make_dirs(true)
             .serializer(FILENAME)
-            .write_async(&*info)
+            .write(&*info)
             .await
             .map(|e| debug!("Cache info has been saved at {}", e.to_str().unwrap()))
             .map_err(|e| {
@@ -1362,7 +1362,7 @@ mod test {
         }
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[tokio::test]
     async fn test_run_cleanup() {
         init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
@@ -1387,17 +1387,18 @@ mod test {
                 .into_iter()
                 .collect(),
             })
+            .await
             .unwrap();
-        let _cache_manager = Arc::new(
-            CacheManagerBuilder::default()
-                .storage_path(temp_path)
-                .build(),
-        );
+        let cache_manager = CacheManagerBuilder::default()
+            .storage_path(temp_path)
+            .build();
 
-        assert_timeout!(time::Duration::from_millis(100), !path.exists());
+        // wait for the cache manager to cleanup old data during startup
+        assert_timeout!(Duration::from_millis(500), !path.exists());
+        drop(cache_manager);
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[tokio::test]
     async fn test_run_cleanup_non_existing_entry() {
         init_logger!();
         let cache_entry = "foo";
@@ -1422,19 +1423,16 @@ mod test {
                 .into_iter()
                 .collect(),
             })
+            .await
             .unwrap();
+        let cache_manager = CacheManagerBuilder::default()
+            .storage_path(temp_path)
+            .build();
 
-        let cache_manager = Arc::new(
-            CacheManagerBuilder::default()
-                .storage_path(temp_path)
-                .build(),
-        );
-
-        let inner = cache_manager.inner.clone();
-        inner.execute_cleanup().await;
+        // execute a cleanup within the cache manager
+        cache_manager.inner.execute_cleanup().await;
 
         let cache = cache_manager.inner.cache_info.lock().await;
-
         if let Some(entry) = cache.entries(cache_entry) {
             assert_eq!(
                 0,

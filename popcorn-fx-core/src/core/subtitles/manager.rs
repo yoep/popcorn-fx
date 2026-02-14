@@ -2,10 +2,9 @@ use crate::core::config::ApplicationConfig;
 use crate::core::storage::Storage;
 use crate::core::subtitles::language::SubtitleLanguage;
 use crate::core::subtitles::model::SubtitleInfo;
-use crate::core::{Callbacks, CoreCallback, CoreCallbacks};
 use async_trait::async_trait;
 use derive_more::Display;
-use fx_callback::CallbackHandle;
+use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, error, info, trace};
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -13,7 +12,7 @@ use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
 /// The callback to listen on events of the subtitle manager.
-pub type SubtitleCallback = CoreCallback<SubtitleEvent>;
+pub type SubtitleCallback = Subscription<SubtitleEvent>;
 
 /// Represents events related to subtitles.
 #[derive(Debug, Clone, Display)]
@@ -34,7 +33,7 @@ pub enum SubtitlePreference {
 }
 
 #[async_trait]
-pub trait SubtitleManager: Debug + Callbacks<SubtitleEvent> + Send + Sync {
+pub trait SubtitleManager: Debug + Callback<SubtitleEvent> + Send + Sync {
     /// Retrieves the current subtitle preference.
     async fn preference(&self) -> SubtitlePreference;
 
@@ -90,13 +89,13 @@ impl DefaultSubtitleManager {
     }
 }
 
-impl Callbacks<SubtitleEvent> for DefaultSubtitleManager {
-    fn add_callback(&self, callback: CoreCallback<SubtitleEvent>) -> CallbackHandle {
-        self.inner.add_callback(callback)
+impl Callback<SubtitleEvent> for DefaultSubtitleManager {
+    fn subscribe(&self) -> Subscription<SubtitleEvent> {
+        self.inner.callbacks.subscribe()
     }
 
-    fn remove_callback(&self, handle: CallbackHandle) {
-        self.inner.remove_callback(handle)
+    fn subscribe_with(&self, subscriber: Subscriber<SubtitleEvent>) {
+        self.inner.callbacks.subscribe_with(subscriber);
     }
 }
 
@@ -138,7 +137,7 @@ struct InnerSubtitleManager {
     /// The known info of the selected subtitle if applicable.
     preference: Arc<Mutex<SubtitlePreference>>,
     /// Callbacks for handling subtitle events.
-    callbacks: CoreCallbacks<SubtitleEvent>,
+    callbacks: MultiThreadedCallback<SubtitleEvent>,
     /// Application settings.
     settings: ApplicationConfig,
     cancellation_token: CancellationToken,
@@ -154,7 +153,7 @@ impl InnerSubtitleManager {
         let preference = Self::default_preference(&settings).await;
         Self {
             preference: Arc::new(Mutex::new(preference)),
-            callbacks: Default::default(),
+            callbacks: MultiThreadedCallback::new(),
             settings,
             cancellation_token: Default::default(),
         }
@@ -267,16 +266,6 @@ impl InnerSubtitleManager {
             .user_settings_ref(|e| e.subtitle_settings.default_subtitle.clone())
             .await;
         SubtitlePreference::Language(preferred_language)
-    }
-}
-
-impl Callbacks<SubtitleEvent> for InnerSubtitleManager {
-    fn add_callback(&self, callback: CoreCallback<SubtitleEvent>) -> CallbackHandle {
-        self.callbacks.add_callback(callback)
-    }
-
-    fn remove_callback(&self, handle: CallbackHandle) {
-        self.callbacks.remove_callback(handle)
     }
 }
 

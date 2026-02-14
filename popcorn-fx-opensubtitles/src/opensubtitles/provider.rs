@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 use std::ffi::OsStr;
-use std::fs;
-use std::fs::File;
 use std::path::{Path, PathBuf};
+use std::{fs, io};
 
 use async_trait::async_trait;
 use derive_more::Display;
@@ -31,6 +30,7 @@ const EPISODE_PARAM_KEY: &str = "episode_number";
 const FILENAME_PARAM_KEY: &str = "query";
 const PAGE_PARAM_KEY: &str = "page";
 const DEFAULT_FILENAME_EXTENSION: &str = ".srt";
+const MAX_SEARCH_PAGES: u32 = 10;
 
 #[derive(Debug, Display)]
 #[display("Opensubtitles subtitle provider")]
@@ -62,12 +62,12 @@ impl OpensubtitlesProvider {
         OpensubtitlesProviderBuilder::default()
     }
 
-    async fn create_search_url(
+    fn create_search_url(
         &self,
         media_id: Option<&str>,
         episode: Option<&Episode>,
         filename: Option<&str>,
-        page: i32,
+        page: u32,
     ) -> Result<Url> {
         let mut query_params: Vec<(&str, &str)> = vec![];
         let imdb_id: String;
@@ -89,11 +89,10 @@ impl OpensubtitlesProvider {
                 imdb_id = e.replace("tt", "");
                 query_params.push((IMDB_ID_PARAM_KEY, &imdb_id));
 
-                if episode.is_some() {
-                    let episode_instance = episode.unwrap();
-                    trace!("Extending search url for episode {:?}", episode_instance);
-                    season = episode_instance.season().to_string();
-                    episode_number = episode_instance.episode().to_string();
+                if let Some(episode) = episode {
+                    trace!("Extending search url for episode {:?}", episode);
+                    season = episode.season().to_string();
+                    episode_number = episode.episode().to_string();
 
                     query_params.push((SEASON_PARAM_KEY, season.as_str()));
                     query_params.push((EPISODE_PARAM_KEY, episode_number.as_str()));
@@ -102,8 +101,8 @@ impl OpensubtitlesProvider {
             None => {}
         }
 
-        if filename.is_some() {
-            query_params.push((FILENAME_PARAM_KEY, filename.unwrap()));
+        if let Some(filename) = filename {
+            query_params.push((FILENAME_PARAM_KEY, filename));
         }
 
         match Url::parse_with_params(url.as_str(), &query_params) {
@@ -115,7 +114,7 @@ impl OpensubtitlesProvider {
         }
     }
 
-    async fn create_download_url(&self) -> Result<Url> {
+    fn create_download_url(&self) -> Result<Url> {
         let properties = self.settings.properties();
         let url = format!("{}/download", properties.subtitle().url());
 
@@ -144,25 +143,23 @@ impl OpensubtitlesProvider {
                 Some(e) => optional_language = SubtitleLanguage::from_code(e.clone()),
             }
 
-            if optional_language.is_some() {
-                let language = optional_language.unwrap();
-
+            if let Some(language) = optional_language {
                 if !languages.contains_key(&language) {
                     languages.insert(language.clone(), vec![]);
                 }
 
-                let language_files = languages.get_mut(&language).unwrap();
-
-                for file in attributes.files() {
-                    language_files.push(
-                        SubtitleFile::builder()
-                            .file_id(file.file_id().clone())
-                            .name(Self::subtitle_file_name(file, attributes))
-                            .url(attributes.url().clone())
-                            .score(attributes.ratings().clone())
-                            .downloads(attributes.download_count().clone())
-                            .build(),
-                    );
+                if let Some(language_files) = languages.get_mut(&language) {
+                    for file in attributes.files() {
+                        language_files.push(
+                            SubtitleFile::builder()
+                                .file_id(file.file_id().clone())
+                                .name(Self::subtitle_file_name(file, attributes))
+                                .url(attributes.url().clone())
+                                .score(attributes.ratings().clone())
+                                .downloads(attributes.download_count().clone())
+                                .build(),
+                        );
+                    }
                 }
 
                 if id.is_empty() {
@@ -171,8 +168,8 @@ impl OpensubtitlesProvider {
                 }
             } else {
                 warn!(
-                    "Unknown subtitle language detected: {}",
-                    attributes.language().unwrap()
+                    "Unknown subtitle language detected: {:?}",
+                    attributes.language()
                 )
             }
         }
@@ -210,7 +207,10 @@ impl OpensubtitlesProvider {
             }
             _ => {
                 let status = response.status();
-                let body = &response.text().await.unwrap();
+                let body = &response
+                    .text()
+                    .await
+                    .map_err(|e| SubtitleError::IO(io::Error::new(io::ErrorKind::Other, e)))?;
                 error!(
                     "Received status {} for OpenSubtitles search with body {}",
                     &status, body
@@ -240,7 +240,7 @@ impl OpensubtitlesProvider {
         {
             Err(e) => Err(e),
             Ok(response) => {
-                let total_pages = response.total_pages();
+                let total_pages = response.total_pages().min(&MAX_SEARCH_PAGES);
                 response
                     .data()
                     .iter()
@@ -253,11 +253,14 @@ impl OpensubtitlesProvider {
                         .fetch_search_page(id, media_id, episode, filename, fetch_page)
                         .await
                     {
-                        Err(e) => warn!(
-                            "Failed to fetch search page {}, {}",
-                            fetch_page,
-                            e.to_string()
-                        ),
+                        Err(e) => {
+                            warn!(
+                                "Failed to fetch search page {}, {}",
+                                fetch_page,
+                                e.to_string()
+                            );
+                            break;
+                        }
                         Ok(page_response) => {
                             page_response
                                 .data()
@@ -285,11 +288,9 @@ impl OpensubtitlesProvider {
         media_id: Option<&str>,
         episode: Option<&Episode>,
         filename: Option<&str>,
-        page: i32,
+        page: u32,
     ) -> Result<OpenSubtitlesResponse<SearchResult>> {
-        let url = self
-            .create_search_url(media_id, episode, filename, page)
-            .await?;
+        let url = self.create_search_url(media_id, episode, filename, page)?;
 
         debug!("Retrieving available subtitles from {}", &url);
         match self.client.clone().get(url).send().await {
@@ -329,16 +330,19 @@ impl OpensubtitlesProvider {
             StatusCode::OK => {
                 // create the parent directory if needed
                 let directory_path = path.to_path_buf();
-                let directory = directory_path.parent().unwrap();
-                trace!(
-                    "Creating subtitle directory {}",
-                    directory.to_str().unwrap()
-                );
-                fs::create_dir_all(directory).map_err(|e| SubtitleError::IO(e))?;
+                if let Some(directory) = directory_path.parent() {
+                    trace!("Creating subtitle directory {:?}", directory);
+                    fs::create_dir_all(directory).map_err(|e| SubtitleError::IO(e))?;
+                }
 
                 // open the subtitle file that will be written
-                let filepath = path.to_str().unwrap();
-                trace!("Opening subtitle file {}", filepath);
+                let filepath = path.to_str().map(|e| e.to_string()).ok_or_else(|| {
+                    SubtitleError::IO(io::Error::new(
+                        io::ErrorKind::InvalidFilename,
+                        "subtitle download path is invalid",
+                    ))
+                })?;
+                trace!("Opening subtitle file {:?}", path);
                 let mut file = OpenOptions::new()
                     .create(true)
                     .write(true)
@@ -348,12 +352,12 @@ impl OpensubtitlesProvider {
                     .map_err(|e| SubtitleError::IO(e))?;
 
                 // stream the bytes to the opened file
-                debug!("Writing subtitle file {} to {}", file_id, filepath);
+                debug!("Writing subtitle file {} to {:?}", file_id, path);
                 let mut stream = response.bytes_stream();
                 while let Some(chunk) = stream.next().await {
                     let chunk = chunk.map_err(|e| {
                         error!("Failed to read subtitle response chunk, {}", e);
-                        SubtitleError::DownloadFailed(filepath.to_string(), e.to_string())
+                        SubtitleError::DownloadFailed(filepath.clone(), e.to_string())
                     })?;
 
                     tokio::io::copy(&mut chunk.as_ref(), &mut file)
@@ -364,8 +368,8 @@ impl OpensubtitlesProvider {
                         })?;
                 }
 
-                info!("Downloaded subtitle file {}", filepath);
-                Ok(filepath.to_string())
+                info!("Downloaded subtitle file {:?}", path);
+                Ok(filepath)
             }
             _ => Err(SubtitleError::DownloadFailed(
                 file_id.to_string(),
@@ -418,12 +422,23 @@ impl OpensubtitlesProvider {
         settings.directory().join(file_name)
     }
 
-    fn internal_parse(&self, file_path: &Path, info: Option<&SubtitleInfo>) -> Result<Subtitle> {
-        trace!("Parsing subtitle file {}", file_path.to_str().unwrap());
-        let path = String::from(file_path.to_str().unwrap());
+    async fn internal_parse(
+        &self,
+        file_path: &Path,
+        info: Option<&SubtitleInfo>,
+    ) -> Result<Subtitle> {
+        let path = file_path.to_str().map(|e| e.to_string()).ok_or_else(|| {
+            SubtitleError::IO(io::Error::new(
+                io::ErrorKind::InvalidFilename,
+                "subtitle file path is invalid",
+            ))
+        })?;
+
+        trace!("Parsing subtitle file {}", path);
         let extension = file_path
             .extension()
-            .map(|e| String::from(e.to_str().unwrap()))
+            .and_then(|e| e.to_str())
+            .map(|e| e.to_string())
             .ok_or_else(|| {
                 SubtitleError::ParseFileError(path.clone(), "file has no extension".to_string())
             })?;
@@ -434,13 +449,15 @@ impl OpensubtitlesProvider {
             .get(&subtitle_type)
             .ok_or_else(|| SubtitleError::TypeNotSupported(subtitle_type))?;
 
-        File::open(&file_path)
-            .map(|file| parser.parse_file(file))
-            .map(|e| {
-                info!("Parsed subtitle file {:?}", &file_path);
-                Subtitle::new(e, info.map(|e| e.clone()), path.clone())
-            })
-            .map_err(|err| SubtitleError::ParseFileError(path.clone(), err.to_string()))
+        let file = OpenOptions::new().read(true).open(file_path).await?;
+        let subtitle = parser.parse_file(file).await?;
+
+        info!("Parsed subtitle file {}", path);
+        Ok(Subtitle::new(
+            subtitle,
+            info.map(|e| e.clone()),
+            path.clone(),
+        ))
     }
 
     /// Retrieve the subtitle filename from the given file or attributes.
@@ -544,7 +561,7 @@ impl SubtitleProvider for OpensubtitlesProvider {
                 .to_string());
         }
 
-        let url = self.create_download_url().await?;
+        let url = self.create_download_url()?;
         debug!(
             "Starting subtitle download of {} ({}) for IMDB ID {:?}",
             subtitle_file.name(),
@@ -576,13 +593,13 @@ impl SubtitleProvider for OpensubtitlesProvider {
             Err(e) => Err(e),
             Ok(path) => {
                 let path = Path::new(&path);
-                self.internal_parse(path, Some(subtitle_info))
+                self.internal_parse(path, Some(subtitle_info)).await
             }
         }
     }
 
-    fn parse(&self, file_path: &Path) -> Result<Subtitle> {
-        self.internal_parse(file_path, None)
+    async fn parse(&self, file_path: &Path) -> Result<Subtitle> {
+        self.internal_parse(file_path, None).await
     }
 
     fn convert(&self, subtitle: Subtitle, output_type: SubtitleType) -> Result<String> {
@@ -1187,7 +1204,10 @@ mod test {
             destination.clone(),
         );
 
-        let result = service.parse(Path::new(&destination)).unwrap();
+        let result = service
+            .parse(Path::new(&destination))
+            .await
+            .expect("expected the parsing to succeed");
 
         assert_eq!(expected_result, result)
     }

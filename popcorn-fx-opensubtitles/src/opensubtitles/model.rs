@@ -1,4 +1,3 @@
-use derive_new::new;
 use serde::{Deserialize, Serialize};
 
 /// The response model of opensubtitles.com
@@ -6,21 +5,23 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OpenSubtitlesResponse<T> {
     /// The total pages available for the query
-    pub total_pages: i32,
+    pub total_pages: u32,
     /// The total items available for the query
-    pub total_count: i32,
+    pub total_count: u32,
     /// The current page index of the query
     pub page: i32,
     pub data: Vec<T>,
 }
 
 impl<T> OpenSubtitlesResponse<T> {
-    pub fn total_pages(&self) -> &i32 {
+    /// Returns the total number of pages available for the query.
+    pub fn total_pages(&self) -> &u32 {
         &self.total_pages
     }
 
-    pub fn data(&self) -> &Vec<T> {
-        &self.data
+    /// Returns the search result data slice for the response.
+    pub fn data(&self) -> &[T] {
+        self.data.as_slice()
     }
 }
 
@@ -187,12 +188,18 @@ impl OpenSubtitlesFeatureDetails {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, new)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct DownloadRequest {
     file_id: i32,
 }
 
-#[derive(Serialize, Deserialize, Debug, new)]
+impl DownloadRequest {
+    pub fn new(file_id: i32) -> Self {
+        Self { file_id }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct DownloadResponse {
     link: String,
     file_name: String,
@@ -204,5 +211,31 @@ pub struct DownloadResponse {
 impl DownloadResponse {
     pub fn link(&self) -> &String {
         &self.link
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod download_response {
+        use super::*;
+        use popcorn_fx_core::testing::read_test_file_to_bytes;
+
+        #[test]
+        fn test_deserialize() {
+            let bytes = read_test_file_to_bytes("download_response.json");
+            let expected_result = DownloadResponse {
+                link: "http://[[host]]:[[port]]/download/example.srt".to_string(),
+                file_name: "castle.rock.s01e03.webrip.x264-tbs.ettv.-eng.ro.srt".to_string(),
+                requests: 3,
+                remaining: 97,
+                message: "Your quota will be renewed in 07 hours and 30 minutes (2022-04-08 13:03:16 UTC) ".to_string(),
+            };
+
+            let result = serde_json::from_slice::<DownloadResponse>(&bytes).unwrap();
+
+            assert_eq!(expected_result, result);
+        }
     }
 }

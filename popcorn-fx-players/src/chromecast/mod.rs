@@ -87,7 +87,7 @@ mod tests {
                     .with_no_client_auth()
                     .with_single_cert(
                         vec![cert.cert.der().clone()],
-                        PrivateKeyDer::try_from(cert.key_pair.serialize_der()).unwrap(),
+                        PrivateKeyDer::try_from(cert.signing_key.serialize_der()).unwrap(),
                     )
                     .unwrap();
 

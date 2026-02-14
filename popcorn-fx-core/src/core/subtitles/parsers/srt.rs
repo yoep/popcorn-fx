@@ -1,15 +1,14 @@
-use std::fs::File;
-use std::io::{BufRead, BufReader, Read};
-
+use crate::core::subtitles::cue::{SubtitleCue, SubtitleCueBuilder};
+use crate::core::subtitles::error::{Result, SubtitleParseError};
+use crate::core::subtitles::parsers::{Parser, StyleParser, NEWLINE};
+use crate::core::utils::time::{parse_millis_from_time, parse_time_from_millis};
+use async_trait::async_trait;
 use chrono::NaiveTime;
 use derive_more::Display;
 use log::{trace, warn};
 use regex::Regex;
-
-use crate::core::subtitles::cue::{SubtitleCue, SubtitleCueBuilder};
-use crate::core::subtitles::error::SubtitleParseError;
-use crate::core::subtitles::parsers::{Parser, StyleParser, NEWLINE};
-use crate::core::utils::time::{parse_millis_from_time, parse_time_from_millis};
+use tokio::fs::File;
+use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 
 const TIME_SEPARATOR: &str = "-->";
 const TIME_PATTERN: &str = "(\\d{1,2}:\\d{2}:\\d{2},\\d{3}) --> (\\d{1,2}:\\d{2}:\\d{2},\\d{3})";
@@ -27,7 +26,10 @@ impl SrtParser {
         Self::default()
     }
 
-    fn parse<R: Read>(&self, reader: &mut BufReader<R>) -> Vec<SubtitleCue> {
+    async fn parse<R: AsyncRead + Unpin>(
+        &self,
+        reader: &mut BufReader<R>,
+    ) -> Result<Vec<SubtitleCue>> {
         let mut stage = ParserStage::IDENTIFIER;
         let mut cue_builder = SubtitleCueBuilder::new();
         let mut line_index = 0;
@@ -36,7 +38,7 @@ impl SrtParser {
 
         while continue_reading {
             let mut line = String::new();
-            let len = reader.read_line(&mut line).unwrap();
+            let len = reader.read_line(&mut line).await?;
 
             // check if we've reached the end of the current cue
             if line.trim().is_empty() {
@@ -69,7 +71,7 @@ impl SrtParser {
             cues.push(cue_builder.build());
         }
 
-        cues
+        Ok(cues)
     }
 
     fn read_identifier(&self, line: &String) -> SubtitleCueBuilder {
@@ -133,18 +135,19 @@ impl SrtParser {
     }
 }
 
+#[async_trait]
 impl Parser for SrtParser {
-    fn parse_file(&self, file: File) -> Vec<SubtitleCue> {
+    async fn parse_file(&self, file: File) -> Result<Vec<SubtitleCue>> {
         let mut reader = BufReader::new(file);
-        self.parse(&mut reader)
+        self.parse(&mut reader).await
     }
 
-    fn parse_string(&self, value: &String) -> Vec<SubtitleCue> {
+    async fn parse_string(&self, value: &String) -> Result<Vec<SubtitleCue>> {
         let mut reader = BufReader::new(value.as_bytes());
-        self.parse(&mut reader)
+        self.parse(&mut reader).await
     }
 
-    fn convert(&self, cues: &Vec<SubtitleCue>) -> Result<String, SubtitleParseError> {
+    fn convert(&self, cues: &Vec<SubtitleCue>) -> std::result::Result<String, SubtitleParseError> {
         let mut output = String::new();
 
         for cue in cues {
@@ -225,8 +228,8 @@ mod test {
         assert_eq!(expected_result, result)
     }
 
-    #[test]
-    fn test_srt_parser_parse_single_cue() {
+    #[tokio::test]
+    async fn test_srt_parser_parse_single_cue() {
         init_logger!();
         let mut reader = BufReader::new(
             r#"1
@@ -247,13 +250,16 @@ mod test {
             )])],
         );
 
-        let result = parser.parse(&mut reader);
+        let result = parser
+            .parse(&mut reader)
+            .await
+            .expect("expected the parsing to succeed");
 
         assert_eq!(vec![expected_result], result);
     }
 
-    #[test]
-    fn test_srt_parser_parse_multiple_cues() {
+    #[tokio::test]
+    async fn test_srt_parser_parse_multiple_cues() {
         init_logger!();
         let mut reader = BufReader::new(
             r#"1526
@@ -299,7 +305,10 @@ The <i>Black Pearl</i> is yours."#
             ),
         ];
 
-        let result = parser.parse(&mut reader);
+        let result = parser
+            .parse(&mut reader)
+            .await
+            .expect("expected the parsing to succeed");
 
         assert_eq!(expected_result, result);
     }

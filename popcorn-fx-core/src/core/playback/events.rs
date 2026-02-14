@@ -1,9 +1,8 @@
 use derive_more::Display;
-
-use crate::core::CoreCallback;
+use fx_callback::Subscription;
 
 /// A callback for playback control events, used to handle events coming from the media system of the OS.
-pub type PlaybackControlCallback = CoreCallback<PlaybackControlEvent>;
+pub type PlaybackControlCallback = Subscription<PlaybackControlEvent>;
 
 /// Events related to playback control, triggered by the media system of the OS.
 /// These events can be used to modify the player state based on the given media event.

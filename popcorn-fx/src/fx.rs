@@ -1,7 +1,7 @@
 use clap::Parser;
 use derive_more::Display;
 use directories::{BaseDirs, UserDirs};
-use log::{debug, error, info, warn, LevelFilter};
+use log::{debug, error, info, trace, warn, LevelFilter};
 use log4rs::append::console::ConsoleAppender;
 use log4rs::append::rolling_file::policy::compound::roll::fixed_window::FixedWindowRoller;
 use log4rs::append::rolling_file::policy::compound::trigger::size::SizeTrigger;
@@ -190,7 +190,7 @@ pub struct PopcornFX {
     subtitle_provider: Arc<dyn SubtitleProvider>,
     subtitle_server: Arc<SubtitleServer>,
     torrent_collection: TorrentCollection,
-    torrent_manager: Arc<Box<dyn TorrentManager>>,
+    torrent_manager: Arc<dyn TorrentManager>,
     torrent_stream_server: Arc<dyn TorrentStreamServer>,
     tracking_provider: Arc<dyn TrackingProvider>,
     tracking_sync: Arc<SyncMediaTracking>,
@@ -215,6 +215,13 @@ impl PopcornFX {
         if args.insecure {
             warn!("INSECURE CONNECTIONS ARE ENABLED");
         }
+
+        trace!("Registering default crypto provider");
+        rustls::crypto::aws_lc_rs::default_provider()
+            .install_default()
+            .map_err(|e| {
+                Error::Initialization("failed to initialize crypto provider".to_string())
+            })?;
 
         info!("Creating new popcorn fx instance with {:?}", args);
         let app_directory_path = args.app_directory.as_str();
@@ -258,7 +265,7 @@ impl PopcornFX {
             )
             .await,
         );
-        let torrent_manager = Arc::new(Box::new(
+        let torrent_manager = Arc::new(
             FxTorrentManager::new(
                 Duration::from_hours(10 * 24),
                 settings.clone(),
@@ -266,7 +273,7 @@ impl PopcornFX {
             )
             .await
             .map_err(|e| Error::Initialization(e.to_string()))?,
-        ) as Box<dyn TorrentManager>);
+        ) as Arc<dyn TorrentManager>;
         let torrent_stream_server = Arc::new(
             FXTorrentStreamServer::new()
                 .await
@@ -317,6 +324,7 @@ impl PopcornFX {
                 settings.clone(),
             )),
             Box::new(TorrentStreamLoadingStrategy::new(
+                torrent_manager.clone(),
                 torrent_stream_server.clone(),
             )),
             Box::new(TorrentDetailsLoadingStrategy::new(
@@ -442,7 +450,7 @@ impl PopcornFX {
     }
 
     /// The torrent manager to create, manage and delete torrents.
-    pub fn torrent_manager(&self) -> &Arc<Box<dyn TorrentManager>> {
+    pub fn torrent_manager(&self) -> &Arc<dyn TorrentManager> {
         &self.torrent_manager
     }
 

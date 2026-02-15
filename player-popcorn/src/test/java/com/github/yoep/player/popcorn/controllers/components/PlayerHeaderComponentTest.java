@@ -21,8 +21,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
@@ -95,5 +94,23 @@ class PlayerHeaderComponentTest {
         });
         assertEquals(caption, component.caption.getText());
         assertTrue(component.separator.isVisible());
+    }
+
+    @Test
+    void testOnCaptionChanged_whenCaptionIsEmpty_shouldHideSeparator() throws TimeoutException {
+        var caption = " ";
+        when(viewLoader.load(PlayerHeaderComponent.VIEW_HEADER_ACTIONS)).thenReturn(new Pane());
+        component.initialize(url, resourceBundle);
+        component.caption.setText("Lorem ipsum Dolor");
+
+        var listener = headerListener.get();
+        listener.onCaptionChanged(caption);
+
+        WaitForAsyncUtils.waitFor(250, TimeUnit.MILLISECONDS, () -> {
+            var text = component.caption.getText();
+            return text.isBlank();
+        });
+        assertEquals(caption, component.caption.getText());
+        assertFalse(component.separator.isVisible());
     }
 }

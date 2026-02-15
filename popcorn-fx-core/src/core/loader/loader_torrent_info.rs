@@ -25,11 +25,11 @@ const TORRENT_EXTENSION: &str = ".torrent";
 #[derive(Display)]
 #[display("Torrent info loading strategy")]
 pub struct TorrentInfoLoadingStrategy {
-    torrent_manager: Arc<Box<dyn TorrentManager>>,
+    torrent_manager: Arc<dyn TorrentManager>,
 }
 
 impl TorrentInfoLoadingStrategy {
-    pub fn new(torrent_manager: Arc<Box<dyn TorrentManager>>) -> Self {
+    pub fn new(torrent_manager: Arc<dyn TorrentManager>) -> Self {
         Self { torrent_manager }
     }
 
@@ -291,7 +291,7 @@ mod tests {
         });
         let task = create_loading_task!();
         let context = task.context();
-        let strategy = TorrentInfoLoadingStrategy::new(Arc::new(Box::new(torrent_manager)));
+        let strategy = TorrentInfoLoadingStrategy::new(Arc::new(torrent_manager));
 
         // process the data, which should load the magnet url into a Torrent
         let result = strategy.process(&mut data, &*context).await;
@@ -440,7 +440,7 @@ mod tests {
             .expect_info()
             .returning(move |_| Ok(manager_info.clone()));
 
-        let strategy = TorrentInfoLoadingStrategy::new(Arc::new(Box::new(torrent_manager)));
+        let strategy = TorrentInfoLoadingStrategy::new(Arc::new(torrent_manager));
 
         let result = strategy.process(&mut data, &*context).await;
 
@@ -494,7 +494,7 @@ mod tests {
             .returning(move |_| Ok(manager_info.clone()));
         let task = create_loading_task!();
         let context = task.context();
-        let strategy = TorrentInfoLoadingStrategy::new(Arc::new(Box::new(torrent_manager)));
+        let strategy = TorrentInfoLoadingStrategy::new(Arc::new(torrent_manager));
 
         let result = strategy.process(&mut data, &*context).await;
         assert_eq!(LoadingResult::Ok, result);

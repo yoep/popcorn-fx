@@ -9,7 +9,7 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, MutexGuard};
 
 use popcorn_fx_core::core::platform::{
-    Platform, PlatformCallback, PlatformData, PlatformEvent, PlatformInfo, PlatformType,
+    Platform, PlatformData, PlatformEvent, PlatformInfo, PlatformType,
 };
 use popcorn_fx_core::core::playback::{MediaInfo, MediaNotificationEvent};
 
@@ -77,7 +77,7 @@ impl DefaultPlatform {
         }
     }
 
-    fn create_controls_config(&self) -> PlatformConfig {
+    fn create_controls_config(&self) -> PlatformConfig<'_> {
         PlatformConfig {
             dbus_name: DBUS_NAME,
             display_name: DISPLAY_NAME,

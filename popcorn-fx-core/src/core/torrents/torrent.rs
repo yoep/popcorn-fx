@@ -104,10 +104,11 @@ impl Torrent for fx_torrent::Torrent {
     }
 
     async fn file_by_name(&self, name: &str) -> Option<fx_torrent::File> {
+        let normalized_name = normalize_filename(name);
         self.files()
             .await
             .into_iter()
-            .find(|e| e.info.filename() == name)
+            .find(|e| normalize_filename(e.info.filename().as_str()) == normalized_name)
     }
 
     async fn largest_file(&self) -> Option<fx_torrent::File> {
@@ -139,11 +140,10 @@ impl Torrent for fx_torrent::Torrent {
     }
 
     async fn prioritize_pieces(&self, pieces: &[PieceIndex]) {
-        let mut priorities = Vec::new();
-
-        for piece in pieces {
-            priorities.push((*piece as PieceIndex, PiecePriority::High));
-        }
+        let priorities = pieces
+            .iter()
+            .map(|e| (*e, PiecePriority::High))
+            .collect::<Vec<_>>();
 
         self.prioritize_pieces(priorities).await;
     }
@@ -167,6 +167,14 @@ impl Torrent for fx_torrent::Torrent {
     fn stats(&self) -> &Metrics {
         self.metrics()
     }
+}
+
+fn normalize_filename(filename: &str) -> String {
+    filename
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .flat_map(|c| c.to_lowercase())
+        .collect()
 }
 
 /// The torrent information
@@ -394,6 +402,17 @@ mod test {
         let result = info.largest_file();
 
         assert_eq!(Some(largest_file), result);
+    }
+
+    #[test]
+    fn test_normalize_filename() {
+        let filename = "Lorem-Esta=";
+        let expected_result = "loremesta".to_string();
+        assert_eq!(expected_result, normalize_filename(filename));
+
+        let filename = "FOO ";
+        let expected_result = "foo".to_string();
+        assert_eq!(expected_result, normalize_filename(filename));
     }
 
     fn create_torrent_file(relative_path: &str, length: u64) -> fx_torrent::File {

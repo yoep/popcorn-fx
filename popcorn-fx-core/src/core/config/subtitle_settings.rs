@@ -29,7 +29,7 @@ const DEFAULT_BOLD: fn() -> bool = || true;
 /// These are the subtitle preferences of the user.
 #[derive(Debug, Display, Clone, Serialize, Deserialize, PartialEq)]
 #[display(
-    fmt = "directory: {}, auto_cleaning_enabled: {}, default_subtitle: {}",
+    "directory: {}, auto_cleaning_enabled: {}, default_subtitle: {}",
     directory,
     auto_cleaning_enabled,
     default_subtitle

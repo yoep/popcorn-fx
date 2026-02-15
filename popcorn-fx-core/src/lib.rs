@@ -1,23 +1,23 @@
 /// The current application version of Popcorn FX.
-pub const VERSION: &str = "0.8.2";
+pub const VERSION: &str = "0.9.0";
 
 pub mod core;
 
 #[cfg(feature = "testing")]
 pub mod testing {
-    use crate::core::platform::{Platform, PlatformCallback, PlatformData, PlatformInfo};
+    use crate::core::platform::{Platform, PlatformData, PlatformEvent, PlatformInfo};
     use crate::core::playback::MediaNotificationEvent;
     use crate::core::players::{PlayRequest, Player, PlayerEvent, PlayerState};
     use crate::core::subtitles::model::SubtitleInfo;
     use crate::core::subtitles::{SubtitleEvent, SubtitleManager, SubtitlePreference};
+    use crate::core::torrents;
     use crate::core::torrents::{
         Torrent, TorrentEvent, TorrentHandle, TorrentState, TorrentStream, TorrentStreamEvent,
         TorrentStreamState, TorrentStreamingResourceWrapper,
     };
-    use crate::core::{torrents, Callbacks, CoreCallback};
 
     use async_trait::async_trait;
-    use fx_callback::{Callback, CallbackHandle, Subscriber, Subscription};
+    use fx_callback::{Callback, Subscriber, Subscription};
     use fx_handle::Handle;
     use fx_torrent;
     use fx_torrent::{File, Metrics, PieceIndex, PiecePriority};
@@ -64,6 +64,7 @@ pub mod testing {
                 .logger(Logger::builder().build("async_io", LevelFilter::Info))
                 .logger(Logger::builder().build("fx_callback", LevelFilter::Info))
                 .logger(Logger::builder().build("fx_torrent", LevelFilter::Info))
+                .logger(Logger::builder().build("h2", LevelFilter::Info))
                 .logger(Logger::builder().build("httpmock::server", LevelFilter::Debug))
                 .logger(Logger::builder().build("hyper", LevelFilter::Info))
                 .logger(Logger::builder().build("hyper_util", LevelFilter::Info))
@@ -236,9 +237,9 @@ pub mod testing {
             async fn cleanup(&self);
         }
 
-         impl Callbacks<SubtitleEvent> for SubtitleManager {
-            fn add_callback(&self, callback: CoreCallback<SubtitleEvent>) -> CallbackHandle;
-            fn remove_callback(&self, handle: CallbackHandle);
+         impl Callback<SubtitleEvent> for SubtitleManager {
+            fn subscribe(&self) -> Subscription<SubtitleEvent>;
+            fn subscribe_with(&self, subscriber: Subscriber<SubtitleEvent>);
         }
     }
 
@@ -258,13 +259,13 @@ pub mod testing {
         #[async_trait]
         impl Torrent for InnerTorrentStream {
             fn handle(&self) -> TorrentHandle;
-            async fn absolute_file_path(&self, file: &fx_torrent::File) -> PathBuf;
-            async fn files(&self) -> Vec<fx_torrent::File>;
+            async fn absolute_file_path(&self, file: &File) -> PathBuf;
+            async fn files(&self) -> Vec<File>;
             async fn file_by_name(&self, name: &str) -> Option<File>;
-            async fn largest_file(&self) -> Option<fx_torrent::File>;
-            async fn has_bytes(&self, bytes: &std::ops::Range<usize>) -> bool;
+            async fn largest_file(&self) -> Option<File>;
+            async fn has_bytes(&self, bytes: &Range<usize>) -> bool;
             async fn has_piece(&self, piece: usize) -> bool;
-            async fn prioritize_bytes(&self, bytes: &std::ops::Range<usize>);
+            async fn prioritize_bytes(&self, bytes: &Range<usize>);
             async fn prioritize_pieces(&self, pieces: &[PieceIndex]);
             async fn piece_priorities(&self) -> BTreeMap<PieceIndex, PiecePriority>;
             async fn total_pieces(&self) -> usize;
@@ -403,12 +404,13 @@ pub mod testing {
 
         impl Platform for DummyPlatform {
             fn disable_screensaver(&self) -> bool;
-
             fn enable_screensaver(&self) -> bool;
-
             fn notify_media_event(&self, notification: MediaNotificationEvent);
+        }
 
-            fn register(&self, callback: PlatformCallback);
+        impl Callback<PlatformEvent> for DummyPlatform {
+            fn subscribe(&self) -> Subscription<PlatformEvent>;
+            fn subscribe_with(&self, subscriber: Subscriber<PlatformEvent>);
         }
     }
 
@@ -422,12 +424,13 @@ pub mod testing {
 
         impl Platform for DummyPlatformData {
             fn disable_screensaver(&self) -> bool;
-
             fn enable_screensaver(&self) -> bool;
-
             fn notify_media_event(&self, notification: MediaNotificationEvent);
+        }
 
-            fn register(&self, callback: PlatformCallback);
+        impl Callback<PlatformEvent> for DummyPlatformData {
+            fn subscribe(&self) -> Subscription<PlatformEvent>;
+            fn subscribe_with(&self, subscriber: Subscriber<PlatformEvent>);
         }
     }
 

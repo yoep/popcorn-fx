@@ -1,6 +1,6 @@
 [package]
 name = "popcorn-fx-core"
-version = "0.8.2"
+version = "0.9.0"
 edition = "2021"
 rust-version = "1.75"
 publish = false
@@ -17,9 +17,8 @@ fx-handle.workspace = true
 fx-torrent.workspace = true
 
 async-trait.workspace = true
-bytes.workspace = true
+axum.workspace = true
 chrono = { workspace = true, features = ["serde"] }
-clap = { version = "4.5", features = ["derive"] }
 derive_more.workspace = true
 directories.workspace = true
 downcast-rs.workspace = true
@@ -32,7 +31,6 @@ log.workspace = true
 log4rs = { workspace = true, features = ["console_writer"], optional = true }
 mockall = { workspace = true, optional = true }
 percent-encoding.workspace = true
-rand.workspace = true
 regex.workspace = true
 reqwest = { workspace = true, features = ["json", "stream"] }
 ring = "0.17"
@@ -44,10 +42,8 @@ tar = "0.4"
 tempfile = { workspace = true, optional = true }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "fs", "macros"] }
-tokio-stream = { workspace = true }
 tokio-util = { workspace = true }
 url.workspace = true
-warp.workspace = true
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }

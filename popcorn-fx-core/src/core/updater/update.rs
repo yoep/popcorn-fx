@@ -35,16 +35,16 @@ const RUNTIMES_DIRECTORY: &str = "runtimes";
 #[derive(Debug, Clone, Display)]
 pub enum UpdateEvent {
     /// Indicates that the state of the updater has changed.
-    #[display(fmt = "Update state changed to {}", _0)]
+    #[display("Update state changed to {}", _0)]
     StateChanged(UpdateState),
     /// Indicates that a new update is available for the application.
-    #[display(fmt = "New application update available")]
+    #[display("New application update available")]
     UpdateAvailable(VersionInfo),
     /// Indicates that the update download has progressed.
-    #[display(fmt = "The update download has progressed to {:?}", _0)]
+    #[display("The update download has progressed to {:?}", _0)]
     DownloadProgress(DownloadProgress),
     /// Indicates that the update installation has progressed.
-    #[display(fmt = "The update installation has progressed to {:?}", _0)]
+    #[display("The update installation has progressed to {:?}", _0)]
     InstallationProgress(InstallationProgress),
 }
 

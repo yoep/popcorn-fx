@@ -41,6 +41,7 @@ impl From<&TorrentState> for torrent::State {
             TorrentState::Seeding => Self::SEEDING,
             TorrentState::Paused => Self::PAUSED,
             TorrentState::Error => Self::ERROR,
+            TorrentState::Stopped => Self::STOPPED,
         }
     }
 }
@@ -48,9 +49,9 @@ impl From<&TorrentState> for torrent::State {
 impl From<&TorrentStreamState> for torrent::StreamState {
     fn from(value: &TorrentStreamState) -> Self {
         match value {
-            TorrentStreamState::Preparing => Self::PREPARING,
+            TorrentStreamState::Preparing => Self::STREAM_PREPARING,
             TorrentStreamState::Streaming => Self::STREAMING,
-            TorrentStreamState::Stopped => Self::STOPPED,
+            TorrentStreamState::Stopped => Self::STREAM_STOPPED,
         }
     }
 }
@@ -279,7 +280,7 @@ mod tests {
     #[test]
     fn test_torrent_stream_state_from() {
         assert_eq!(
-            torrent::StreamState::PREPARING,
+            torrent::StreamState::STREAM_PREPARING,
             torrent::StreamState::from(&TorrentStreamState::Preparing)
         );
         assert_eq!(
@@ -287,7 +288,7 @@ mod tests {
             torrent::StreamState::from(&TorrentStreamState::Streaming)
         );
         assert_eq!(
-            torrent::StreamState::STOPPED,
+            torrent::StreamState::STREAM_STOPPED,
             torrent::StreamState::from(&TorrentStreamState::Stopped)
         );
     }

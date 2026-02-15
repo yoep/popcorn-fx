@@ -1,7 +1,7 @@
 .PHONY: cargo mvn help clean test build-cargo build
 
 ## Set global variables
-VERSION = 0.8.2
+VERSION = 0.9.0
 RUNTIME_VERSION = 21.0.3
 
 ifeq ($(shell command -v jenv >/dev/null 2>&1 && echo "found"),found)
@@ -48,29 +48,26 @@ ASSETS := debian
 PYTHON := python3
 endif
 
-prerequisites-cargo:  ## Install the requirements for Cargo
+prerequisites:  ## Install the requirements for the application
 	@echo Installing Cargo plugins
-	@cargo install cargo-nextest
-	@cargo install cargo-llvm-cov
-	@cargo install grcov
-
-prerequisites: prerequisites-cargo ## Install the requirements for the application
+	@command -v cargo-nextest >/dev/null 2>&1 || cargo install cargo-nextest --locked
+	@command -v cargo-llvm-cov >/dev/null 2>&1 || cargo install cargo-llvm-cov
 
 bump-%: ## Bump the (major, minor, patch) version of the application
 	@bump-my-version bump $*
 
-clean: prerequisites ## Clean the output
+clean: ## Clean the output
 	$(info Cleaning output directories)
 	@cargo clean
 	@mvn -B clean
 
-test-cargo: prerequisites-cargo ## The test cargo section of the application
+test-cargo: prerequisites ## The test cargo section of the application
+	$(info Running cargo tests)
+	@cargo nextest run --all-features
+
+test-cargo-coverage: prerequisites ## The test cargo section of the application
 	$(info Running cargo tests)
 	@cargo llvm-cov --lcov --output-path target/lcov.info nextest --all-features
-
-cov-cargo: prerequisites ## Test coverage of the cargo section as std output
-	$(info Running cargo tests)
-	@cargo llvm-cov nextest --all-features
 
 test-java: ## The test java section of the application
 	$(info Running maven tests)
@@ -104,9 +101,9 @@ build-java-release: lib-copy-release ## Build the java part of the application
 	$(info Building java)
 	@mvn -B compile
 
-build: prerequisites build-cargo build-java ## Build the application in debug mode
+build: build-cargo build-java ## Build the application in debug mode
 
-build-release: prerequisites build-cargo-release build-java-release ## Build the application in release mode (slower build time)
+build-release: build-cargo-release build-java-release ## Build the application in release mode (slower build time)
 
 # Target: package-clean
 # Description: Remove the old package target directory if it exists.

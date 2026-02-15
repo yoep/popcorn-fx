@@ -18,7 +18,7 @@ const DEFAULT_TRACKING: fn() -> TrackingSettings = TrackingSettings::default;
 /// These contain the preferences of the user for the application.
 #[derive(Debug, Display, Default, Clone, Serialize, Deserialize, PartialEq)]
 #[display(
-    fmt = "subtitle_settings: {}, ui_settings: {}, server_settings: {}, torrent_settings: {}, playback_settings: {}, tracking_settings: {}",
+    "subtitle_settings: {}, ui_settings: {}, server_settings: {}, torrent_settings: {}, playback_settings: {}, tracking_settings: {}",
     subtitle_settings,
     ui_settings,
     server_settings,

@@ -1,16 +1,14 @@
-use std::collections::HashMap;
-use std::fmt::{Debug, Formatter};
-use std::net::{SocketAddr, TcpListener};
-use std::result;
-use std::time::Duration;
-
 use crate::trakt::{AddToWatchList, Movie, MovieId, WatchedMovie};
 use async_trait::async_trait;
+use axum::extract::{Query, State};
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
+use axum::routing::get;
+use axum::Router;
 use chrono::{Local, Utc};
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, error, info, trace, warn};
 use oauth2::basic::{BasicClient, BasicTokenResponse};
-use oauth2::reqwest::async_http_client;
 use oauth2::{
     AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, RedirectUrl, TokenResponse,
     TokenUrl,
@@ -22,15 +20,20 @@ use popcorn_fx_core::core::media::tracking::{
     AuthorizationError, TrackingError, TrackingEvent, TrackingProvider,
 };
 use popcorn_fx_core::core::media::MediaIdentifier;
+use popcorn_fx_core::core::utils::network::ip_addr;
 use reqwest::header::HeaderMap;
-use reqwest::Client;
+use std::collections::HashMap;
+use std::fmt::Debug;
+use std::net::{Ipv4Addr, SocketAddr};
+use std::sync::Arc;
+use std::time::Duration;
+use std::{io, result};
 use thiserror::Error;
-use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
-use tokio::sync::oneshot;
+use tokio::net::TcpListener;
+use tokio::sync::{oneshot, Mutex};
 use tokio::{select, time};
+use tokio_util::sync::CancellationToken;
 use url::Url;
-use warp::http::Response;
-use warp::Filter;
 
 const TRACKING_NAME: &str = "trakt";
 const AUTHORIZED_PORTS: [u16; 5] = [30200u16, 30201u16, 30202u16, 30203u16, 30204u16];
@@ -58,94 +61,73 @@ pub enum TraktError {
     TokenError(String),
 }
 
+impl From<io::Error> for TraktError {
+    fn from(e: io::Error) -> Self {
+        TraktError::Creation(e.to_string())
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct TraktProvider {
-    config: ApplicationConfig,
-    oauth_client: BasicClient,
-    client: Client,
-    callbacks: MultiThreadedCallback<TrackingEvent>,
+    inner: Arc<InnerProvider>,
 }
 
 impl TraktProvider {
     pub fn new(config: ApplicationConfig) -> Result<Self> {
         let tracking: TrackingProperties;
-        let client: &TrackingClientProperties;
-        {
+        let client: &TrackingClientProperties = {
             let properties = config.properties_ref();
             tracking = properties
                 .tracker(TRACKING_NAME)
                 .cloned()
                 .map_err(|e| TraktError::Creation(e.to_string()))?;
-            client = tracking.client();
-        }
-
-        let oauth_client = BasicClient::new(
-            ClientId::new(client.client_id.clone()),
-            Some(ClientSecret::new(client.client_secret.clone())),
-            AuthUrl::new(client.user_authorization_uri.clone())
-                .map_err(|e| TraktError::Creation(e.to_string()))?,
-            Some(
-                TokenUrl::new(client.access_token_uri.clone())
-                    .map_err(|e| TraktError::Creation(e.to_string()))?,
-            ),
-        );
+            tracking.client()
+        };
 
         Ok(Self {
-            config,
-            oauth_client,
-            client: Self::create_new_client(client),
-            callbacks: MultiThreadedCallback::new(),
+            inner: Arc::new(InnerProvider {
+                config,
+                client: Self::create_new_client(client),
+                pending_callbacks: Default::default(),
+                callbacks: MultiThreadedCallback::new(),
+            }),
         })
     }
 
-    async fn start_auth_server(
-        &self,
-        sender: UnboundedSender<AuthCallbackResult>,
-        shutdown_signal: oneshot::Receiver<()>,
-    ) -> Result<SocketAddr> {
+    async fn start_auth_server(&self, shutdown: CancellationToken) -> Result<SocketAddr> {
         trace!("Starting new Trakt authorization callback server");
-        let routes = warp::get()
-            .and(warp::path!("callback"))
-            .and(warp::query::<HashMap<String, String>>())
-            .map(move |p: HashMap<String, String>| {
-                if let Some(auth_code) = p.get("code") {
-                    if let Some(state) = p.get("state") {
-                        if let Err(_) = sender.send(AuthCallbackResult {
-                            authorization_code: auth_code.to_string(),
-                            state: state.to_string(),
-                        }) {
-                            warn!("Trakt authorization has already been completed");
-                        }
-                    } else {
-                        debug!("Trakt authorization is unable to complete, missing state param");
-                    }
-                } else {
-                    debug!("Trakt authorization is unable to complete, missing code param");
+        let listener = 'bind: {
+            for port in AUTHORIZED_PORTS.iter() {
+                match TcpListener::bind((Ipv4Addr::UNSPECIFIED, *port)).await {
+                    Ok(listener) => break 'bind listener,
+                    Err(_) => continue,
                 }
-
-                Response::builder()
-                    .body("You can now close this window")
-                    .unwrap()
-            })
-            .with(warp::cors().allow_any_origin());
-
-        let server = warp::serve(routes);
-
-        let addr = Self::available_address()?;
-        debug!("Starting auth server on {}", addr);
-        match server.try_bind_with_graceful_shutdown(addr, async {
-            shutdown_signal.await.ok();
-            debug!("Shutting down Trakt auth server");
-        }) {
-            Ok((addr, server)) => {
-                tokio::spawn(server);
-                Ok(addr)
             }
-            Err(e) => Err(TraktError::AuthorizationError(e.to_string())),
-        }
+
+            return Err(TraktError::NoAvailablePorts);
+        };
+        let addr = (ip_addr(), listener.local_addr()?.port()).into();
+
+        let state = self.inner.clone();
+        tokio::spawn(async move {
+            let router = Router::new()
+                .route("/callback", get(Self::on_callback))
+                .with_state(state);
+
+            if let Err(e) = axum::serve(listener, router)
+                .with_graceful_shutdown(shutdown.cancelled_owned())
+                .await
+            {
+                error!("Failed to start track provider callback server, {}", e);
+            }
+        });
+
+        Ok(addr)
     }
 
     async fn bearer_token(&self) -> Result<String> {
         match self
+            .inner
             .config
             .user_settings_ref(|e| e.tracking().tracker(TRACKING_NAME).clone())
             .await
@@ -180,9 +162,28 @@ impl TraktProvider {
     ) -> Result<BasicTokenResponse> {
         let refresh_token = refresh_token.into();
         trace!("Exchanging refresh token {}", refresh_token);
-        self.oauth_client
+        let client: TrackingClientProperties = {
+            let properties = self.inner.config.properties_ref();
+            let tracking = properties
+                .tracker(TRACKING_NAME)
+                .cloned()
+                .map_err(|e| TraktError::Creation(e.to_string()))?;
+            tracking.client
+        };
+        let oauth_client = BasicClient::new(ClientId::new(client.client_id))
+            .set_client_secret(ClientSecret::new(client.client_secret))
+            .set_auth_uri(
+                AuthUrl::new(client.user_authorization_uri)
+                    .map_err(|e| TraktError::Creation(e.to_string()))?,
+            )
+            .set_token_uri(
+                TokenUrl::new(client.access_token_uri)
+                    .map_err(|e| TraktError::Creation(e.to_string()))?,
+            );
+
+        oauth_client
             .exchange_refresh_token(&oauth2::RefreshToken::new(refresh_token))
-            .request_async(async_http_client)
+            .request_async(&self.inner.client)
             .await
             .map_err(|e| TraktError::TokenError(e.to_string()))
     }
@@ -200,76 +201,105 @@ impl TraktProvider {
                 .map(|vec| vec.into_iter().map(|e| e.to_string()).collect()),
         };
 
-        self.config.update_tracker(TRACKING_NAME, tracker).await;
+        self.inner
+            .config
+            .update_tracker(TRACKING_NAME, tracker)
+            .await;
     }
 
-    fn available_address() -> Result<SocketAddr> {
-        for port in AUTHORIZED_PORTS.iter() {
-            trace!("Checking port availability of {}", port);
-            if let Ok(listener) = TcpListener::bind(("localhost", port.clone())) {
-                return Ok(listener.local_addr().unwrap());
-            }
-        }
-
-        Err(TraktError::NoAvailablePorts)
-    }
-
-    fn create_new_client(properties: &TrackingClientProperties) -> Client {
+    fn create_new_client(properties: &TrackingClientProperties) -> oauth2::reqwest::Client {
         let mut headers = HeaderMap::new();
 
         headers.insert("trakt-api-version", "2".parse().unwrap());
         headers.insert("trakt-api-key", properties.client_id.parse().unwrap());
 
-        Client::builder().default_headers(headers).build().unwrap()
+        oauth2::reqwest::ClientBuilder::new()
+            .default_headers(headers)
+            .build()
+            .expect("expected oauth client")
     }
 
     fn properties(&self) -> TrackingProperties {
-        let properties = self.config.properties();
+        let properties = self.inner.config.properties();
 
         properties
             .tracker(TRACKING_NAME)
             .cloned()
             .expect("expected the tracker properties to have been present")
     }
+
+    async fn on_callback(
+        State(state): State<Arc<InnerProvider>>,
+        Query(params): Query<HashMap<String, String>>,
+    ) -> impl IntoResponse {
+        state.on_callback(params).await
+    }
 }
 
 #[async_trait]
 impl TrackingProvider for TraktProvider {
     async fn is_authorized(&self) -> bool {
-        self.config
+        self.inner
+            .config
             .user_settings_ref(|e| e.tracking().tracker(TRACKING_NAME).is_some())
             .await
     }
 
     async fn authorize(&self) -> result::Result<(), AuthorizationError> {
         trace!("Starting authorization flow for TraktTV");
-        let (tx_shutdown, rx_shutdown) = oneshot::channel();
-        let (tx, mut rx) = unbounded_channel();
+        let shutdown = CancellationToken::new();
+        let (tx, rx) = oneshot::channel();
 
-        let addr = self.start_auth_server(tx, rx_shutdown).await.map_err(|e| {
-            error!("Failed to start authorization server, {}", e);
-            AuthorizationError::AuthorizationCode
-        })?;
-        let oauth_client = self.oauth_client.clone().set_redirect_uri(
-            RedirectUrl::new(format!("http://localhost:{}/callback", addr.port()))
-                .expect("expected a valid redirect url"),
-        );
+        let addr = self
+            .start_auth_server(shutdown.clone())
+            .await
+            .map_err(|e| {
+                error!("Failed to start authorization server, {}", e);
+                AuthorizationError::AuthorizationCode
+            })?;
+        let client: TrackingClientProperties = {
+            let properties = self.inner.config.properties_ref();
+            let tracking = properties
+                .tracker(TRACKING_NAME)
+                .cloned()
+                .map_err(|e| AuthorizationError::Client(e.to_string()))?;
+            tracking.client
+        };
+        let oauth_client = BasicClient::new(ClientId::new(client.client_id))
+            .set_client_secret(ClientSecret::new(client.client_secret))
+            .set_auth_uri(
+                AuthUrl::new(client.user_authorization_uri)
+                    .map_err(|e| AuthorizationError::Client(e.to_string()))?,
+            )
+            .set_token_uri(
+                TokenUrl::new(client.access_token_uri)
+                    .map_err(|e| AuthorizationError::Client(e.to_string()))?,
+            )
+            .set_redirect_uri(
+                RedirectUrl::new(format!("http://localhost:{}/callback", addr.port()))
+                    .map_err(|e| AuthorizationError::Client(e.to_string()))?,
+            );
         let (auth_url, csrf_token) = oauth_client.authorize_url(CsrfToken::new_random).url();
+        {
+            let mut pending_callbacks = self.inner.pending_callbacks.lock().await;
+            pending_callbacks.insert(csrf_token.secret().clone(), tx);
+        }
 
         // invoke the open authorization event
         trace!("Trying to open authorization uri {}", auth_url);
-        self.callbacks
+        self.inner
+            .callbacks
             .invoke(TrackingEvent::OpenAuthorization(auth_url));
 
         // try to receive an authorization response within 5 mins
         let authorization_result = select! {
             _ = time::sleep(Duration::from_secs(5 * 60)) => Err(AuthorizationError::AuthorizationTimeout),
-            Some(result) = rx.recv() => Ok(result),
+            Ok(result) = rx => Ok(result),
         };
         match authorization_result {
             Ok(callback) => {
                 trace!("Received callback result {:?}", callback);
-                tx_shutdown.send(()).unwrap();
+                shutdown.cancel();
 
                 // verify csrf token
                 if csrf_token.secret() != &callback.state {
@@ -277,16 +307,16 @@ impl TrackingProvider for TraktProvider {
                     return Err(AuthorizationError::CsrfFailure);
                 }
 
-                match self
-                    .oauth_client
+                match oauth_client
                     .exchange_code(AuthorizationCode::new(callback.authorization_code))
-                    .request_async(async_http_client)
+                    .request_async(&self.inner.client)
                     .await
                 {
                     Ok(e) => {
                         trace!("Received token response {:?}", e);
                         self.update_token_info(e).await;
-                        self.callbacks
+                        self.inner
+                            .callbacks
                             .invoke(TrackingEvent::AuthorizationStateChanged(true));
                         Ok(())
                     }
@@ -298,7 +328,7 @@ impl TrackingProvider for TraktProvider {
             }
             Err(e) => {
                 error!("Failed to retrieve authorization code, {}", e);
-                tx_shutdown.send(()).unwrap();
+                shutdown.cancel();
                 Err(AuthorizationError::AuthorizationCode)
             }
         }
@@ -306,8 +336,9 @@ impl TrackingProvider for TraktProvider {
 
     async fn disconnect(&self) {
         trace!("Disconnecting Trakt media tracking");
-        self.config.remove_tracker(TRACKING_NAME).await;
-        self.callbacks
+        self.inner.config.remove_tracker(TRACKING_NAME).await;
+        self.inner
+            .callbacks
             .invoke(TrackingEvent::AuthorizationStateChanged(false));
     }
 
@@ -325,6 +356,7 @@ impl TrackingProvider for TraktProvider {
         uri.set_path("/sync/watchlist");
 
         let response = self
+            .inner
             .client
             .post(uri)
             .bearer_auth(bearer_token)
@@ -371,6 +403,7 @@ impl TrackingProvider for TraktProvider {
         uri.set_path("/sync/watched/movies");
 
         let response = self
+            .inner
             .client
             .get(uri)
             .bearer_auth(bearer_token)
@@ -397,22 +430,56 @@ impl TrackingProvider for TraktProvider {
 
 impl Callback<TrackingEvent> for TraktProvider {
     fn subscribe(&self) -> Subscription<TrackingEvent> {
-        self.callbacks.subscribe()
+        self.inner.callbacks.subscribe()
     }
 
     fn subscribe_with(&self, subscriber: Subscriber<TrackingEvent>) {
-        self.callbacks.subscribe_with(subscriber)
+        self.inner.callbacks.subscribe_with(subscriber)
     }
 }
 
-impl Debug for TraktProvider {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("TraktProvider")
-            .field("config", &self.config)
-            .field("oauth_client", &self.oauth_client)
-            .field("client", &self.client)
-            .field("callbacks", &self.callbacks)
-            .finish()
+#[derive(Debug)]
+struct InnerProvider {
+    config: ApplicationConfig,
+    client: oauth2::reqwest::Client,
+    pending_callbacks: Mutex<HashMap<String, oneshot::Sender<AuthCallbackResult>>>,
+    callbacks: MultiThreadedCallback<TrackingEvent>,
+}
+
+impl InnerProvider {
+    async fn on_callback(&self, params: HashMap<String, String>) -> impl IntoResponse {
+        let auth_code = match params.get("code") {
+            Some(code) => code,
+            None => {
+                debug!(
+                    "Trakt authorization is unable to complete, missing authorization code param"
+                );
+                return (StatusCode::BAD_REQUEST, "Missing authorization code");
+            }
+        };
+        let state = match params.get("state") {
+            Some(state) => state,
+            None => {
+                debug!("Trakt authorization is unable to complete, missing state param");
+                return (StatusCode::BAD_REQUEST, "Missing state");
+            }
+        };
+        let sender = match self.pending_callbacks.lock().await.remove(state) {
+            Some(sender) => sender,
+            None => {
+                debug!("Trakt authorization is unable to complete, no pending callback found");
+                return (StatusCode::BAD_REQUEST, "Invalid callback state");
+            }
+        };
+
+        if let Err(_) = sender.send(AuthCallbackResult {
+            authorization_code: auth_code.to_string(),
+            state: state.to_string(),
+        }) {
+            debug!("Trakt authorization has already been completed");
+        }
+
+        (StatusCode::OK, "You can now close this window")
     }
 }
 
@@ -606,13 +673,14 @@ mod tests {
         }
 
         let result = trakt
+            .inner
             .config
             .user_settings_ref(|e| e.tracking().tracker(TRACKING_NAME))
             .await
             .unwrap();
 
         assert_ne!(String::new(), result.access_token);
-        mock.assert_hits(1);
+        mock.assert_calls(1);
     }
 
     #[tokio::test]
@@ -635,6 +703,7 @@ mod tests {
         let trakt = TraktProvider::new(settings).unwrap();
 
         let settings = trakt
+            .inner
             .config
             .user_settings_ref(|e| e.tracking_settings.clone())
             .await;
@@ -645,6 +714,7 @@ mod tests {
         trakt.disconnect().await;
 
         let result = trakt
+            .inner
             .config
             .user_settings_ref(|e| e.tracking().tracker(TRACKING_NAME))
             .await;
@@ -733,7 +803,7 @@ mod tests {
         if let Ok(result) = result {
             let result = result.get(0).unwrap();
 
-            mock.assert_hits(1);
+            mock.assert_calls(1);
             assert_eq!("tt0372784", result.imdb_id());
             assert_eq!(MediaType::Movie, result.media_type());
             assert_eq!("Batman Begins", result.title());

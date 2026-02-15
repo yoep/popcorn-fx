@@ -131,13 +131,12 @@ class MainControllerTest {
     }
 
     @Test
-    void testClipboardPasteEventMac() {
+    void testClipboardPasteEvent() {
         var magnetUrl = "magnet:?loremDolorEsta";
-        var event = new KeyEvent(KeyEvent.KEY_PRESSED, "v", "v", KeyCode.V, false, false, false, true);
+        var event = new KeyEvent(KeyEvent.KEY_PRESSED, "v", "v", KeyCode.V, false, !isMacOs(), false, isMacOs());
         var clipboardContent = new ClipboardContent();
         clipboardContent.putUrl(magnetUrl);
         when(viewLoader.load(isA(String.class))).thenReturn(new Pane(), new Pane(), new Pane(), new Pane());
-        when(platformProvider.isMac()).thenReturn(true);
         controller.initialize(url, resourceBundle);
 
         // execute everything on a FX thread
@@ -150,23 +149,7 @@ class MainControllerTest {
         verify(urlService, timeout(250)).process(magnetUrl);
     }
 
-    @Test
-    void testClipboardPasteEventNonMac() {
-        var magnetUrl = "magnet:?loremIpsum";
-        var event = new KeyEvent(KeyEvent.KEY_PRESSED, "v", "v", KeyCode.V, false, true, false, false);
-        var clipboardContent = new ClipboardContent();
-        clipboardContent.putUrl(magnetUrl);
-        when(viewLoader.load(isA(String.class))).thenReturn(new Pane(), new Pane(), new Pane(), new Pane());
-        when(platformProvider.isMac()).thenReturn(false);
-        controller.initialize(url, resourceBundle);
-
-        // execute everything on a FX thread
-        Platform.runLater(() -> {
-            Clipboard.getSystemClipboard().setContent(clipboardContent);
-            controller.onKeyPressed(event);
-        });
-        WaitForAsyncUtils.waitForFxEvents();
-
-        verify(urlService, timeout(250)).process(magnetUrl);
+    private static boolean isMacOs() {
+        return System.getProperty("os.name").toLowerCase().contains("mac");
     }
 }

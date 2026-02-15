@@ -150,7 +150,7 @@ impl InnerTorrentCollection {
             .storage
             .options()
             .serializer(FILENAME)
-            .write_async(&*collection)
+            .write(&*collection)
             .await
         {
             Ok(_) => info!("Torrent collection data has been saved"),

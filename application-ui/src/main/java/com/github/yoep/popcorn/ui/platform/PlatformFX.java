@@ -15,12 +15,6 @@ public class PlatformFX implements PlatformProvider {
     }
 
     @Override
-    public boolean isMac() {
-        var osName = System.getProperty("os.name").toLowerCase();
-        return osName.contains("mac");
-    }
-
-    @Override
     public void exit(int code) {
         Platform.exit();
         System.exit(code);

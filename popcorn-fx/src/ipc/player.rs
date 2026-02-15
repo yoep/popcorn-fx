@@ -243,7 +243,7 @@ impl MessageHandler for PlayerMessageHandler {
 }
 
 #[derive(Debug, Display)]
-#[display(fmt = "{}", "proto.name")]
+#[display("{}", "proto.name")]
 struct ProtoPlayerWrapper {
     proto: proto::player::Player,
     channel: IpcChannel,

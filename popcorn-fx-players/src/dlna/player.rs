@@ -46,7 +46,7 @@ const UPNP_PLAYER_VOLUME_PAYLOAD: &str = r#"
 
 /// Represents a DLNA/UPnP player that supports devices such as TVs for remote media playback.
 #[derive(Debug, Display)]
-#[display(fmt = "{}", inner)]
+#[display("{}", inner)]
 pub struct DlnaPlayer {
     inner: Arc<InnerPlayer>,
 }
@@ -179,7 +179,7 @@ enum DlnaPlayerCommand {
 }
 
 #[derive(Debug, Display)]
-#[display(fmt = "{}", id)]
+#[display("{}", id)]
 struct InnerPlayer {
     id: String,
     device: Device,
@@ -965,7 +965,11 @@ mod tests {
         let device = Device::from_url(addr.parse().unwrap()).await.unwrap();
         let service = device.find_service(&AV_TRANSPORT).cloned().unwrap();
         let subtitle_provider = MockSubtitleProvider::new();
-        let subtitle_server = Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider))));
+        let subtitle_server = Arc::new(
+            SubtitleServer::new(Arc::new(subtitle_provider))
+                .await
+                .unwrap(),
+        );
         let player = Arc::new(DlnaPlayer::new(device, service, subtitle_server));
 
         TestInstance { server, player }

@@ -1,4 +1,5 @@
 use crate::ipc::proto::tracking;
+use crate::ipc::proto::tracking::tracking_provider::authorization_error::ClientError;
 use crate::ipc::proto::tracking::tracking_provider::{authorization_error, AuthorizationState};
 use crate::ipc::proto::tracking::{tracking_provider, tracking_provider_event};
 use popcorn_fx_core::core::media::tracking::{AuthorizationError, TrackingEvent};
@@ -42,18 +43,30 @@ impl From<&AuthorizationError> for tracking_provider::AuthorizationError {
         match value {
             AuthorizationError::CsrfFailure => Self {
                 type_: authorization_error::Type::CSRF_FAILURE.into(),
+                client_error: Default::default(),
                 special_fields: Default::default(),
             },
             AuthorizationError::AuthorizationCode => Self {
                 type_: authorization_error::Type::AUTHORIZATION_CODE.into(),
+                client_error: Default::default(),
                 special_fields: Default::default(),
             },
             AuthorizationError::Token => Self {
                 type_: authorization_error::Type::TOKEN.into(),
+                client_error: Default::default(),
                 special_fields: Default::default(),
             },
             AuthorizationError::AuthorizationTimeout => Self {
                 type_: authorization_error::Type::AUTHORIZATION_TIMEOUT.into(),
+                client_error: Default::default(),
+                special_fields: Default::default(),
+            },
+            AuthorizationError::Client(e) => Self {
+                type_: authorization_error::Type::CLIENT.into(),
+                client_error: MessageField::some(ClientError {
+                    error: e.clone(),
+                    special_fields: Default::default(),
+                }),
                 special_fields: Default::default(),
             },
         }

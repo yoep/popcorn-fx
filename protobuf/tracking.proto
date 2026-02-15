@@ -11,19 +11,25 @@ import "message.proto";
 message TrackingProvider {
   string id = 1;
 
-  enum AuthorizationState{
+  enum AuthorizationState {
     AUTHORIZED = 0;
     UNAUTHORIZED = 1;
   }
 
   message AuthorizationError {
     Type type = 1;
+    optional ClientError client_error = 2;
+
+    message ClientError {
+      string error = 1;
+    }
 
     enum Type {
       CSRF_FAILURE = 0;
       AUTHORIZATION_CODE = 1;
       TOKEN = 2;
       AUTHORIZATION_TIMEOUT = 3;
+      CLIENT = 4;
     }
   }
 

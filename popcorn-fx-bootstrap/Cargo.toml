@@ -1,6 +1,6 @@
 [package]
 name = "popcorn-fx-bootstrap"
-version = "0.8.2"
+version = "0.9.0"
 edition = "2021"
 rust-version = "1.75"
 publish = false
@@ -21,7 +21,7 @@ log4rs = { workspace = true, features = ["console_appender"] }
 mockall = "0"
 serde.workspace = true
 serde_yaml.workspace = true
-signal-hook = { version = "0.3" }
+signal-hook = { version = "0.4" }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 

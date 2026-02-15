@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 /// The available categories of [crate::core::media::Media] items.
 /// These can be used as filter to retrieve data from the API.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Display, Serialize, Deserialize)]
-#[display(fmt = "{}", (self.name()))]
+#[display("{}", (self.name()))]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Category {
     Movies = 0,

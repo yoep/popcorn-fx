@@ -14,7 +14,7 @@ pub const DEFAULT_AUDIO_LANGUAGE: &str = "en";
 /// It contains only the basic information needed for search results.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Display)]
 #[display(
-    fmt = "MovieOverview: {{imdb_id: {}, title: {}, year: {}}}",
+    "MovieOverview: {{imdb_id: {}, title: {}, year: {}}}",
     imdb_id,
     title,
     year
@@ -93,7 +93,7 @@ impl MediaOverview for MovieOverview {
 /// It contains all information need for a movie description.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Display)]
 #[display(
-    fmt = "MovieDetails: {{imdb_id: {}, title: {}, year: {}, runtime: {}, torrents: {}}}",
+    "MovieDetails: {{imdb_id: {}, title: {}, year: {}, runtime: {}, torrents: {}}}",
     imdb_id,
     title,
     year,

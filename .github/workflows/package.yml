@@ -10,7 +10,7 @@ jobs:
   package_linux:
     name: Package (Linux)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v5
@@ -40,7 +40,7 @@ jobs:
   package_macos:
     name: Package (MacOS)
     runs-on: macos-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v5
@@ -68,7 +68,7 @@ jobs:
   package_windows:
     name: Package (Windows)
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v5

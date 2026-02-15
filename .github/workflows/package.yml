@@ -20,6 +20,7 @@ jobs:
           distribution: 'adopt'
           java-version: 21
           cache: 'maven'
+      - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "main-linux"
@@ -37,8 +38,37 @@ jobs:
             target/popcorn-time_*.deb
             target/patch_*.tar.gz
 
-  package_macos:
-    name: Package (MacOS)
+  package_macos_x64:
+    name: Package (MacOS X64)
+    runs-on: macos-latest-large
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'adopt'
+          java-version: 21
+          cache: 'maven'
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "main-macos"
+      - name: Prepare packaging
+        run: make prerequisites
+      - name: Package
+        run: make package
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-x64-package
+          path: |
+            target/popcorn-time_*.dmg
+            target/patch_*.tar.gz
+
+  package_macos_arm64:
+    name: Package (MacOS ARM64)
     runs-on: macos-latest
     timeout-minutes: 20
 
@@ -50,6 +80,7 @@ jobs:
           distribution: 'adopt'
           java-version: 21
           cache: 'maven'
+      - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "main-macos"
@@ -60,7 +91,7 @@ jobs:
       - name: Archive artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macos-package
+          name: macos-arm64-package
           path: |
             target/popcorn-time_*.dmg
             target/patch_*.tar.gz
@@ -78,6 +109,7 @@ jobs:
           distribution: 'adopt'
           java-version: 21
           cache: 'maven'
+      - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "main-windows"

@@ -3,7 +3,7 @@ use serde::Deserialize;
 
 /// The [crate::core::media::MediaIdentifier] provider properties which can be used to query a [crate::core::media::providers::MediaProvider].
 #[derive(Debug, Display, Clone, PartialEq, Deserialize)]
-#[display(fmt = "uris: {:?}, genres: {:?}, sort_by: {:?}", uris, genres, sort_by)]
+#[display("uris: {:?}, genres: {:?}, sort_by: {:?}", uris, genres, sort_by)]
 pub struct ProviderProperties {
     /// The provider uri's to use
     pub uris: Vec<String>,
@@ -33,7 +33,7 @@ impl ProviderProperties {
 
 /// The [crate::core::media::MediaIdentifier] enhancer properties which can be used by any enhancer.
 #[derive(Debug, Display, Clone, PartialEq, Deserialize)]
-#[display(fmt = "uri: {}", uri)]
+#[display("uri: {}", uri)]
 pub struct EnhancerProperties {
     /// The enhancer uri to use for retrieving additional information
     pub uri: String,

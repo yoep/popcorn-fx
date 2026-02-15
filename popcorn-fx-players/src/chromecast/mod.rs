@@ -16,13 +16,15 @@ mod tests {
     use std::fmt::Debug;
     use std::io::Cursor;
     use std::net::SocketAddr;
-    use std::sync::Arc;
+    use std::sync::{Arc, Once};
 
     use log::{debug, error, warn};
     use mdns_sd::{ServiceDaemon, ServiceInfo};
     use protobuf::{EnumOrUnknown, Message};
     use rust_cast::cast::cast_channel;
     use rust_cast::cast::cast_channel::cast_message::{PayloadType, ProtocolVersion};
+    use rustls::crypto;
+    use rustls::crypto::CryptoProvider;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::tcp::WriteHalf;
     use tokio::net::{TcpListener, TcpStream};
@@ -40,6 +42,8 @@ mod tests {
     use crate::chromecast::transcode::{MockTranscoder, Transcoder};
 
     use super::*;
+
+    static TLS_INIT: Once = Once::new();
 
     pub struct MdnsInstance {
         pub addr: SocketAddr,
@@ -71,6 +75,10 @@ mod tests {
 
     impl TestInstance {
         pub async fn new_mdns() -> Self {
+            TLS_INIT.call_once(|| {
+                let _ = crypto::aws_lc_rs::default_provider().install_default();
+            });
+
             let mut instance = Self::new();
             let listener = TcpListener::bind("0.0.0.0:0")
                 .await
@@ -87,7 +95,7 @@ mod tests {
                     .with_no_client_auth()
                     .with_single_cert(
                         vec![cert.cert.der().clone()],
-                        PrivateKeyDer::try_from(cert.key_pair.serialize_der()).unwrap(),
+                        PrivateKeyDer::try_from(cert.signing_key.serialize_der()).unwrap(),
                     )
                     .unwrap();
 
@@ -128,24 +136,25 @@ mod tests {
             instance
         }
 
-        pub fn new_player(device: Box<dyn Fn() -> MockFxCastDevice + Send + Sync>) -> Self {
+        pub async fn new_player(device: Box<dyn Fn() -> MockFxCastDevice + Send + Sync>) -> Self {
             let mut transcoder = MockTranscoder::new();
             transcoder.expect_stop().return_const(());
             Self::new_player_with_additions(
                 device,
-                Box::new(MockSubtitleProvider::new()),
+                Arc::new(MockSubtitleProvider::new()),
                 Box::new(transcoder),
             )
+            .await
         }
 
-        pub fn new_player_with_additions(
+        pub async fn new_player_with_additions(
             device: Box<dyn Fn() -> MockFxCastDevice + Send + Sync>,
-            subtitle_provider: Box<dyn SubtitleProvider>,
+            subtitle_provider: Arc<dyn SubtitleProvider>,
             transcoder: Box<dyn Transcoder>,
         ) -> Self {
             let mut instance = Self::new();
             let addr = available_socket();
-            let subtitle_server = SubtitleServer::new(Arc::new(subtitle_provider));
+            let subtitle_server = SubtitleServer::new(subtitle_provider).await.unwrap();
             let player = ChromecastPlayer::builder()
                 .id("MyChromecastId")
                 .name("MyChromecastName")

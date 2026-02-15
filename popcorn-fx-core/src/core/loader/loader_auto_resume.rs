@@ -14,7 +14,7 @@ use crate::core::torrents::Torrent;
 
 /// Represents a strategy for loading auto resume timestamps.
 #[derive(Display)]
-#[display(fmt = "Auto resume timestamp loading strategy")]
+#[display("Auto resume timestamp loading strategy")]
 pub struct AutoResumeLoadingStrategy {
     auto_resume: Arc<dyn AutoResumeService>,
 }

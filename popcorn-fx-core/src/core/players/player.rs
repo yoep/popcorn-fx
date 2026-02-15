@@ -114,16 +114,16 @@ impl Default for PlayerState {
 #[derive(Debug, Display, Clone, PartialEq)]
 pub enum PlayerEvent {
     /// The duration of the media content has changed.
-    #[display(fmt = "Player duration changed to {}", _0)]
+    #[display("Player duration changed to {}", _0)]
     DurationChanged(u64),
     /// The playback time position has changed.
-    #[display(fmt = "Player time changed to {}", _0)]
+    #[display("Player time changed to {}", _0)]
     TimeChanged(u64),
     /// The player's state has changed.
-    #[display(fmt = "Player state changed to {}", _0)]
+    #[display("Player state changed to {}", _0)]
     StateChanged(PlayerState),
     /// The volume of the player has changed.
-    #[display(fmt = "Player volume changed to {}", _0)]
+    #[display("Player volume changed to {}", _0)]
     VolumeChanged(u32),
 }
 

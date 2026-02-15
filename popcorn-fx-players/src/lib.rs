@@ -34,13 +34,13 @@ pub type Result<T> = std::result::Result<T, DiscoveryError>;
 #[derive(Debug, Display, Copy, Clone, PartialEq)]
 pub enum DiscoveryState {
     /// Indicates that the discovery process is running.
-    #[display(fmt = "Running")]
+    #[display("Running")]
     Running,
     /// Indicates that the discovery process is stopped.
-    #[display(fmt = "Stopped")]
+    #[display("Stopped")]
     Stopped,
     /// Indicates that an error occurred during the discovery process.
-    #[display(fmt = "Error")]
+    #[display("Error")]
     Error,
 }
 
@@ -76,7 +76,7 @@ mod tests {
     pub async fn wait_for_hit<'a>(mock: &'a Mock<'a>) {
         let _ = timeout(Duration::from_millis(500), async {
             loop {
-                let result = mock.hits_async().await;
+                let result = mock.calls_async().await;
                 if result > 0 {
                     break;
                 }

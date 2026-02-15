@@ -1,13 +1,12 @@
-use std::fs::File;
-
+use crate::core::subtitles::cue::SubtitleCue;
+use crate::core::subtitles::error::{Result, SubtitleParseError};
+use crate::core::subtitles::parsers::{Parser, StyleParser, NEWLINE};
+use crate::core::utils::time::parse_time_from_millis;
+use async_trait::async_trait;
 use chrono::NaiveTime;
 use log::{debug, trace};
 use regex::Regex;
-
-use crate::core::subtitles::cue::SubtitleCue;
-use crate::core::subtitles::error::SubtitleParseError;
-use crate::core::subtitles::parsers::{Parser, StyleParser, NEWLINE};
-use crate::core::utils::time::parse_time_from_millis;
+use tokio::fs::File;
 
 const HEADER: &str = "WEBVTT";
 const TIME_INDICATOR: &str = "-->";
@@ -34,16 +33,17 @@ impl Default for VttParser {
     }
 }
 
+#[async_trait]
 impl Parser for VttParser {
-    fn parse_file(&self, _file: File) -> Vec<SubtitleCue> {
+    async fn parse_file(&self, _file: File) -> Result<Vec<SubtitleCue>> {
         todo!()
     }
 
-    fn parse_string(&self, _value: &String) -> Vec<SubtitleCue> {
+    async fn parse_string(&self, _value: &String) -> Result<Vec<SubtitleCue>> {
         todo!()
     }
 
-    fn convert(&self, cues: &Vec<SubtitleCue>) -> Result<String, SubtitleParseError> {
+    fn convert(&self, cues: &Vec<SubtitleCue>) -> std::result::Result<String, SubtitleParseError> {
         trace!("Starting conversion to VTT");
         let mut output = format!("{}{}{}", HEADER, NEWLINE, NEWLINE);
 

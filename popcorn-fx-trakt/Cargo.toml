@@ -14,22 +14,20 @@ crate-type = ["rlib"]
 [dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core" }
 
+axum.workspace = true
 async-trait.workspace = true
 chrono.workspace = true
 derive_more.workspace = true
 fx-callback.workspace = true
-itertools.workspace = true
 log.workspace = true
-oauth2.workspace = true
-open.workspace = true
-reqwest = { workspace = true, features = ["stream"] }
+oauth2 = { workspace = true, features = ["reqwest"] }
+reqwest = { version = "0.12", features = ["stream", "json"] } # Follow the version restriction of oauth2
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 tokio-util = { workspace = true }
 url.workspace = true
-warp.workspace = true
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }

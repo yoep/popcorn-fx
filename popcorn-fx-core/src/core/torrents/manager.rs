@@ -1,16 +1,16 @@
 use crate::core::config::{ApplicationConfig, CleaningMode, TorrentSettings};
+use crate::core::event;
 use crate::core::event::{Event, EventCallback, EventHandler, EventPublisher, PlayerStoppedEvent};
 use crate::core::storage::Storage;
 use crate::core::torrents::{Error, Result, Torrent, TorrentHandle, TorrentInfo};
-use crate::core::{event, torrents};
 use async_trait::async_trait;
 use derive_more::Display;
 use downcast_rs::{impl_downcast, DowncastSync};
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use fx_torrent::dht::DhtTracker;
 use fx_torrent::{
-    DhtOption, FileIndex, FilePriority, FxTorrentSession, Magnet, Session, TorrentEvent,
-    TorrentFiles, TorrentFlags, TorrentHealth, TorrentState,
+    DhtOption, FileIndex, FilePriority, FxTorrentSession, Magnet, Session, SessionConfig,
+    SessionEvent, TorrentEvent, TorrentFiles, TorrentFlags, TorrentHealth, TorrentState,
 };
 use log::{debug, error, info, log_enabled, trace, warn, Level};
 #[cfg(any(test, feature = "testing"))]
@@ -28,9 +28,9 @@ const CLEANUP_WATCH_THRESHOLD: f64 = 85f64;
 /// The events of the torrent manager.
 #[derive(Debug, Display, Clone)]
 pub enum TorrentManagerEvent {
-    #[display(fmt = "torrent {} has been added", _0)]
+    #[display("torrent {} has been added", _0)]
     TorrentAdded(TorrentHandle),
-    #[display(fmt = "torrent {} has been removed", _0)]
+    #[display("torrent {} has been removed", _0)]
     TorrentRemoved(TorrentHandle),
 }
 
@@ -109,10 +109,15 @@ impl FxTorrentManager {
         event_publisher: EventPublisher,
     ) -> Result<Self> {
         let session = FxTorrentSession::builder()
-            .path(settings.user_settings().await.torrent_settings.directory())
-            .client_name("PopcornFX")
+            .config(
+                SessionConfig::builder()
+                    .client_name("PopcornFX")
+                    .path(settings.user_settings().await.torrent_settings.directory())
+                    .build(),
+            )
             .dht(DhtOption::new(
                 DhtTracker::builder()
+                    .enable_indexing(false)
                     .default_routing_nodes()
                     .build()
                     .await
@@ -210,10 +215,13 @@ struct InnerTorrentManager {
 
 impl InnerTorrentManager {
     async fn start(&self, mut event_receiver: EventCallback) {
+        let mut session_receiver = self.session.subscribe();
+
         loop {
             select! {
                 _ = self.cancellation_token.cancelled() => break,
-                Some(event) = event_receiver.recv() => self.handle_event(event).await,
+                Some(event) = event_receiver.recv() => self.on_event(event).await,
+                Some(event) = session_receiver.recv() => self.on_session_event(&*event).await,
             }
         }
 
@@ -221,12 +229,37 @@ impl InnerTorrentManager {
         debug!("Torrent manager main loop ended");
     }
 
-    async fn handle_event(&self, mut handler: EventHandler) {
+    async fn on_event(&self, mut handler: EventHandler) {
         if let Some(Event::PlayerStopped(event)) = handler.event_ref() {
             self.on_player_stopped(event.clone()).await;
         }
 
         handler.next();
+    }
+
+    async fn on_session_event(&self, event: &SessionEvent) {
+        match event {
+            SessionEvent::TorrentAdded(handle) => {
+                let torrent = match self.session.find_torrent_by_handle(handle).await {
+                    None => return,
+                    Some(torrent) => torrent,
+                };
+
+                let handle = *handle;
+                let mut receiver = torrent.subscribe();
+                tokio::spawn(async move {
+                    while let Some(event) = receiver.recv().await {
+                        match &*event {
+                            TorrentEvent::Stats(stats) => {
+                                info!("Torrent {} stats {}", handle, stats);
+                            }
+                            _ => {}
+                        }
+                    }
+                });
+            }
+            _ => {}
+        }
     }
 
     async fn create(&self, uri: &str) -> Result<Box<dyn Torrent>> {
@@ -252,11 +285,7 @@ impl InnerTorrentManager {
                 let mut receiver = torrent.subscribe();
 
                 if torrent.total_files().await.unwrap_or_default() == 0 {
-                    if let Some(value) =
-                        Self::await_torrent_files(torrent.handle(), &mut receiver).await
-                    {
-                        return value;
-                    }
+                    Self::await_torrent_files(torrent.handle(), &mut receiver).await?;
                 }
 
                 let metadata = torrent
@@ -310,9 +339,7 @@ impl InnerTorrentManager {
         let mut receiver = torrent.subscribe();
 
         if torrent.total_files().await.unwrap_or(0) == 0 {
-            if let Some(value) = Self::await_torrent_files(torrent.handle(), &mut receiver).await {
-                return value;
-            }
+            Self::await_torrent_files(torrent.handle(), &mut receiver).await?;
         }
 
         debug!("Prioritizing file {:?} for torrent {}", filename, torrent);
@@ -440,37 +467,31 @@ impl InnerTorrentManager {
     /// # Returns
     ///
     /// It returns an [Err] when the torrent was not found.
-    async fn await_torrent_files<T>(
+    async fn await_torrent_files(
         torrent_handle: TorrentHandle,
         receiver: &mut Subscription<TorrentEvent>,
-    ) -> Option<Result<T>> {
+    ) -> Result<()> {
         trace!(
             "Torrent manager is waiting for torrent {} files to be created",
             torrent_handle
         );
-        loop {
-            if let Some(event) = receiver.recv().await {
-                match &*event {
-                    TorrentEvent::FilesChanged => break,
-                    TorrentEvent::Stats(stats) => {
-                        info!("Torrent {} stats {}", torrent_handle, stats);
+        while let Some(event) = receiver.recv().await {
+            match &*event {
+                TorrentEvent::FilesChanged => return Ok(()),
+                TorrentEvent::StateChanged(state) => {
+                    if state == &TorrentState::Error {
+                        return Err(Error::TorrentError(
+                            "torrent encountered an error while loading".to_string(),
+                        ));
                     }
-                    TorrentEvent::StateChanged(state) => {
-                        if state == &TorrentState::Error {
-                            return Some(Err(torrents::Error::TorrentError(
-                                "torrent encountered an error while loading".to_string(),
-                            )));
-                        }
-                    }
-                    _ => {}
                 }
-            } else {
-                return Some(Err(torrents::Error::TorrentResolvingFailed(
-                    "handle has been dropped".to_string(),
-                )));
+                _ => {}
             }
         }
-        None
+
+        Err(Error::TorrentResolvingFailed(
+            "handle has been dropped".to_string(),
+        ))
     }
 
     fn clean_directory(settings: &TorrentSettings) {

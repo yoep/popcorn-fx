@@ -12,7 +12,7 @@ use crate::core::media::{Episode, MediaType, MovieDetails, TorrentInfo, DEFAULT_
 
 /// Represents a strategy for loading media torrent URLs.
 #[derive(Display)]
-#[display(fmt = "Media torrent URL loading strategy")]
+#[display("Media torrent URL loading strategy")]
 pub struct MediaTorrentUrlLoadingStrategy {}
 
 impl MediaTorrentUrlLoadingStrategy {

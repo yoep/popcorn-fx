@@ -44,7 +44,7 @@ pub enum TraktType {
 
 /// Represents a watched movie.
 #[derive(Debug, Display, Clone, Deserialize, PartialEq)]
-#[display(fmt = "imdb_id: {}, title: {}", "movie.ids.imdb", "movie.title")]
+#[display("imdb_id: {}, title: {}", "movie.ids.imdb", "movie.title")]
 pub struct WatchedMovie {
     /// The movie being watched.
     pub movie: Movie,

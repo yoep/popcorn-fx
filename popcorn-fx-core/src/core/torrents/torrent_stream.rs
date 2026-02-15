@@ -40,14 +40,14 @@ pub enum TorrentStreamEvent {
     /// # Arguments
     ///
     /// * `StateChanged` - The new state of the torrent stream.
-    #[display(fmt = "Torrent stream state changed to {}", _0)]
+    #[display("Torrent stream state changed to {}", _0)]
     StateChanged(TorrentStreamState),
     /// Download status update for the torrent stream.
     ///
     /// # Arguments
     ///
     /// * `DownloadStatus` - The download status of the torrent stream.
-    #[display(fmt = "Torrent stream download status changed to {}", _0)]
+    #[display("Torrent stream download status changed to {}", _0)]
     DownloadStatus(Metrics),
 }
 

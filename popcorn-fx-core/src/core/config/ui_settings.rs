@@ -16,7 +16,7 @@ const DEFAULT_MAXIMIZED: fn() -> bool = || false;
 const DEFAULT_NATIVE_WINDOW: fn() -> bool = || false;
 
 #[derive(Debug, Display, Clone, Serialize, Deserialize, PartialEq)]
-#[display(fmt = "default_language: {}, ui_scale: {}", default_language, ui_scale)]
+#[display("default_language: {}, ui_scale: {}", default_language, ui_scale)]
 pub struct UiSettings {
     /// The default language of the application
     #[serde(default = "DEFAULT_LANGUAGE")]

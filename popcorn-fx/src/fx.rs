@@ -1,7 +1,7 @@
 use clap::Parser;
 use derive_more::Display;
 use directories::{BaseDirs, UserDirs};
-use log::{debug, error, info, warn, LevelFilter};
+use log::{debug, error, info, trace, warn, LevelFilter};
 use log4rs::append::console::ConsoleAppender;
 use log4rs::append::rolling_file::policy::compound::roll::fixed_window::FixedWindowRoller;
 use log4rs::append::rolling_file::policy::compound::trigger::size::SizeTrigger;
@@ -34,7 +34,6 @@ use popcorn_fx_core::core::platform::PlatformData;
 use popcorn_fx_core::core::playback::PlaybackControls;
 use popcorn_fx_core::core::players::{DefaultPlayerManager, PlayerManager};
 use popcorn_fx_core::core::playlist::PlaylistManager;
-use popcorn_fx_core::core::screen::{DefaultScreenService, ScreenService};
 use popcorn_fx_core::core::subtitles::model::SubtitleType;
 use popcorn_fx_core::core::subtitles::parsers::{SrtParser, VttParser};
 use popcorn_fx_core::core::subtitles::{
@@ -91,7 +90,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// The options for the [PopcornFX] instance.
 #[derive(Debug, Clone, Display, Parser)]
 #[command(name = "popcorn-fx")]
-#[display(fmt = "app_directory: {:?}", app_directory)]
+#[display("app_directory: {:?}", app_directory)]
 pub struct PopcornFxArgs {
     /// The directory containing the application files.
     /// This directory is also referred to as the `storage_directory` or `storage_path` within the application.
@@ -186,14 +185,13 @@ pub struct PopcornFX {
     player_manager: Arc<Box<dyn PlayerManager>>,
     playlist_manager: PlaylistManager,
     providers: Arc<ProviderManager>,
-    screen_service: Arc<Box<dyn ScreenService>>,
     settings: ApplicationConfig,
     subtitle_manager: Arc<Box<dyn SubtitleManager>>,
-    subtitle_provider: Arc<Box<dyn SubtitleProvider>>,
+    subtitle_provider: Arc<dyn SubtitleProvider>,
     subtitle_server: Arc<SubtitleServer>,
     torrent_collection: TorrentCollection,
-    torrent_manager: Arc<Box<dyn TorrentManager>>,
-    torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
+    torrent_manager: Arc<dyn TorrentManager>,
+    torrent_stream_server: Arc<dyn TorrentStreamServer>,
     tracking_provider: Arc<dyn TrackingProvider>,
     tracking_sync: Arc<SyncMediaTracking>,
     updater: Arc<Updater>,
@@ -218,6 +216,13 @@ impl PopcornFX {
             warn!("INSECURE CONNECTIONS ARE ENABLED");
         }
 
+        trace!("Registering default crypto provider");
+        rustls::crypto::aws_lc_rs::default_provider()
+            .install_default()
+            .map_err(|e| {
+                Error::Initialization("failed to initialize crypto provider".to_string())
+            })?;
+
         info!("Creating new popcorn fx instance with {:?}", args);
         let app_directory_path = args.app_directory.as_str();
 
@@ -227,15 +232,19 @@ impl PopcornFX {
             .properties(args.properties.clone())
             .build();
         let cache_manager = CacheManager::new(app_directory_path);
-        let subtitle_provider: Arc<Box<dyn SubtitleProvider>> = Arc::new(Box::new(
+        let subtitle_provider: Arc<dyn SubtitleProvider> = Arc::new(
             OpensubtitlesProvider::builder()
                 .settings(settings.clone())
                 .with_parser(SubtitleType::Srt, Box::new(SrtParser::default()))
                 .with_parser(SubtitleType::Vtt, Box::new(VttParser::default()))
                 .insecure(args.insecure)
                 .build(),
-        ));
-        let subtitle_server = Arc::new(SubtitleServer::new(subtitle_provider.clone()));
+        );
+        let subtitle_server = Arc::new(
+            SubtitleServer::new(subtitle_provider.clone())
+                .await
+                .map_err(|e| Error::Initialization(e.to_string()))?,
+        );
         let subtitle_manager = Arc::new(Box::new(
             DefaultSubtitleManager::new(settings.clone()).await,
         ) as Box<dyn SubtitleManager>);
@@ -256,7 +265,7 @@ impl PopcornFX {
             )
             .await,
         );
-        let torrent_manager = Arc::new(Box::new(
+        let torrent_manager = Arc::new(
             FxTorrentManager::new(
                 Duration::from_hours(10 * 24),
                 settings.clone(),
@@ -264,9 +273,12 @@ impl PopcornFX {
             )
             .await
             .map_err(|e| Error::Initialization(e.to_string()))?,
-        ) as Box<dyn TorrentManager>);
-        let torrent_stream_server =
-            Arc::new(Box::new(FXTorrentStreamServer::new()) as Box<dyn TorrentStreamServer>);
+        ) as Arc<dyn TorrentManager>;
+        let torrent_stream_server = Arc::new(
+            FXTorrentStreamServer::new()
+                .await
+                .map_err(|e| Error::Initialization(e.to_string()))?,
+        ) as Arc<dyn TorrentStreamServer>;
         let torrent_collection = TorrentCollection::new(app_directory_path);
         let auto_resume_service = Arc::new(
             DefaultAutoResumeService::builder()
@@ -294,14 +306,10 @@ impl PopcornFX {
             .build();
         let image_loader =
             Arc::new(DefaultImageLoader::new(cache_manager.clone())) as Arc<dyn ImageLoader>;
-        let screen_service =
-            Arc::new(Box::new(DefaultScreenService::new()) as Box<dyn ScreenService>);
         let player_manager = Arc::new(Box::new(DefaultPlayerManager::new(
-            settings.clone(),
             event_publisher.clone(),
             torrent_manager.clone(),
             torrent_stream_server.clone(),
-            screen_service.clone(),
         )) as Box<dyn PlayerManager>);
         let loading_chain: Vec<Box<dyn LoadingStrategy>> = vec![
             Box::new(MediaTorrentUrlLoadingStrategy::new()),
@@ -316,6 +324,7 @@ impl PopcornFX {
                 settings.clone(),
             )),
             Box::new(TorrentStreamLoadingStrategy::new(
+                torrent_manager.clone(),
                 torrent_stream_server.clone(),
             )),
             Box::new(TorrentDetailsLoadingStrategy::new(
@@ -384,7 +393,6 @@ impl PopcornFX {
             player_manager,
             playlist_manager,
             providers,
-            screen_service,
             settings,
             subtitle_manager,
             subtitle_provider,
@@ -407,7 +415,7 @@ impl PopcornFX {
     }
 
     /// The platform service of the popcorn FX instance.
-    pub fn subtitle_provider(&self) -> &Arc<Box<dyn SubtitleProvider>> {
+    pub fn subtitle_provider(&self) -> &Arc<dyn SubtitleProvider> {
         &self.subtitle_provider
     }
 
@@ -442,12 +450,12 @@ impl PopcornFX {
     }
 
     /// The torrent manager to create, manage and delete torrents.
-    pub fn torrent_manager(&self) -> &Arc<Box<dyn TorrentManager>> {
+    pub fn torrent_manager(&self) -> &Arc<dyn TorrentManager> {
         &self.torrent_manager
     }
 
     /// The torrent stream server which handles the video streams.
-    pub fn torrent_stream_server(&self) -> &Arc<Box<dyn TorrentStreamServer>> {
+    pub fn torrent_stream_server(&self) -> &Arc<dyn TorrentStreamServer> {
         &self.torrent_stream_server
     }
 
@@ -500,11 +508,6 @@ impl PopcornFX {
     /// Retrieve the media loader of the FX instance.
     pub fn media_loader(&self) -> &Arc<dyn MediaLoader> {
         &self.media_loader
-    }
-
-    /// Retrieve the screen service of the FX instance.
-    pub fn screen_service(&self) -> &Arc<Box<dyn ScreenService>> {
-        &self.screen_service
     }
 
     /// Retrieve the tracking provider of the FX instance.

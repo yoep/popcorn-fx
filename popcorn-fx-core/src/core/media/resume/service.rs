@@ -218,12 +218,7 @@ impl InnerAutoResumeService {
 
     async fn save_async(&self, resume: &AutoResume) {
         let mutex = self.storage.lock().await;
-        match mutex
-            .options()
-            .serializer(FILENAME)
-            .write_async(resume)
-            .await
-        {
+        match mutex.options().serializer(FILENAME).write(resume).await {
             Ok(_) => info!("Auto-resume data has been saved"),
             Err(e) => error!("Failed to save auto-resume, {}", e),
         }

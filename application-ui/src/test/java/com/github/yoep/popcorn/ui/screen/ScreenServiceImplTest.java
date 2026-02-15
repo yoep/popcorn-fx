@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.ui.screen;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.events.MaximizeEvent;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
-import com.github.yoep.popcorn.backend.lib.FxChannel;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.view.ViewManager;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
@@ -19,6 +19,7 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
+import org.testfx.util.WaitForAsyncUtils;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -37,12 +38,11 @@ class ScreenServiceImplTest {
     private ApplicationConfig applicationConfig;
     @Mock
     private MaximizeService maximizeService;
-    @Mock
-    private FxChannel fxChannel;
     @Spy
     private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
     private ReadOnlyProperty<Stage> primaryStageProperty;
+    private ScreenServiceImpl service;
 
     private final AtomicReference<ChangeListener<Stage>> primaryStageListener = new AtomicReference<>();
     private final BooleanProperty fullscreenProperty = new SimpleBooleanProperty();
@@ -54,12 +54,12 @@ class ScreenServiceImplTest {
             return null;
         }).when(primaryStageProperty).addListener(isA(ChangeListener.class));
         when(viewManager.primaryStageProperty()).thenReturn(primaryStageProperty);
+
+        service = new ScreenServiceImpl(viewManager, applicationConfig, eventPublisher, maximizeService);
     }
 
     @Test
     void testInit() {
-        var service = new ScreenServiceImpl(viewManager, applicationConfig, eventPublisher, maximizeService, fxChannel);
-
         verify(eventPublisher).register(eq(PlayerStoppedEvent.class), isA(Function.class));
     }
 
@@ -71,31 +71,46 @@ class ScreenServiceImplTest {
             fullscreenProperty.set(invocation.getArgument(0, Boolean.class));
             return null;
         }).when(primaryStage).setFullScreen(isA(Boolean.class));
-        when(viewManager.primaryStageProperty()).thenReturn(primaryStageProperty);
         when(primaryStage.fullScreenProperty()).thenReturn(fullscreenProperty);
         when(applicationConfig.isKioskMode()).thenReturn(false);
-        var screenService = new ScreenServiceImpl(viewManager, applicationConfig, eventPublisher, maximizeService, fxChannel);
-        screenService.fullscreenProperty().addListener((observable, oldValue, newValue) -> future.complete(newValue));
+        service.fullscreenProperty().addListener((observable, oldValue, newValue) -> future.complete(newValue));
 
         primaryStageListener.get().changed(null, null, primaryStage);
-        screenService.toggleFullscreen();
+        service.toggleFullscreen();
+        WaitForAsyncUtils.waitForFxEvents();
 
         assertEquals(true, future.join());
-        assertTrue(screenService.isFullscreen());
+        assertTrue(service.isFullscreen());
     }
 
     @Test
     void testRegisterListenerOnKioskMode() {
         var primaryStage = mock(Stage.class);
-        when(viewManager.primaryStageProperty()).thenReturn(primaryStageProperty);
         when(primaryStage.fullScreenProperty()).thenReturn(fullscreenProperty);
         when(applicationConfig.isKioskMode()).thenReturn(true);
-        var screenService = new ScreenServiceImpl(viewManager, applicationConfig, eventPublisher, maximizeService, fxChannel);
 
         primaryStageListener.get().changed(null, null, primaryStage);
+        WaitForAsyncUtils.waitForFxEvents();
 
         verify(maximizeService).setMaximized(false);
         verify(primaryStage).setFullScreenExitKeyCombination(KeyCombination.NO_MATCH);
+        verify(primaryStage).setFullScreen(true);
+    }
+
+    @Test
+    void testOnMaximizeEvent() {
+        var primaryStage = mock(Stage.class);
+        doAnswer(invocation -> {
+            fullscreenProperty.set(invocation.getArgument(0, Boolean.class));
+            return null;
+        }).when(primaryStage).setFullScreen(isA(Boolean.class));
+        when(primaryStage.fullScreenProperty()).thenReturn(fullscreenProperty);
+
+        primaryStageListener.get().changed(null, null, primaryStage);
+        WaitForAsyncUtils.waitForFxEvents();
+        eventPublisher.publish(new MaximizeEvent(this, true));
+        WaitForAsyncUtils.waitForFxEvents();
+
         verify(primaryStage).setFullScreen(true);
     }
 }

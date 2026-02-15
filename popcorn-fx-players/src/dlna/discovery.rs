@@ -25,7 +25,7 @@ const DEFAULT_INTERVAL_SECONDS: u64 = 120;
 
 /// Represents a DLNA discovery service responsible for discovering DLNA devices within the local network.
 #[derive(Display, Clone)]
-#[display(fmt = "DLNA device discovery")]
+#[display("DLNA device discovery")]
 pub struct DlnaDiscovery {
     inner: Arc<InnerDlnaDiscovery>,
 }
@@ -262,7 +262,11 @@ mod tests {
         init_logger!();
         let player_manager = MockPlayerManager::new();
         let subtitle_provider = MockSubtitleProvider::new();
-        let subtitle_server = Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider))));
+        let subtitle_server = Arc::new(
+            SubtitleServer::new(Arc::new(subtitle_provider))
+                .await
+                .unwrap(),
+        );
         let server = DlnaDiscovery::builder()
             .interval_seconds(1)
             .player_manager(Arc::new(Box::new(player_manager)))
@@ -298,7 +302,11 @@ mod tests {
             Ok(())
         });
         let subtitle_provider = MockSubtitleProvider::new();
-        let subtitle_server = Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider))));
+        let subtitle_server = Arc::new(
+            SubtitleServer::new(Arc::new(subtitle_provider))
+                .await
+                .unwrap(),
+        );
         let _dlna_server = MockUdpServer::new()
             .device_name("test")
             .upnp_server_addr(server.address().clone())
@@ -322,7 +330,11 @@ mod tests {
         let mut player_manager = MockPlayerManager::new();
         player_manager.expect_add_player().returning(|_| Ok(()));
         let subtitle_provider = MockSubtitleProvider::new();
-        let subtitle_server = Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider))));
+        let subtitle_server = Arc::new(
+            SubtitleServer::new(Arc::new(subtitle_provider))
+                .await
+                .unwrap(),
+        );
         let server = DlnaDiscovery::builder()
             .interval_seconds(1)
             .player_manager(Arc::new(Box::new(player_manager)))

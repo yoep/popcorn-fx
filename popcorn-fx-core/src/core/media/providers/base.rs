@@ -330,7 +330,7 @@ impl BaseProvider {
 
 #[derive(Debug, Clone, Display)]
 #[display(
-    fmt = "uri: {}, disabled: {}, failed_attempts: {}",
+    "uri: {}, disabled: {}, failed_attempts: {}",
     uri,
     disabled,
     failed_attempts

@@ -335,58 +335,47 @@ impl TorrentStreamServer for TorrentStreamServerInner {
         filename: &str,
     ) -> Result<Box<dyn TorrentStream>> {
         let mut streams = self.streams.lock().await;
-        let files = torrent.files().await;
+        let file = match torrent.file_by_name(filename).await {
+            None => return Err(Error::FileNotFound(filename.to_string())),
+            Some(file) => file,
+        };
         let handle = torrent.handle();
+        let filename = file.filename();
+        let filepath = torrent.absolute_file_path(&file).await;
 
-        // check if the handle is still valid and the files could be successfully retrieved
-        if files.is_empty() {
-            return Err(Error::InvalidHandle(handle.to_string()));
+        if streams.contains_key(&filename) {
+            debug!(
+                "Torrent stream already exists for {}, ignoring stream creation",
+                filename
+            );
+
+            return streams
+                .get(&filename)
+                .and_then(|e| {
+                    e.downcast_ref::<DefaultTorrentStream>()
+                        .map(|e| Box::new(e.clone()) as Box<dyn TorrentStream>)
+                })
+                .ok_or(Error::InvalidHandle(handle.to_string()));
         }
 
-        // try to find the specified filename within the torrent
-        if let Some(file) = files
-            .into_iter()
-            .find(|e| e.filename().to_lowercase() == filename.to_lowercase())
-        {
-            let filename = file.filename();
-            let filepath = torrent.absolute_file_path(&file).await;
-
-            if streams.contains_key(&filename) {
-                debug!(
-                    "Torrent stream already exists for {}, ignoring stream creation",
-                    filename
-                );
-
-                return streams
-                    .get(&filename)
-                    .and_then(|e| {
-                        e.downcast_ref::<DefaultTorrentStream>()
-                            .map(|e| Box::new(e.clone()) as Box<dyn TorrentStream>)
-                    })
-                    .ok_or(Error::InvalidHandle(handle.to_string()));
+        trace!("Creating new torrent stream for {:?}", torrent);
+        match self.build_url(&filename) {
+            Ok(url) => {
+                debug!("Starting url stream for {}", &url);
+                let stream = DefaultTorrentStream::new(url, torrent, &filename).await;
+                let stream_borrowed = stream.clone();
+                streams.insert(filename.to_string(), Box::new(stream));
+                Ok(Box::new(stream_borrowed))
             }
-
-            trace!("Creating new torrent stream for {:?}", torrent);
-            match self.build_url(&filename) {
-                Ok(url) => {
-                    debug!("Starting url stream for {}", &url);
-                    let stream = DefaultTorrentStream::new(url, torrent, &filename).await;
-                    let stream_borrowed = stream.clone();
-                    streams.insert(filename.to_string(), Box::new(stream));
-                    Ok(Box::new(stream_borrowed))
-                }
-                Err(e) => {
-                    warn!("Torrent stream url creation failed, {}", e);
-                    Err(Error::InvalidUrl(
-                        filepath
-                            .to_str()
-                            .map(|e| e.to_string())
-                            .unwrap_or("INVALID".to_string()),
-                    ))
-                }
+            Err(e) => {
+                warn!("Torrent stream url creation failed, {}", e);
+                Err(Error::InvalidUrl(
+                    filepath
+                        .to_str()
+                        .map(|e| e.to_string())
+                        .unwrap_or("INVALID".to_string()),
+                ))
             }
-        } else {
-            Err(Error::FileNotFound(filename.to_string()))
         }
     }
 
@@ -445,8 +434,8 @@ mod test {
         let temp_dir_path = temp_dir.path().to_path_buf();
         let file = temp_dir.path().join(filename);
         let file_len = read_test_file_to_bytes(filename).len() as u64;
-        let torrent_files = create_torrent_files(&file, file_len);
-        let total_pieces = torrent_files[0].pieces.len();
+        let torrent_file = create_torrent_file(&file, file_len);
+        let total_pieces = torrent_file.pieces.len();
         let client = Client::builder()
             .build()
             .expect("Client should have been created");
@@ -454,9 +443,6 @@ mod test {
         let callback = MultiThreadedCallback::<TorrentEvent>::new();
         let mut torrent = MockTorrent::new();
         torrent.expect_handle().return_const(TorrentHandle::new());
-        torrent
-            .expect_files()
-            .returning(move || torrent_files.clone());
         torrent.expect_has_bytes().return_const(true);
         torrent.expect_has_piece().returning(|_: usize| true);
         torrent.expect_total_pieces().return_const(total_pieces);
@@ -478,6 +464,13 @@ mod test {
                 .into_iter()
                 .map(|idx| (idx, PiecePriority::Normal))
                 .collect()
+        });
+        torrent.expect_file_by_name().returning(move |e| {
+            if filename == e {
+                Some(torrent_file.clone())
+            } else {
+                None
+            }
         });
         let subscribe_callback = callback.clone();
         torrent
@@ -565,6 +558,7 @@ mod test {
         let temp_dir_path = temp_dir.path().to_path_buf();
         let file = temp_dir.path().join(filename);
         let file_len = read_test_file_to_bytes(filename).len() as u64;
+        let torrent_file = create_torrent_file(&file, file_len);
         let client = Client::builder()
             .build()
             .expect("Client should have been created");
@@ -578,9 +572,6 @@ mod test {
             .expect_subscribe()
             .times(1)
             .return_once(move || callback_receiver);
-        torrent
-            .expect_files()
-            .returning(move || create_torrent_files(&file, file_len));
         torrent
             .expect_absolute_file_path()
             .returning(move |file| temp_dir_path.join(&file.torrent_path));
@@ -602,6 +593,13 @@ mod test {
                 .into_iter()
                 .map(|idx| (idx, PiecePriority::Normal))
                 .collect()
+        });
+        torrent.expect_file_by_name().returning(move |e| {
+            if filename == e {
+                Some(torrent_file.clone())
+            } else {
+                None
+            }
         });
         torrent.expect_subscribe().returning(|| {
             let (_, rx) = unbounded_channel();
@@ -660,6 +658,7 @@ mod test {
             filename,
             None,
         ));
+        let torrent_file = create_torrent_file(&absolute_filepath, file_len);
         let total_pieces = 15usize;
         let client = Client::builder()
             .build()
@@ -669,9 +668,6 @@ mod test {
         let server = FXTorrentStreamServer::new().await.unwrap();
         let mut torrent = MockTorrent::new();
         torrent.expect_handle().return_const(TorrentHandle::new());
-        torrent
-            .expect_files()
-            .returning(move || create_torrent_files(&absolute_filepath, file_len));
         torrent
             .expect_absolute_file_path()
             .returning(move |file| temp_dir_path.join(&file.torrent_path));
@@ -687,6 +683,13 @@ mod test {
             .times(1)
             .return_once(move || callback_receiver);
         torrent.expect_stats().return_const(Metrics::default());
+        torrent.expect_file_by_name().returning(move |e| {
+            if filename == e {
+                Some(torrent_file.clone())
+            } else {
+                None
+            }
+        });
         let torrent = Box::new(torrent) as Box<dyn Torrent>;
 
         let stream = server
@@ -733,8 +736,8 @@ mod test {
         assert_eq!(StatusCode::NOT_FOUND, result)
     }
 
-    fn create_torrent_files(file: &PathBuf, length: u64) -> Vec<fx_torrent::File> {
-        vec![fx_torrent::File {
+    fn create_torrent_file(file: &PathBuf, length: u64) -> fx_torrent::File {
+        fx_torrent::File {
             index: 0,
             torrent_path: file.clone(),
             torrent_offset: 0,
@@ -749,7 +752,7 @@ mod test {
             },
             priority: Default::default(),
             pieces: 0..100,
-        }]
+        }
     }
 
     fn create_incomplete_stats() -> Metrics {

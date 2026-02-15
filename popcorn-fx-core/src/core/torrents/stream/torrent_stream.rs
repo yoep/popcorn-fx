@@ -682,96 +682,71 @@ impl FXTorrentStreamingResource {
             handle,
             torrent
         );
-        let files = torrent.files().await;
-
-        // check if the torrent handle is still valid
-        if files.is_empty() {
-            debug!(
-                "Torrent streaming resource {} failed to create, invalid handle",
-                handle
-            );
-            return Err(Error::InvalidHandle(handle.to_string()));
-        }
-
-        // try to find the given filename within the torrent
+        let torrent_file = match torrent.file_by_name(filename).await {
+            None => return Err(Error::FileNotFound(filename.to_string())),
+            Some(file) => file,
+        };
+        let absolute_filepath = torrent.absolute_file_path(&torrent_file).await;
         trace!(
-            "Torrent streaming resource {} is searching for file {} in {:?}",
+            "Torrent streaming resource {} is opening file {:?}",
             handle,
-            filename,
-            files
+            absolute_filepath
         );
-        if let Some(torrent_file) = files
-            .into_iter()
-            .find(|e| Self::normalize(e.filename()) == Self::normalize(filename))
-        {
-            let absolute_filepath = torrent.absolute_file_path(&torrent_file).await;
-            trace!(
-                "Torrent streaming resource {} is opening file {:?}",
-                handle,
-                absolute_filepath
-            );
-            fs::OpenOptions::new()
-                .read(true)
-                .open(&absolute_filepath)
-                .map_err(|e| {
+        fs::OpenOptions::new()
+            .read(true)
+            .open(&absolute_filepath)
+            .map_err(|e| {
+                warn!(
+                    "Torrent streaming resource {} failed to open torrent file {:?}, {}",
+                    handle, absolute_filepath, e
+                );
+                Error::FileNotFound(filename.to_string())
+            })
+            .and_then(|file| {
+                // always use the torrent file length rather than the underlying fs length
+                // as the disk file might not have the full file length written to disk
+                let resource_length = torrent_file.len() as u64;
+                let mut stream_length = len.unwrap_or_else(|| resource_length);
+                let stream_end = offset + stream_length;
+                let waker = Arc::new(AtomicWaker::new());
+                let cancellation_token = CancellationToken::new();
+
+                if stream_end > resource_length {
                     warn!(
-                        "Torrent streaming resource {} failed to open torrent file {:?}, {}",
-                        handle, absolute_filepath, e
+                        "Requested stream range ({}-{}) is larger than {} resource length",
+                        &offset, &stream_end, &resource_length
                     );
-                    Error::FileNotFound(filename.to_string())
+                    stream_length = resource_length - offset;
+                }
+
+                // create a generic torrent event listener for waking streaming tasks when needed
+                let event_waker = waker.clone();
+                let event_cancellation_token = cancellation_token.clone();
+                let receiver = torrent.subscribe();
+                tokio::spawn(async move {
+                    Self::start_torrent_event_handler(
+                        receiver,
+                        event_waker,
+                        event_cancellation_token,
+                    )
+                    .await;
+                });
+
+                Ok(Self {
+                    torrent,
+                    torrent_filename: filename.to_string(),
+                    torrent_offset: torrent_file.torrent_offset,
+                    file,
+                    filepath: absolute_filepath,
+                    resource_length,
+                    cursor: offset as usize,
+                    offset,
+                    len: stream_length,
+                    waker,
+                    pending_has_bytes: None,
+                    cancellation_token,
                 })
-                .and_then(|file| {
-                    // always use the torrent file length rather than the underlying fs length
-                    // as the disk file might not have the full file length written to disk
-                    let resource_length = torrent_file.len() as u64;
-                    let mut stream_length = len.unwrap_or_else(|| resource_length);
-                    let stream_end = offset + stream_length;
-                    let waker = Arc::new(AtomicWaker::new());
-                    let cancellation_token = CancellationToken::new();
-
-                    if stream_end > resource_length {
-                        warn!(
-                            "Requested stream range ({}-{}) is larger than {} resource length",
-                            &offset, &stream_end, &resource_length
-                        );
-                        stream_length = resource_length - offset;
-                    }
-
-                    // create a generic torrent event listener for waking streaming tasks when needed
-                    let event_waker = waker.clone();
-                    let event_cancellation_token = cancellation_token.clone();
-                    let receiver = torrent.subscribe();
-                    tokio::spawn(async move {
-                        Self::start_torrent_event_handler(
-                            receiver,
-                            event_waker,
-                            event_cancellation_token,
-                        )
-                        .await;
-                    });
-
-                    Ok(Self {
-                        torrent,
-                        torrent_filename: filename.to_string(),
-                        torrent_offset: torrent_file.torrent_offset,
-                        file,
-                        filepath: absolute_filepath,
-                        resource_length,
-                        cursor: offset as usize,
-                        offset,
-                        len: stream_length,
-                        waker,
-                        pending_has_bytes: None,
-                        cancellation_token,
-                    })
-                })
-        } else {
-            debug!(
-                "Torrent streaming resource {} failed to create, file {} not found",
-                handle, filename
-            );
-            Err(Error::FileNotFound(filename.to_string()))
-        }
+            })
     }
 
     /// Wait for the current cursor to become available.
@@ -1027,33 +1002,44 @@ mod test {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().join(filename);
         let torrent_handle = TorrentHandle::new();
-        let mut mock = MockTorrent::new();
+        let mut torrent = MockTorrent::new();
         let url = Url::parse("http://localhost").unwrap();
         let callbacks = MultiThreadedCallback::new();
         let subscription_callbacks = callbacks.clone();
         let (tx_ready, rx_ready) = channel();
-        let files = vec![create_torrent_file!(temp_path.clone())];
-        mock.expect_handle().return_const(torrent_handle);
-        mock.expect_files().returning(move || files.clone());
-        mock.expect_has_bytes().return_const(true);
-        mock.expect_has_piece().return_const(true);
-        mock.expect_total_pieces().return_const(total_pieces);
-        mock.expect_prioritize_pieces()
+        let file = create_torrent_file!(temp_path.clone());
+        torrent.expect_handle().return_const(torrent_handle);
+        torrent.expect_file_by_name().returning(move |e| {
+            if filename == e {
+                Some(file.clone())
+            } else {
+                None
+            }
+        });
+        torrent.expect_has_bytes().return_const(true);
+        torrent.expect_has_piece().return_const(true);
+        torrent.expect_total_pieces().return_const(total_pieces);
+        torrent
+            .expect_prioritize_pieces()
             .returning(|_: &[PieceIndex]| {});
-        mock.expect_sequential_mode().returning(|| {});
-        mock.expect_state().return_const(TorrentState::Downloading);
-        mock.expect_stats().return_const(Metrics::default());
-        mock.expect_subscribe()
+        torrent.expect_sequential_mode().returning(|| {});
+        torrent
+            .expect_state()
+            .return_const(TorrentState::Downloading);
+        torrent.expect_stats().return_const(Metrics::default());
+        torrent
+            .expect_subscribe()
             .returning(move || subscription_callbacks.subscribe());
-        mock.expect_absolute_file_path()
+        torrent
+            .expect_absolute_file_path()
             .returning(move |_| temp_path.clone());
-        mock.expect_piece_priorities().returning(|| {
+        torrent.expect_piece_priorities().returning(|| {
             vec![(0, PiecePriority::Normal), (1, PiecePriority::Normal)]
                 .into_iter()
                 .collect()
         });
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
-        let torrent_stream = DefaultTorrentStream::new(url, Box::new(mock), filename).await;
+        let torrent_stream = DefaultTorrentStream::new(url, Box::new(torrent), filename).await;
 
         // listen on the streaming state event
         let mut receiver = Callback::<TorrentStreamEvent>::subscribe(&torrent_stream);
@@ -1104,12 +1090,16 @@ mod test {
         let expected_length = 1024;
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().join(filename);
-        let file_info = create_torrent_file!(temp_path.clone());
+        let file = create_torrent_file!(temp_path.clone());
         let mut torrent = MockTorrent::new();
         torrent.expect_handle().return_const(TorrentHandle::new());
-        torrent
-            .expect_files()
-            .returning(move || vec![file_info.clone()]);
+        torrent.expect_file_by_name().returning(move |e| {
+            if filename == e {
+                Some(file.clone())
+            } else {
+                None
+            }
+        });
         torrent
             .expect_absolute_file_path()
             .returning(move |_| temp_path.clone());
@@ -1135,10 +1125,16 @@ mod test {
         let filename = "simple.txt";
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().join(filename);
-        let files = vec![create_torrent_file!(temp_path.clone())];
+        let file = create_torrent_file!(temp_path.clone());
         let mut torrent = MockTorrent::new();
         torrent.expect_handle().return_const(TorrentHandle::new());
-        torrent.expect_files().return_once(move || files);
+        torrent.expect_file_by_name().returning(move |e| {
+            if filename == e {
+                Some(file.clone())
+            } else {
+                None
+            }
+        });
         torrent
             .expect_absolute_file_path()
             .returning(move |_| temp_path.clone());
@@ -1166,12 +1162,17 @@ mod test {
         let temp_path = temp_dir.path().join(filename);
         let mut a = Some(true);
         let file = create_torrent_file!(temp_path.clone(), 0, 30);
-        let files = vec![file.clone()];
         let callbacks = MultiThreadedCallback::new();
         let callback_receiver = callbacks.subscribe();
         let mut torrent = MockTorrent::new();
         torrent.expect_handle().return_const(TorrentHandle::new());
-        torrent.expect_files().return_once(move || files);
+        torrent.expect_file_by_name().returning(move |e| {
+            if filename == e {
+                Some(file.clone())
+            } else {
+                None
+            }
+        });
         torrent
             .expect_absolute_file_path()
             .returning(move |_| temp_path.clone());
@@ -1216,13 +1217,18 @@ mod test {
         let expected_result = read_test_file_to_string(filename);
         let file =
             create_torrent_file!(temp_path.clone(), 260, expected_result.bytes().len() as u64);
-        let files = vec![file.clone()];
         let callback = MultiThreadedCallback::new();
         let callback_subscription = callback.subscribe();
         let mut has_bytes = Some(true);
         let mut torrent = MockTorrent::new();
         torrent.expect_handle().return_const(TorrentHandle::new());
-        torrent.expect_files().return_once(move || files);
+        torrent.expect_file_by_name().returning(move |e| {
+            if filename == e {
+                Some(file.clone())
+            } else {
+                None
+            }
+        });
         torrent
             .expect_absolute_file_path()
             .returning(move |_| temp_path.clone());
@@ -1262,9 +1268,15 @@ mod test {
         let (tx, mut rx) = unbounded_channel();
         let callbacks = MultiThreadedCallback::new();
         let subscribe_callbacks = callbacks.clone();
-        let files = vec![create_torrent_file!(temp_path.clone())];
+        let file = create_torrent_file!(temp_path.clone());
         torrent.expect_handle().return_const(TorrentHandle::new());
-        torrent.expect_files().return_once(move || files);
+        torrent.expect_file_by_name().returning(move |e| {
+            if filename == e {
+                Some(file.clone())
+            } else {
+                None
+            }
+        });
         torrent.expect_has_bytes().return_const(true);
         torrent.expect_has_piece().return_const(false);
         torrent
@@ -1337,30 +1349,39 @@ mod test {
         let total_pieces = 100usize;
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().join(filename);
-        let mut mock = MockTorrent::new();
+        let mut torrent = MockTorrent::new();
         let callbacks = MultiThreadedCallback::new();
         let callback_subscription = callbacks.subscribe();
         let url = Url::parse("http://localhost").unwrap();
-        let files = vec![create_torrent_file!(temp_path.clone())];
-        mock.expect_handle().return_const(TorrentHandle::new());
-        mock.expect_files().returning(move || files.clone());
-        mock.expect_has_bytes().return_const(true);
-        mock.expect_has_piece().return_const(false);
-        mock.expect_total_pieces().return_const(total_pieces);
-        mock.expect_prioritize_pieces()
+        let file = create_torrent_file!(temp_path.clone());
+        torrent.expect_handle().return_const(TorrentHandle::new());
+        torrent.expect_file_by_name().returning(move |e| {
+            if filename == e {
+                Some(file.clone())
+            } else {
+                None
+            }
+        });
+        torrent.expect_has_bytes().return_const(true);
+        torrent.expect_has_piece().return_const(false);
+        torrent.expect_total_pieces().return_const(total_pieces);
+        torrent
+            .expect_prioritize_pieces()
             .times(0)
             .returning(|_: &[PieceIndex]| {});
-        mock.expect_state().return_const(TorrentState::Finished);
-        mock.expect_stats()
+        torrent.expect_state().return_const(TorrentState::Finished);
+        torrent
+            .expect_stats()
             .return_const(torrent_stats_not_completed());
-        mock.expect_subscribe()
+        torrent
+            .expect_subscribe()
             .return_once(move || callback_subscription);
-        mock.expect_piece_priorities().returning(|| {
+        torrent.expect_piece_priorities().returning(|| {
             vec![(0, PiecePriority::Normal), (1, PiecePriority::Normal)]
                 .into_iter()
                 .collect()
         });
-        let stream = DefaultTorrentStream::new(url, Box::new(mock), filename).await;
+        let stream = DefaultTorrentStream::new(url, Box::new(torrent), filename).await;
 
         // check if the initial state automatically becomes streaming as the torrent is in finished state
         // this can however take some milliseconds as it's checked async after the resource is created
@@ -1381,29 +1402,37 @@ mod test {
         let callbacks = MultiThreadedCallback::new();
         let callback_subscription = callbacks.subscribe();
         let url = Url::parse("http://localhost").unwrap();
-        let files = vec![create_torrent_file!(temp_path.clone())];
+        let file = create_torrent_file!(temp_path.clone());
         let metrics = Metrics::new();
         metrics.wanted_pieces.inc_by(15000);
         metrics.wanted_completed_pieces.inc_by(15000);
-        let mut mock = MockTorrent::new();
-        mock.expect_handle().return_const(TorrentHandle::new());
-        mock.expect_files().returning(move || files.clone());
-        mock.expect_has_bytes().return_const(true);
-        mock.expect_has_piece().return_const(false);
-        mock.expect_total_pieces().return_const(total_pieces);
-        mock.expect_prioritize_pieces()
+        let mut torrent = MockTorrent::new();
+        torrent.expect_handle().return_const(TorrentHandle::new());
+        torrent.expect_file_by_name().returning(move |e| {
+            if filename == e {
+                Some(file.clone())
+            } else {
+                None
+            }
+        });
+        torrent.expect_has_bytes().return_const(true);
+        torrent.expect_has_piece().return_const(false);
+        torrent.expect_total_pieces().return_const(total_pieces);
+        torrent
+            .expect_prioritize_pieces()
             .times(0)
             .returning(|_: &[PieceIndex]| {});
-        mock.expect_state().return_const(TorrentState::Seeding);
-        mock.expect_stats().return_const(metrics);
-        mock.expect_subscribe()
+        torrent.expect_state().return_const(TorrentState::Seeding);
+        torrent.expect_stats().return_const(metrics);
+        torrent
+            .expect_subscribe()
             .return_once(move || callback_subscription);
-        mock.expect_piece_priorities().returning(|| {
+        torrent.expect_piece_priorities().returning(|| {
             vec![(0, PiecePriority::Normal), (1, PiecePriority::Normal)]
                 .into_iter()
                 .collect()
         });
-        let stream = DefaultTorrentStream::new(url, Box::new(mock), filename).await;
+        let stream = DefaultTorrentStream::new(url, Box::new(torrent), filename).await;
 
         // check if the initial state automatically becomes streaming as the torrent is in finished state
         // this can however take some milliseconds as it's checked async after the resource is created
@@ -1426,9 +1455,15 @@ mod test {
         let callback_subscription = callbacks.subscribe();
         let mut torrent = MockTorrent::new();
         let url = Url::parse("http://localhost").unwrap();
-        let files = vec![create_torrent_file!(temp_path.clone())];
+        let file = create_torrent_file!(temp_path.clone());
         torrent.expect_handle().return_const(torrent_handle);
-        torrent.expect_files().returning(move || files.clone());
+        torrent.expect_file_by_name().returning(move |e| {
+            if filename == e {
+                Some(file.clone())
+            } else {
+                None
+            }
+        });
         torrent.expect_has_bytes().return_const(true);
         torrent.expect_has_piece().return_const(false);
         torrent.expect_sequential_mode().return_const(());

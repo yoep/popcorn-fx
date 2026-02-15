@@ -14,19 +14,19 @@ use crate::core::loader::{LoadingData, LoadingError, LoadingProgress, LoadingSta
 #[derive(Debug, Display, Clone, PartialEq)]
 pub enum LoadingEvent {
     /// The loading state of a media item has changed.
-    #[display(fmt = "Loading state changed to {:?}", _0)]
+    #[display("Loading state changed to {:?}", _0)]
     StateChanged(LoadingState),
     /// The loading progress of a media item has changed.
-    #[display(fmt = "Loading progress changed to {:?}", _0)]
+    #[display("Loading progress changed to {:?}", _0)]
     ProgressChanged(LoadingProgress),
     /// Indicates that the loading task has been cancelled.
-    #[display(fmt = "Loading cancelled")]
+    #[display("Loading cancelled")]
     Cancelled,
     /// Indicates that the loading task has finished/completed.
-    #[display(fmt = "Loading finished")]
+    #[display("Loading finished")]
     Completed,
     /// Indicates that the loading task has encountered an error.
-    #[display(fmt = "Loading failed, {:?}", _0)]
+    #[display("Loading failed, {:?}", _0)]
     LoadingError(LoadingError),
 }
 

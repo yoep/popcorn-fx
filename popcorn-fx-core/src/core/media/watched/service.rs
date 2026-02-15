@@ -381,7 +381,7 @@ impl InnerWatchedService {
             .storage
             .options()
             .serializer(FILENAME)
-            .write_async(watchable)
+            .write(watchable)
             .await
         {
             Ok(_) => info!("Watched items have been saved"),

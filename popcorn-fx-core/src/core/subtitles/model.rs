@@ -114,7 +114,7 @@ impl SubtitleType {
 ///     .build();
 /// ```
 #[derive(Debug, Clone, Display)]
-#[display(fmt = "imdb_id: {:?}, language: {}", imdb_id, language)]
+#[display("imdb_id: {:?}, language: {}", imdb_id, language)]
 pub struct SubtitleInfo {
     /// The IMDB ID of the subtitle title.
     imdb_id: Option<String>,
@@ -365,12 +365,7 @@ impl SubtitleInfoBuilder {
 
 /// The parsed [SubtitleInfo] which has downloaded and parsed the .srt file.
 #[derive(Debug, Clone, Display)]
-#[display(
-    fmt = "file: {:?}, info: {:?}, total cues: {}",
-    file,
-    info,
-    "cues.len()"
-)]
+#[display("file: {:?}, info: {:?}, total cues: {}", file, info, "cues.len()")]
 pub struct Subtitle {
     /// The parsed cues within the subtitle file.
     cues: Vec<SubtitleCue>,

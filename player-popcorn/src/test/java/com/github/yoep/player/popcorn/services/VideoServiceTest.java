@@ -4,13 +4,19 @@ import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
 import com.github.yoep.popcorn.backend.adapters.video.state.VideoState;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.events.MaximizeEvent;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -19,6 +25,10 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class VideoServiceTest {
+    @Spy
+    private EventPublisher eventPublisher = new EventPublisher(false);
+    @Mock
+    private ApplicationConfig applicationConfig;
     @Mock
     private VideoPlayback videoPlayback1;
     @Mock
@@ -38,14 +48,14 @@ class VideoServiceTest {
             videoListener.set(invocation.getArgument(0, VideoListener.class));
             return null;
         }).when(videoPlayback1).addListener(isA(VideoListener.class));
-        service = new VideoService();
+        service = new VideoService(eventPublisher, applicationConfig);
         service.addVideoPlayback(videoPlayback1, 0);
         service.addVideoPlayback(videoPlayback2, 0);
     }
 
     @Test
     void testAddVideoPlayback_shouldOrderPlaybacks() {
-        var service = new VideoService();
+        var service = new VideoService(eventPublisher, applicationConfig);
 
         service.addVideoPlayback(videoPlayback2, VideoService.LOWEST_ORDER);
         service.addVideoPlayback(videoPlayback3, VideoService.HIGHEST_ORDER);
@@ -62,7 +72,8 @@ class VideoServiceTest {
         var request = Player.PlayRequest.newBuilder()
                 .setUrl(url)
                 .build();
-        var service = new VideoService();
+        when(applicationConfig.getSettings()).thenReturn(new CompletableFuture<>());
+        var service = new VideoService(eventPublisher, applicationConfig);
         lenient().when(videoPlayback3.supports(url)).thenReturn(true);
         lenient().when(videoPlayback1.supports(url)).thenReturn(true);
 
@@ -87,6 +98,7 @@ class VideoServiceTest {
                 .build();
         when(videoPlayback1.supports(url1)).thenReturn(true);
         when(videoPlayback2.supports(url2)).thenReturn(true);
+        when(applicationConfig.getSettings()).thenReturn(new CompletableFuture<>());
         service.onPlay(request1);
 
         service.onPlay(request2);
@@ -103,6 +115,7 @@ class VideoServiceTest {
                 .setUrl(url)
                 .build();
         when(videoPlayback1.supports(url)).thenReturn(true);
+        when(applicationConfig.getSettings()).thenReturn(new CompletableFuture<>());
         service.addListener(listener);
 
         service.onPlay(request);
@@ -119,10 +132,30 @@ class VideoServiceTest {
                 .setAutoResumeTimestamp(timestamp)
                 .build();
         when(videoPlayback2.supports(url)).thenReturn(true);
+        when(applicationConfig.getSettings()).thenReturn(new CompletableFuture<>());
 
         service.onPlay(request);
 
         verify(videoPlayback2).seek(timestamp);
+    }
+
+    @Test
+    void testOnPlay_whenFullscreenEnabled_shouldInvokeMaximizeEvent() {
+        var url = "my-video-url.mp4";
+        var request = Player.PlayRequest.newBuilder()
+                .setUrl(url)
+                .build();
+        when(applicationConfig.getSettings()).thenReturn(CompletableFuture.completedFuture(ApplicationSettings.newBuilder()
+                .setPlaybackSettings(ApplicationSettings.PlaybackSettings.newBuilder()
+                        .setFullscreen(true)
+                        .build())
+                .build()));
+        when(videoPlayback1.supports(url)).thenReturn(true);
+        service.addListener(listener);
+
+        service.onPlay(request);
+
+        verify(eventPublisher).publish(new MaximizeEvent(this, true));
     }
 
     @Test
@@ -132,6 +165,7 @@ class VideoServiceTest {
                 .setUrl(url)
                 .build();
         when(videoPlayback1.supports(url)).thenReturn(true);
+        when(applicationConfig.getSettings()).thenReturn(new CompletableFuture<>());
         service.addListener(listener);
         service.onPlay(request);
 
@@ -148,6 +182,7 @@ class VideoServiceTest {
                 .setUrl(url)
                 .build();
         when(videoPlayback1.supports(url)).thenReturn(true);
+        when(applicationConfig.getSettings()).thenReturn(new CompletableFuture<>());
         service.addListener(listener);
         service.onPlay(request);
 
@@ -165,6 +200,7 @@ class VideoServiceTest {
                 .setUrl(url)
                 .build();
         when(videoPlayback1.supports(url)).thenReturn(true);
+        when(applicationConfig.getSettings()).thenReturn(new CompletableFuture<>());
         service.addListener(listener);
         service.onPlay(request);
 
@@ -182,6 +218,7 @@ class VideoServiceTest {
                 .setUrl(url)
                 .build();
         when(videoPlayback1.supports(url)).thenReturn(true);
+        when(applicationConfig.getSettings()).thenReturn(new CompletableFuture<>());
         service.addListener(listener);
         service.onPlay(request);
 
@@ -197,6 +234,7 @@ class VideoServiceTest {
                 .setUrl(url)
                 .build();
         when(videoPlayback1.supports(url)).thenReturn(true);
+        when(applicationConfig.getSettings()).thenReturn(new CompletableFuture<>());
         service.addListener(listener);
         service.onPlay(request);
 
@@ -222,6 +260,7 @@ class VideoServiceTest {
                 .build();
         when(videoPlayback1.supports(url)).thenReturn(true);
         when(videoPlayback1.getError()).thenReturn(new RuntimeException("My video player error"));
+        when(applicationConfig.getSettings()).thenReturn(new CompletableFuture<>());
         service.addListener(listener);
         service.onPlay(request);
 

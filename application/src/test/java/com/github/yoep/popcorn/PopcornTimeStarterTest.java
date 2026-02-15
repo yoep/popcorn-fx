@@ -1,12 +1,14 @@
 package com.github.yoep.popcorn;
 
 import com.github.yoep.player.popcorn.player.PopcornPlayer;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.lib.FxChannel;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.IoC;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
 
@@ -15,6 +17,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
 class PopcornTimeStarterTest {
+    @Spy
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
     private FxChannel fxChannel;
     @Mock
@@ -41,6 +45,7 @@ class PopcornTimeStarterTest {
         var ioc = new IoC();
         ioc.registerInstance(fxChannel);
         ioc.registerInstance(applicationConfig);
+        ioc.registerInstance(eventPublisher);
 
         PopcornTimeStarter.onInit(ioc);
         var result = ioc.getInstance(PopcornPlayer.class);

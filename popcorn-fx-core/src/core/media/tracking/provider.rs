@@ -23,6 +23,9 @@ pub enum AuthorizationError {
     /// Indicates that the authorization process timed out.
     #[error("authorization timed out")]
     AuthorizationTimeout,
+    /// Indicates an issue while trying to create the authorization client.
+    #[error("a client error occurred, {0}")]
+    Client(String),
 }
 
 /// Represents errors that can occur during tracking operations.
@@ -43,10 +46,10 @@ pub enum TrackingError {
 #[derive(Debug, Clone, Display)]
 pub enum TrackingEvent {
     /// Indicates a change in authorization state.
-    #[display(fmt = "Authorization state changed to {}", _0)]
+    #[display("Authorization state changed to {}", _0)]
     AuthorizationStateChanged(bool),
     /// Indicates a new authorization uri needs to be opened.
-    #[display(fmt = "Opening authorization uri {}", _0)]
+    #[display("Opening authorization uri {}", _0)]
     OpenAuthorization(Url),
 }
 

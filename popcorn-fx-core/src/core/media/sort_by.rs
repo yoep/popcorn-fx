@@ -2,7 +2,7 @@ use derive_more::Display;
 
 /// A struct representing a sorting criteria.
 #[derive(Debug, Display, Clone, PartialEq)]
-#[display(fmt = "sort by {}", key)]
+#[display("sort by {}", key)]
 pub struct SortBy {
     /// The key used for sorting.
     key: String,

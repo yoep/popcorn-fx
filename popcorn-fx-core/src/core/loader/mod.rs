@@ -71,7 +71,7 @@ pub mod tests {
     pub type DataPeeker = dyn Fn(&LoadingData) + Send + Sync;
 
     #[derive(Display)]
-    #[display(fmt = "TestingLoadingStrategy")]
+    #[display("TestingLoadingStrategy")]
     pub struct TestingLoadingStrategy {
         event: Option<LoadingEvent>,
         process_result: LoadingResult,

@@ -15,9 +15,9 @@ use tokio_util::sync::CancellationToken;
 /// Represents the state of synchronization.
 #[derive(Debug, Display, Clone, PartialEq)]
 pub enum SyncState {
-    #[display(fmt = "idle")]
+    #[display("idle")]
     Idle,
-    #[display(fmt = "syncing")]
+    #[display("syncing")]
     Syncing,
 }
 
@@ -89,7 +89,6 @@ impl SyncMediaTracking {
 
 impl Drop for SyncMediaTracking {
     fn drop(&mut self) {
-        trace!("Dropping {:?}", self);
         self.inner.cancellation_token.cancel();
     }
 }

@@ -161,7 +161,7 @@ const CONFIG_EXTENSIONS: [&str; 2] = ["yml", "yaml"];
 
 /// In-between wrapper for serde to support the backwards compatible mapping.
 #[derive(Debug, Display, Clone, Deserialize, PartialEq)]
-#[display(fmt = "popcorn: {:?}", popcorn)]
+#[display("popcorn: {:?}", popcorn)]
 struct PropertiesWrapper {
     /// The properties under the "popcorn" field.
     #[serde(default)]
@@ -170,7 +170,7 @@ struct PropertiesWrapper {
 
 /// The immutable properties of the application.
 #[derive(Debug, Display, Clone, Deserialize, PartialEq)]
-#[display(fmt = "update_channel: {}, subtitle: {:?}", update_channel, subtitle)]
+#[display("update_channel: {}, subtitle: {:?}", update_channel, subtitle)]
 pub struct PopcornProperties {
     /// Configuration for loggers.
     #[serde(default = "DEFAULT_LOGGERS")]

@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
+import java.util.Objects;
 import java.util.ResourceBundle;
 
 @Slf4j
@@ -78,7 +79,7 @@ public class PlayerHeaderComponent implements Initializable {
 
     private void onCaptionChanged(String caption) {
         Platform.runLater(() -> {
-            PlayerHeaderComponent.this.separator.setVisible(caption != null);
+            PlayerHeaderComponent.this.separator.setVisible(Objects.nonNull(caption) && !caption.isBlank());
             PlayerHeaderComponent.this.caption.setText(caption);
         });
     }

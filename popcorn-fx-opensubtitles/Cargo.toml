@@ -15,9 +15,7 @@ crate-type = ["rlib"]
 popcorn-fx-core = { path = "../popcorn-fx-core" }
 
 async-trait.workspace = true
-bytes = "1.4"
 derive_more.workspace = true
-derive-new = "0"
 futures.workspace = true
 itertools.workspace = true
 log.workspace = true
@@ -29,6 +27,6 @@ tokio = {workspace = true, features = ["fs"]}
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
 
-httpmock = "0"
-tempfile = "3"
+httpmock = "0.8"
+tempfile = "3.24"
 tokio = { version = "1", features = ["test-util", "macros"] }

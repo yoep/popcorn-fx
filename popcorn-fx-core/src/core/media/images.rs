@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 /// The available images for a media item, including the vertical poster image, fanart image, and banner image.
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, Display)]
-#[display(fmt = "poster: {}, fanart: {}, banner: {}", poster, fanart, banner)]
+#[display("poster: {}, fanart: {}, banner: {}", poster, fanart, banner)]
 pub struct Images {
     /// The vertical rectangle poster image URL.
     pub poster: String,

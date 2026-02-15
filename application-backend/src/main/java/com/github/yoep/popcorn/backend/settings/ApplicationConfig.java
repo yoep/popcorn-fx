@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import javafx.application.Platform;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -25,6 +26,7 @@ public class ApplicationConfig extends AbstractListenerService<ApplicationSettin
     private final FxChannel fxChannel;
     private final LocaleText localeText;
 
+    @Setter
     private Consumer<Float> onUiScaleChanged;
     private ApplicationArgs applicationArgs;
 
@@ -76,10 +78,6 @@ public class ApplicationConfig extends AbstractListenerService<ApplicationSettin
         return applicationArgs().getIsFxPlayerEnabled();
     }
 
-    public void setOnUiScaleChanged(Consumer<Float> onUiScaleChanged) {
-        this.onUiScaleChanged = onUiScaleChanged;
-    }
-
     //endregion
 
     //region Methods
@@ -96,6 +94,13 @@ public class ApplicationConfig extends AbstractListenerService<ApplicationSettin
      */
     public void decreaseUIScale() {
         changeScale(-1);
+    }
+
+    /**
+     * Reset the UI scale to the default value.
+     */
+    public void resetUIScale() {
+        onUiScaleChanged(ApplicationSettings.UISettings.Scale.newBuilder().setFactor(1.0f).build());
     }
 
     /**
@@ -197,7 +202,7 @@ public class ApplicationConfig extends AbstractListenerService<ApplicationSettin
                         .orElse(Locale.ENGLISH);
 
                 Platform.runLater(() -> {
-                    updateUIScale(uiSettings.getScale().getFactor());
+                    onUiScaleChanged(uiSettings.getScale(), settings);
                     localeText.updateLocale(locale);
                 });
             } else {
@@ -248,18 +253,29 @@ public class ApplicationConfig extends AbstractListenerService<ApplicationSettin
                 if (newIndex == supportedUIScales.size() - 1 || newIndex < 0)
                     return;
 
-                update(ApplicationSettings.UISettings.newBuilder(settings.getUiSettings())
-                        .setScale(supportedUIScales.get(newIndex))
-                        .build());
+                onUiScaleChanged(supportedUIScales.get(newIndex), settings);
             } else {
                 log.error("Failed to retrieve settings", throwable);
             }
         });
     }
 
-    private void updateUIScale(float scale) {
-        Optional.ofNullable(onUiScaleChanged)
-                .ifPresent(e -> e.accept(scale));
+    private void onUiScaleChanged(ApplicationSettings.UISettings.Scale scale) {
+        getSettings().whenComplete((settings, throwable) -> {
+            if (throwable == null) {
+                onUiScaleChanged(scale, settings);
+            } else {
+                log.error("Failed to retrieve settings", throwable);
+            }
+        });
+    }
+
+    private void onUiScaleChanged(ApplicationSettings.UISettings.Scale scale, ApplicationSettings settings) {
+        update(ApplicationSettings.UISettings.newBuilder(settings.getUiSettings())
+                .setScale(scale)
+                .build());
+        Platform.runLater(() -> Optional.ofNullable(onUiScaleChanged)
+                .ifPresent(e -> e.accept(scale.getFactor())));
     }
 
     private Integer currentUIScaleIndex(ApplicationSettings.UISettings settings) {

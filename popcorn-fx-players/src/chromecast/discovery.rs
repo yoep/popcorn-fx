@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use derive_more::Display;
 use itertools::Itertools;
 use log::{debug, info, trace, warn};
-use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
+use mdns_sd::{ResolvedService, ServiceDaemon, ServiceEvent};
 use popcorn_fx_core::core::players::PlayerManager;
 use popcorn_fx_core::core::subtitles::SubtitleServer;
 use tokio::select;
@@ -24,7 +24,7 @@ pub(crate) const SERVICE_TYPE: &str = "_googlecast._tcp.local.";
 const INFO_UNKNOWN: &str = "Unknown";
 
 #[derive(Debug, Display)]
-#[display(fmt = "Chromecast device discovery")]
+#[display("Chromecast device discovery")]
 pub struct ChromecastDiscovery {
     inner: Arc<InnerChromecastDiscovery>,
 }
@@ -268,7 +268,7 @@ impl InnerChromecastDiscovery {
 
     async fn register_device<S: Into<String>>(
         &self,
-        info: ServiceInfo,
+        info: Box<ResolvedService>,
         addr: S,
         port: u16,
     ) -> chromecast::Result<()> {
@@ -328,7 +328,11 @@ mod tests {
         init_logger!();
         let player_manager = MockPlayerManager::new();
         let subtitle_provider = MockSubtitleProvider::new();
-        let subtitle_server = Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider))));
+        let subtitle_server = Arc::new(
+            SubtitleServer::new(Arc::new(subtitle_provider))
+                .await
+                .unwrap(),
+        );
         let discovery = ChromecastDiscovery::builder()
             .player_manager(Arc::new(Box::new(player_manager)))
             .subtitle_server(subtitle_server)
@@ -359,7 +363,11 @@ mod tests {
         let mut test_instance = TestInstance::new_mdns().await;
         let mdns = test_instance.mdns.take().unwrap();
         let subtitle_provider = MockSubtitleProvider::new();
-        let subtitle_server = Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider))));
+        let subtitle_server = Arc::new(
+            SubtitleServer::new(Arc::new(subtitle_provider))
+                .await
+                .unwrap(),
+        );
         let discovery = ChromecastDiscovery::builder()
             .player_manager(Arc::new(Box::new(player_manager)))
             .subtitle_server(subtitle_server)
@@ -382,7 +390,11 @@ mod tests {
         let mut test_instance = TestInstance::new_mdns().await;
         let mdns = test_instance.mdns.take().unwrap();
         let subtitle_provider = MockSubtitleProvider::new();
-        let subtitle_server = Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider))));
+        let subtitle_server = Arc::new(
+            SubtitleServer::new(Arc::new(subtitle_provider))
+                .await
+                .unwrap(),
+        );
         let discovery = ChromecastDiscovery::builder()
             .player_manager(Arc::new(Box::new(player_manager)))
             .subtitle_server(subtitle_server)

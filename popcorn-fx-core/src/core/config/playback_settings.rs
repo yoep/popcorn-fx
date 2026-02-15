@@ -7,7 +7,7 @@ const DEFAULT_AUTO_PLAY_NEXT_EPISODE: fn() -> bool = || true;
 
 /// The preferences for the video playbacks
 #[derive(Debug, Display, Clone, Serialize, Deserialize, PartialEq)]
-#[display(fmt = "quality: {:?}", quality)]
+#[display("quality: {:?}", quality)]
 pub struct PlaybackSettings {
     /// The default playback quality
     #[serde(default = "DEFAULT_QUALITY")]

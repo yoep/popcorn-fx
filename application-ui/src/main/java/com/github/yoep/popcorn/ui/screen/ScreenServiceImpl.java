@@ -2,8 +2,8 @@ package com.github.yoep.popcorn.ui.screen;
 
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.events.MaximizeEvent;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
-import com.github.yoep.popcorn.backend.lib.FxChannel;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.view.ViewManager;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
@@ -26,24 +26,21 @@ public class ScreenServiceImpl implements ScreenService {
     private final ApplicationConfig applicationConfig;
     private final EventPublisher eventPublisher;
     private final MaximizeService maximizeService;
-    private final FxChannel fxChannel;
 
     private final BooleanProperty fullscreen = new SimpleBooleanProperty(this, FULLSCREEN_PROPERTY, false);
 
     private Stage primaryStage;
     private long lastChange;
 
-    public ScreenServiceImpl(ViewManager viewManager, ApplicationConfig applicationConfig, EventPublisher eventPublisher, MaximizeService maximizeService, FxChannel fxChannel) {
+    public ScreenServiceImpl(ViewManager viewManager, ApplicationConfig applicationConfig, EventPublisher eventPublisher, MaximizeService maximizeService) {
         Objects.requireNonNull(viewManager, "viewManager cannot be null");
         Objects.requireNonNull(applicationConfig, "applicationConfig cannot be null");
         Objects.requireNonNull(eventPublisher, "eventPublisher cannot be null");
         Objects.requireNonNull(maximizeService, "maximizeService cannot be null");
-        Objects.requireNonNull(fxChannel, "fxChannel cannot be null");
         this.viewManager = viewManager;
         this.applicationConfig = applicationConfig;
         this.eventPublisher = eventPublisher;
         this.maximizeService = maximizeService;
-        this.fxChannel = fxChannel;
         init();
     }
 
@@ -95,9 +92,10 @@ public class ScreenServiceImpl implements ScreenService {
             }
             return event;
         });
-        // TODO
-//        fxLib.register_is_fullscreen_callback(instance, isFullscreenCallback);
-//        fxLib.register_fullscreen_callback(instance, fullscreenCallback);
+        eventPublisher.register(MaximizeEvent.class, event -> {
+            Platform.runLater(() -> primaryStage.setFullScreen(event.isMaximize()));
+            return null;
+        });
     }
 
     private void initializeViewManagerListeners() {

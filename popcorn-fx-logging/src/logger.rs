@@ -99,14 +99,15 @@ impl FxLogger {
     }
 
     fn create_file_appender(path: impl AsRef<Path>) -> Result<Appender> {
-        if !path
+        if let Err(e) = path
             .as_ref()
             .parent()
-            .map(|e| e.exists())
-            .filter(|e| *e)
-            .unwrap_or_default()
+            .map(std::fs::create_dir_all)
+            .transpose()
         {
-            return Err(Error::NotFound);
+            if e.kind() != std::io::ErrorKind::AlreadyExists {
+                return Err(Error::from(e));
+            }
         }
 
         let policy = CompoundPolicy::new(

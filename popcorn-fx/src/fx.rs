@@ -204,7 +204,7 @@ impl PopcornFX {
         trace!("Registering default crypto provider");
         rustls::crypto::aws_lc_rs::default_provider()
             .install_default()
-            .map_err(|e| {
+            .map_err(|_| {
                 Error::Initialization("failed to initialize crypto provider".to_string())
             })?;
 

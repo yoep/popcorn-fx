@@ -13,6 +13,7 @@ path = "src/main.rs"
 
 [dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core" }
+popcorn-fx-logging = { path = "../popcorn-fx-logging" }
 popcorn-fx-opensubtitles = { path = "../popcorn-fx-opensubtitles" }
 popcorn-fx-platform = { path = "../popcorn-fx-platform" }
 popcorn-fx-players = { path = "../popcorn-fx-players" }
@@ -29,13 +30,11 @@ derive_more.workspace = true
 directories.workspace = true
 itertools.workspace = true
 log.workspace = true
-log4rs = { workspace = true, features = ["console_appender", "rolling_file_appender", "compound_policy"] }
 protobuf.workspace = true
 rustls = { version = "0.23", features = ["aws-lc-rs"] }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "fs", "time", "signal"] }
 tokio-util = { workspace = true }
-url.workspace = true
 
 [dev-dependencies]
 popcorn-fx = { path = "." }
@@ -45,6 +44,7 @@ httpmock.workspace = true
 mockall.workspace = true
 reqwest.workspace = true
 tempfile.workspace = true
+url.workspace = true
 
 [build-dependencies]
 protobuf-codegen = "3.7.1"

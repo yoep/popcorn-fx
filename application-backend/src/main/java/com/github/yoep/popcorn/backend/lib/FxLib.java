@@ -24,8 +24,8 @@ public class FxLib implements Closeable {
     public FxLib(String[] args) {
         try {
             createSocket(args);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        } catch (Exception ex) {
+            throw new FxLibException(String.format("FX Library failed to initialize, " + ex.getMessage()), ex);
         }
     }
 
@@ -102,15 +102,13 @@ public class FxLib implements Closeable {
     Process launchLibProcess(String sockerPort, String libraryExecutable, String[] args) throws IOException {
         var processCommand = new ArrayList<>(asList(libraryExecutable, sockerPort));
         processCommand.addAll(asList(args));
-        return new ProcessBuilder(processCommand)
-                .inheritIO()
-                .start();
+        return new ProcessBuilder(processCommand).inheritIO().start();
     }
 
     private void createSocket(String[] args) {
+        var libraryExecutable = isWindows() ? "libfx.exe" : "libfx";
         try (var serverSocket = new ServerSocket(0)) {
             var port = serverSocket.getLocalPort();
-            var libraryExecutable = isWindows() ? "libfx.exe" : "libfx";
 
             process = launchLibProcess(String.valueOf(port), libraryExecutable, args);
 
@@ -122,7 +120,7 @@ public class FxLib implements Closeable {
             this.socket = socket;
             this.serverSocket = serverSocket;
         } catch (IOException ex) {
-            throw new FxLibException(String.format("Failed to start IPC process, %s", ex.getMessage()), ex);
+            throw new FxLibException(String.format("IPC process \"%s\" failed to start, %s", libraryExecutable, ex.getMessage()), ex);
         }
     }
 

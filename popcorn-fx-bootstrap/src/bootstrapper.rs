@@ -1,26 +1,17 @@
+use crate::data_installer::{DataInstaller, DefaultDataInstaller};
+use directories::BaseDirs;
+use log::{debug, error, trace, warn};
+use popcorn_fx_core::core::launcher::LauncherOptions;
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
-use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use std::{env, thread};
-
-use directories::BaseDirs;
-use log::{debug, error, trace, warn, LevelFilter};
-use log4rs::append::console::ConsoleAppender;
-use log4rs::config::{Appender, Root};
-use log4rs::encode::pattern::PatternEncoder;
-use log4rs::Config;
 use thiserror::Error;
 
-use popcorn_fx_core::core::launcher::LauncherOptions;
-
-use crate::data_installer::{DataInstaller, DefaultDataInstaller};
-
-const CONSOLE_APPENDER: &str = "stdout";
-const DEFAULT_LOG_LEVEL: &str = "info";
-const LOG_FORMAT_CONSOLE: &str = "\x1B[37m{d(%Y-%m-%d %H:%M:%S%.3f)}\x1B[0m {h({l:>5.5})} \x1B[35m{I:>6.6}\x1B[0m \x1B[37m---\x1B[0m \x1B[37m[{T:>15.15}]\x1B[0m \x1B[36m{t:<40.40}\x1B[0m \x1B[37m:\x1B[0m {m}{n}";
 const DATA_DIRECTORY_NAME: &str = "popcorn-fx";
 const RUNTIMES_DIRECTORY_NAME: &str = "runtimes";
 #[cfg(target_family = "windows")]
@@ -139,7 +130,7 @@ impl Bootstrapper {
 
     fn launch_instance(&self) -> Result<Action> {
         let mut command = self.command();
-        trace!("Spawning process {:?}", command);
+        debug!("Spawning process {:?}", command);
         let mut child = command
             .spawn()
             .map_err(|e| BootstrapError::ExecuteFailed(command, e.to_string()))?;
@@ -158,7 +149,7 @@ impl Bootstrapper {
         // shutdown the current running process
         match child.kill() {
             Ok(_) => trace!("Application process has been terminated"),
-            Err(_) => trace!("Application has already been terminated"),
+            Err(_) => debug!("Application has already been terminated"),
         }
 
         Ok(Action::Shutdown)
@@ -182,31 +173,21 @@ impl Bootstrapper {
             self.args
         );
         let mut command = Command::new(process_path);
-        command
-            .arg(
-                format!(
-                    "-Djna.library.path={}{}{}",
-                    data_version_path_value,
-                    PATH_SEPARATOR,
-                    self.path.as_str()
-                )
-                .as_str(),
-            )
-            .arg(
-                format!(
-                    "-Djava.library.path={}{}{}",
-                    data_version_path_value,
-                    PATH_SEPARATOR,
-                    self.path.as_str()
-                )
-                .as_str(),
-            );
 
         for vm_arg in options.vm_args.iter() {
             command.arg(vm_arg.as_str());
         }
 
         command
+            .env(
+                "PATH",
+                format!(
+                    "{}{}{}",
+                    data_version_path_value,
+                    PATH_SEPARATOR,
+                    env::var("PATH").unwrap_or_default()
+                ),
+            )
             .arg("-jar")
             .arg(jar_path.to_str().unwrap())
             .args(self.args.clone())
@@ -245,47 +226,6 @@ impl Bootstrapper {
             .unwrap_or(Action::Restart)
     }
 
-    fn initialize_logger() {
-        let root_level = match LevelFilter::from_str(
-            env::var("LOG_LEVEL")
-                .unwrap_or(DEFAULT_LOG_LEVEL.to_string())
-                .as_str(),
-        ) {
-            Ok(level) => level,
-            Err(e) => {
-                eprintln!("Failed to configure logger, {}", e);
-                return;
-            }
-        };
-        let config = match Config::builder()
-            .appender(
-                Appender::builder().build(
-                    CONSOLE_APPENDER,
-                    Box::new(
-                        ConsoleAppender::builder()
-                            .encoder(Box::new(PatternEncoder::new(LOG_FORMAT_CONSOLE)))
-                            .build(),
-                    ),
-                ),
-            )
-            .build(
-                Root::builder()
-                    .appender(CONSOLE_APPENDER)
-                    .build(LevelFilter::from_str(root_level.as_str()).unwrap()),
-            ) {
-            Ok(config) => config,
-            Err(e) => {
-                eprintln!("Failed to configure logger, {}", e);
-                return;
-            }
-        };
-
-        match log4rs::init_config(config) {
-            Ok(_) => trace!("Popcorn FX bootstrap logger has been initialized"),
-            Err(e) => eprintln!("Failed to configure logger, {}", e),
-        }
-    }
-
     fn get_launcher_options<P: AsRef<Path>>(path: P) -> LauncherOptions {
         LauncherOptions::new(path)
     }
@@ -310,7 +250,6 @@ pub struct BootstrapperBuilder {
     args: Option<Vec<String>>,
     data_base_path: Option<PathBuf>,
     installation_path: Option<PathBuf>,
-    disable_logger: bool,
     process_path: Option<String>,
 }
 
@@ -367,28 +306,6 @@ impl BootstrapperBuilder {
         self
     }
 
-    /// Disables the log4rs logger used by `Bootstrapper`.
-    /// This allows you to use your own logger if needed, or modify the default logger settings.
-    ///
-    /// # Arguments
-    ///
-    /// * `disable_logger` - A boolean value indicating whether to disable the logger (`true`) or not (`false`).
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use my_crate::BootstrapperBuilder;
-    ///
-    /// let bootstrapper = BootstrapperBuilder::default()
-    ///     .disable_logger(true)
-    ///     .build();
-    /// ```
-    #[allow(dead_code)]
-    pub fn disable_logger(mut self, disable_logger: bool) -> Self {
-        self.disable_logger = disable_logger;
-        self
-    }
-
     /// Sets the static path to the process executable for the `Bootstrapper`.
     ///
     /// # Arguments
@@ -406,9 +323,6 @@ impl BootstrapperBuilder {
     ///
     /// This method will panic if either the `path` or `args` fields have not been set.
     pub fn build(self) -> Bootstrapper {
-        if !self.disable_logger {
-            Bootstrapper::initialize_logger();
-        }
         let mut args = self.args.expect("Args are not set").into_iter();
         let _program_name = args.next().unwrap();
         let data_base_path = self.data_base_path.unwrap_or_else(|| {
@@ -467,7 +381,6 @@ mod test {
             .args(vec!["popcorn-fx".to_string()])
             .path("".to_string())
             .data_base_path(Some(PathBuf::from(temp_path)))
-            .disable_logger(true)
             .build();
     }
 

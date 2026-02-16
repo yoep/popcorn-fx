@@ -126,10 +126,12 @@ public class FxChannel implements Closeable {
                     log.trace("IPC channel received {}", message.getType());
                     executor.execute(() -> processMessage(message));
                 } catch (FxChannelException ex) {
-                    log.error("IPC channel receiver encountered an error, {}", ex.getMessage(), ex);
+                    System.err.println("IPC channel receiver encountered an error: " + ex.getMessage());
+                    ex.printStackTrace(System.err);
                     running.set(false);
                 } catch (Exception ex) {
-                    log.error("IPC channel receiver encountered an error, {}", ex.getMessage(), ex);
+                    System.err.println("IPC channel receiver encountered an error: " + ex.getMessage());
+                    ex.printStackTrace(System.err);
                 }
             }
 

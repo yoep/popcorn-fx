@@ -14,13 +14,10 @@ path = "src/main.rs"
 
 [dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", default-features = false, features = ["launcher"] }
+popcorn-fx-logging = { path = "../popcorn-fx-logging" }
 
 directories.workspace = true
 log.workspace = true
-log4rs = { workspace = true, features = ["console_appender"] }
-mockall = "0"
-serde.workspace = true
-serde_yaml.workspace = true
 signal-hook = { version = "0.4" }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread"] }
@@ -28,7 +25,8 @@ tokio = { workspace = true, features = ["rt-multi-thread"] }
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
 
-tempfile = "3"
+mockall.workspace = true
+tempfile.workspace = true
 tokio = { workspace = true, features = ["test-util", "macros"] }
 
 [build-dependencies]

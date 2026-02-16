@@ -1,8 +1,8 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="PopcornTimeStarter" type="Application" factoryName="Application" nameIsGenerated="true">
+  <configuration default="false" name="PopcornTimeStarter - Debian" type="Application" factoryName="Application">
     <envs>
       <env name="RUST_BACKTRACE" value="1" />
-      <env name="PATH" value="assets/mac:${PATH}" />
+      <env name="PATH" value="assets/debian:${PATH}" />
     </envs>
     <option name="MAIN_CLASS_NAME" value="com.github.yoep.popcorn.PopcornTimeStarter" />
     <module name="application" />

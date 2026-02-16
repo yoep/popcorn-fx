@@ -5,9 +5,10 @@ members = [
     "popcorn-fx",
     "popcorn-fx-bootstrap",
     "popcorn-fx-core",
-    "popcorn-fx-players",
+    "popcorn-fx-logging",
     "popcorn-fx-opensubtitles",
     "popcorn-fx-platform",
+    "popcorn-fx-players",
     "popcorn-fx-trakt",
 ]
 
@@ -50,7 +51,7 @@ url = "2.5.7"
 # dev-dependencies
 httpmock = "0.8"
 mockall = "0.14.0"
-tempfile = "3.23"
+tempfile = "3.25"
 
 [profile.release]
 opt-level = 3

@@ -1,0 +1,21 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="PopcornTimeStarter - MacOS" type="Application" factoryName="Application">
+    <envs>
+      <env name="RUST_BACKTRACE" value="1" />
+      <env name="PATH" value="assets/mac:${PATH}" />
+    </envs>
+    <option name="MAIN_CLASS_NAME" value="com.github.yoep.popcorn.PopcornTimeStarter" />
+    <module name="application" />
+    <option name="PROGRAM_PARAMETERS" value="-" />
+    <option name="VM_PARAMETERS" value="-Dprism.dirtyopts=false -Dsun.awt.disablegrab=true -Dprism.verbose=true -Dprism.lcdtext=false -Xms100M -XX:+UseG1GC -XX:+HeapDumpOnOutOfMemoryError -XX:+EnableDynamicAgentLoading" />
+    <extension name="coverage">
+      <pattern>
+        <option name="PATTERN" value="com.github.yoep.popcorn.*" />
+        <option name="ENABLED" value="true" />
+      </pattern>
+    </extension>
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

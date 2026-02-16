@@ -1,0 +1,18 @@
+[package]
+name = "popcorn-fx-logging"
+version = "0.9.0"
+edition = "2021"
+rust-version = "1.75"
+publish = false
+license-file = "../LICENSE"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+log.workspace = true
+log4rs = { workspace = true, features = ["console_appender", "rolling_file_appender", "compound_policy"] }
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

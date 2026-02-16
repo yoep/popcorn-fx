@@ -3,6 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use log::{debug, trace};
+#[cfg(test)]
 use mockall::automock;
 use thiserror::Error;
 
@@ -37,7 +38,7 @@ impl From<LauncherError> for DataInstallerError {
 }
 
 /// A trait for installing and preparing application data.
-#[automock]
+#[cfg_attr(test, automock)]
 pub trait DataInstaller: Debug + Send + Sync {
     /// Prepares the user's data system with the initial version of the application if needed.
     ///

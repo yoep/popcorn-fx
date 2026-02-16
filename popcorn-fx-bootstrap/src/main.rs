@@ -1,17 +1,17 @@
 #![windows_subsystem = "windows"]
 
+use crate::bootstrapper::{BootstrapError, Bootstrapper};
+use log::{error, LevelFilter};
+use popcorn_fx_logging::FxLogger;
+use signal_hook::consts::TERM_SIGNALS;
+use signal_hook::flag;
 use std::env;
 use std::env::VarError;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-
-use crate::bootstrapper::{BootstrapError, Bootstrapper};
-use log::error;
-use signal_hook::consts::TERM_SIGNALS;
-use signal_hook::flag;
-use tokio::runtime::Runtime;
 use tokio::time::sleep;
 
 mod bootstrapper;
@@ -41,8 +41,18 @@ const DATA_DIR: &str = "DATA_DIR";
 /// # Errors
 ///
 /// This function returns a `BootstrapError` if there was an issue with bootstrapping the application.
-fn main() -> Result<(), BootstrapError> {
-    let runtime = Runtime::new().unwrap();
+#[tokio::main]
+async fn main() -> Result<(), BootstrapError> {
+    let root_level = env::var("LOG_LEVEL")
+        .ok()
+        .and_then(|e| LevelFilter::from_str(e.as_str()).ok())
+        .unwrap_or(LevelFilter::Info);
+    let _logger = match FxLogger::builder().root_level(root_level).build() {
+        Ok(e) => e,
+        Err(e) => {
+            return Err(BootstrapError::InitialSetupFailed(e.to_string()));
+        }
+    };
     let term_now = Arc::new(AtomicBool::new(false));
     for signal in TERM_SIGNALS {
         flag::register_conditional_shutdown(*signal, 1, term_now.clone()).unwrap();
@@ -76,7 +86,7 @@ fn main() -> Result<(), BootstrapError> {
 
     let bootstrapper_shutdown = bootstrapper.clone();
     let term_now_shutdown = term_now.clone();
-    runtime.spawn(async move {
+    tokio::spawn(async move {
         while !term_now_shutdown.load(Ordering::Relaxed) {
             sleep(Duration::from_millis(200)).await;
         }

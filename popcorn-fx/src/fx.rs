@@ -2,14 +2,6 @@ use clap::Parser;
 use derive_more::Display;
 use directories::{BaseDirs, UserDirs};
 use log::{debug, error, info, trace, warn, LevelFilter};
-use log4rs::append::console::ConsoleAppender;
-use log4rs::append::rolling_file::policy::compound::roll::fixed_window::FixedWindowRoller;
-use log4rs::append::rolling_file::policy::compound::trigger::size::SizeTrigger;
-use log4rs::append::rolling_file::policy::compound::CompoundPolicy;
-use log4rs::append::rolling_file::RollingFileAppender;
-use log4rs::config::{Appender, Logger, Root};
-use log4rs::encode::pattern::PatternEncoder;
-use log4rs::Config;
 use popcorn_fx_core::core::cache::CacheManager;
 use popcorn_fx_core::core::config::{ApplicationConfig, PopcornProperties};
 use popcorn_fx_core::core::event::EventPublisher;
@@ -43,6 +35,7 @@ use popcorn_fx_core::core::torrents::collection::TorrentCollection;
 use popcorn_fx_core::core::torrents::stream::FXTorrentStreamServer;
 use popcorn_fx_core::core::torrents::{FxTorrentManager, TorrentManager, TorrentStreamServer};
 use popcorn_fx_core::core::updater::Updater;
+use popcorn_fx_logging::FxLogger;
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
 use popcorn_fx_platform::platform::DefaultPlatform;
 use popcorn_fx_players::chromecast::ChromecastDiscovery;
@@ -54,21 +47,13 @@ use std::env;
 use std::fmt::{Debug, Formatter};
 use std::path::PathBuf;
 use std::str::FromStr;
-use std::sync::{Arc, Once};
+use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
 
-static INIT: Once = Once::new();
-
 const LOG_FILENAME: &str = "log4.yml";
-const LOG_FORMAT_CONSOLE: &str = "\x1B[37m{d(%Y-%m-%d %H:%M:%S%.3f)}\x1B[0m {h({l:>5.5})} \x1B[35m{I:>6.6}\x1B[0m \x1B[37m---\x1B[0m \x1B[37m[{T:>15.15}]\x1B[0m \x1B[36m{t:<40.40}\x1B[0m \x1B[37m:\x1B[0m {m}{n}";
-const LOG_FORMAT_FILE: &str =
-    "{d(%Y-%m-%d %H:%M:%S%.3f)} {h({l:>5.5})} {I:>6.6} --- [{T:>15.15}] {t:<40.40} : {m}{n}";
-const CONSOLE_APPENDER: &str = "stdout";
-const FILE_APPENDER: &str = "file";
 const LOG_FILE_DIRECTORY: &str = "logs";
 const LOG_FILE_NAME: &str = "popcorn-time.log";
-const LOG_FILE_SIZE: u64 = 50 * 1024 * 1024;
 const DEFAULT_APP_DIRECTORY: fn() -> String = || {
     UserDirs::new()
         .map(|e| PathBuf::from(e.home_dir()))
@@ -210,7 +195,7 @@ impl PopcornFX {
     async fn try_new(args: PopcornFxArgs) -> Result<Self> {
         // check if we need to enable the logger
         if !args.disable_logger {
-            Self::initialize_logger(&args);
+            Self::initialize_logger(&args)?;
         }
         if args.insecure {
             warn!("INSECURE CONNECTIONS ARE ENABLED");
@@ -219,7 +204,7 @@ impl PopcornFX {
         trace!("Registering default crypto provider");
         rustls::crypto::aws_lc_rs::default_provider()
             .install_default()
-            .map_err(|e| {
+            .map_err(|_| {
                 Error::Initialization("failed to initialize crypto provider".to_string())
             })?;
 
@@ -543,92 +528,37 @@ impl PopcornFX {
         });
     }
 
-    fn initialize_logger(args: &PopcornFxArgs) {
-        INIT.call_once(|| {
-            let config: Config;
-            let root_level = env::var("LOG_LEVEL").unwrap_or("Info".to_string());
-            let log_path = env::current_dir()
-                .expect("Home directory should exist")
-                .join(LOG_FILENAME);
-
-            if log_path.exists() {
-                match log4rs::config::load_config_file(log_path, Default::default()) {
-                    Err(ex) => panic!("failed to initialize logger through file, {}", ex),
-                    Ok(e) => config = e,
-                };
-            } else {
-                let rolling_file_appender = Self::create_rolling_file_appender(args);
-                let mut config_builder = Config::builder()
-                    .appender(
-                        Appender::builder().build(
-                            CONSOLE_APPENDER,
-                            Box::new(
-                                ConsoleAppender::builder()
-                                    .encoder(Box::new(PatternEncoder::new(LOG_FORMAT_CONSOLE)))
-                                    .build(),
-                            ),
-                        ),
-                    )
-                    .appender(rolling_file_appender);
-
-                for (logger, logging) in args.properties.loggers.iter() {
-                    config_builder = config_builder.logger(Logger::builder().build(
-                        logger,
-                        match LevelFilter::from_str(logging.level.as_str()) {
-                            Ok(e) => e,
-                            Err(e) => {
-                                eprintln!("Failed to parse log level for {}, {}", logger, e);
-                                LevelFilter::Info
-                            }
-                        },
-                    ));
-                }
-
-                config = config_builder
-                    .build(
-                        Root::builder()
-                            .appender(CONSOLE_APPENDER)
-                            .appender(FILE_APPENDER)
-                            .build(LevelFilter::from_str(root_level.as_str()).unwrap()),
-                    )
-                    .unwrap()
-            }
-
-            match log4rs::init_config(config) {
-                Ok(_) => info!("Popcorn FX logger has been initialized"),
-                Err(e) => eprintln!("Failed to configure logger, {}", e),
-            }
-        });
-    }
-
-    fn create_rolling_file_appender(args: &PopcornFxArgs) -> Appender {
+    fn initialize_logger(args: &PopcornFxArgs) -> Result<()> {
+        let root_level = env::var("LOG_LEVEL")
+            .ok()
+            .and_then(|e| LevelFilter::from_str(e.as_str()).ok())
+            .unwrap_or(LevelFilter::Info);
+        let config_path = env::current_dir()
+            .ok()
+            .map(|e| e.join(LOG_FILENAME))
+            .filter(|e| e.exists());
         let log_path = PathBuf::from(args.app_directory.clone())
             .join(LOG_FILE_DIRECTORY)
             .join(LOG_FILE_NAME);
-        let policy = CompoundPolicy::new(
-            Box::new(SizeTrigger::new(LOG_FILE_SIZE)),
-            Box::new(
-                FixedWindowRoller::builder()
-                    .base(1)
-                    .build("popcorn-time.{}.log", 5)
-                    .expect("expected the window roller to be valid"),
-            ),
-        );
+        let mut builder = FxLogger::builder();
 
-        Appender::builder().build(
-            FILE_APPENDER,
-            Box::new(
-                RollingFileAppender::builder()
-                    .encoder(Box::new(PatternEncoder::new(LOG_FORMAT_FILE)))
-                    .append(false)
-                    .build(log_path.clone(), Box::new(policy))
-                    .map_err(|e| {
-                        eprintln!("Invalid log path {:?}, {}", log_path, e);
-                        e
-                    })
-                    .unwrap(),
-            ),
-        )
+        if let Some(path) = config_path {
+            builder.config_path(path);
+        }
+
+        for (logger, logging) in args.properties.loggers.iter() {
+            builder.logger(
+                logger,
+                LevelFilter::from_str(logging.level.as_str()).unwrap_or(LevelFilter::Info),
+            );
+        }
+
+        builder
+            .root_level(root_level)
+            .log_path(log_path)
+            .build()
+            .map_err(|e| Error::Initialization(e.to_string()))?;
+        Ok(())
     }
 
     async fn default_providers(
@@ -837,6 +767,6 @@ mod test {
         };
 
         // should not panic on the invalid level
-        PopcornFX::initialize_logger(&args);
+        let _ = PopcornFX::initialize_logger(&args).expect("failed to initialize logger");
     }
 }

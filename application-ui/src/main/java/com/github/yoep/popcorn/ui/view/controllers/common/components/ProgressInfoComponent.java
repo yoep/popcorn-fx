@@ -34,7 +34,7 @@ public class ProgressInfoComponent {
         progressPercentage.setText(ProgressUtils.progressToPercentage(status));
         downloadText.setText(ProgressUtils.progressToDownload(status));
         uploadText.setText(ProgressUtils.progressToUpload(status));
-        activePeersText.setText(String.valueOf(status.seeds()));
+        activePeersText.setText(String.valueOf(status.connections()));
         downloadedText.setText(SizeUtils.toDisplaySize(status.downloaded()));
     }
 }

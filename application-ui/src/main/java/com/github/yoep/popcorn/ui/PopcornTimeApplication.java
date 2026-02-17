@@ -16,6 +16,7 @@ import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.player.PlayerManagerServiceImpl;
 import com.github.yoep.popcorn.backend.playlists.DefaultPlaylistManager;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import com.github.yoep.popcorn.backend.stream.StreamServer;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleServiceImpl;
 import com.github.yoep.popcorn.backend.torrent.FXTorrentService;
 import com.github.yoep.popcorn.backend.updater.UpdateService;
@@ -81,10 +82,11 @@ public class PopcornTimeApplication extends Application {
             var loaderService = IOC.registerInstance(new LoaderService(fxChannel, eventPublisher));
             var playerManagerService = IOC.registerInstance(new PlayerManagerServiceImpl(fxChannel, eventPublisher));
             var watchedService = IOC.registerInstance(new WatchedService(fxChannel));
-            var torrentService = IOC.registerInstance(new FXTorrentService(fxChannel));
             var platformProvider = IOC.registerInstance(new PlatformFX());
             var maximizeService = IOC.registerInstance(new MaximizeService(viewManager, applicationConfig));
             var authorization = IOC.registerInstance(new EmbeddedAuthorization(viewLoader, localeText));
+            var streamServer = IOC.registerInstance(new StreamServer(fxChannel));
+            IOC.registerInstance(new FXTorrentService(fxChannel));
             IOC.registerInstance(new SubtitleServiceImpl(fxChannel));
             IOC.registerInstance(new DefaultPlaylistManager(fxChannel, applicationConfig));
             IOC.registerInstance(new EventPublisherBridge(eventPublisher, fxChannel));
@@ -99,7 +101,7 @@ public class PopcornTimeApplication extends Application {
 
             // services
             IOC.registerInstance(new HealthService(fxChannel, eventPublisher));
-            IOC.registerInstance(new PlayerExternalComponentService(playerManagerService, eventPublisher, torrentService));
+            IOC.registerInstance(new PlayerExternalComponentService(playerManagerService, eventPublisher, streamServer));
             IOC.registerInstance(new TraktTrackingService(fxChannel, authorization));
             IOC.registerInstance(new UpdateService(fxChannel, platformProvider, eventPublisher, localeText));
             IOC.registerInstance(new ScreenServiceImpl(viewManager, applicationConfig, eventPublisher, maximizeService));

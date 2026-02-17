@@ -7,6 +7,7 @@ option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
 package fx.ipc.proto;
 
 import "message.proto";
+import "stream.proto";
 
 message Loading {
   enum State {
@@ -22,16 +23,6 @@ message Loading {
     READY = 9;
     PLAYING = 10;
     CANCELLED = 11;
-  }
-
-  message Progress {
-    float progress = 1;
-    uint32 seeds = 2;
-    uint32 peers = 3;
-    uint64 download_speed = 4;
-    uint64 upload_speed = 5;
-    uint64 downloaded = 6;
-    uint64 total_size = 7;
   }
 
   message Error {
@@ -83,7 +74,7 @@ message LoaderEvent {
 
   message ProgressChanged {
     Handle handle = 1;
-    Loading.Progress progress = 2;
+    Stream.StreamStats progress = 2;
   }
 
   message LoadingError {

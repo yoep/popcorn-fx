@@ -2,13 +2,14 @@ package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Handle;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ServerStream;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Stream;
 import com.github.yoep.popcorn.backend.player.PlayerManagerListener;
+import com.github.yoep.popcorn.backend.stream.IStreamServer;
+import com.github.yoep.popcorn.backend.stream.StreamListener;
 import com.github.yoep.popcorn.ui.view.listeners.PlayerExternalListener;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,7 +29,7 @@ class PlayerExternalComponentServiceTest {
     @Mock
     private PlayerManagerService playerManagerService;
     @Mock
-    private TorrentService torrentService;
+    private IStreamServer streamServer;
     @Spy
     private EventPublisher eventPublisher = new EventPublisher(false);
     private PlayerExternalComponentService service;
@@ -42,7 +43,7 @@ class PlayerExternalComponentServiceTest {
             return null;
         }).when(playerManagerService).addListener(isA(PlayerManagerListener.class));
 
-        service = new PlayerExternalComponentService(playerManagerService, eventPublisher, torrentService);
+        service = new PlayerExternalComponentService(playerManagerService, eventPublisher, streamServer);
     }
 
     @Test
@@ -140,42 +141,39 @@ class PlayerExternalComponentServiceTest {
 
     @Test
     void testOnPlayerTorrent_whenDownloadStatusIsChanged_shouldInvokedListeners() {
-        var streamListenerHolder = new AtomicReference<TorrentListener>();
-        var downloadStatus = mock(DownloadStatus.class);
+        var streamListenerHolder = new AtomicReference<StreamListener>();
         var playerListener = mock(PlayerExternalListener.class);
-        var handle = Handle.newBuilder()
-                .setHandle(123L)
-                .build();
+        var filename = "test-file.mp4";
         var request = com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player.PlayRequest.newBuilder()
-                .setTorrent(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player.PlayRequest.Torrent.newBuilder()
-                        .setHandle(handle)
+                .setStream(ServerStream.newBuilder()
+                        .setFilename(filename)
                         .build())
                 .build();
         doAnswer(invocation -> {
-            streamListenerHolder.set(invocation.getArgument(1, TorrentListener.class));
+            streamListenerHolder.set(invocation.getArgument(1, StreamListener.class));
             return null;
-        }).when(torrentService).addListener(isA(Handle.class), isA(TorrentListener.class));
+        }).when(streamServer).addListener(isA(String.class), isA(StreamListener.class));
         service.addListener(playerListener);
 
         var listener = playerListenerHolder.get();
         listener.onPlayerPlaybackChanged(request);
 
         var streamListener = streamListenerHolder.get();
-        streamListener.onDownloadStatus(downloadStatus);
+        streamListener.onStatsChanged(Stream.StreamStats.newBuilder()
+                .setProgress(0.5f)
+                .build());
 
-        verify(playerListener).onDownloadStatus(downloadStatus);
-        verify(torrentService).addListener(handle, streamListener);
+        verify(playerListener).onDownloadStatus(isA(DownloadStatus.class));
+        verify(streamServer).addListener(filename, streamListener);
     }
 
     @Test
     void testOnPlayerPlaybackChanged() {
         var playerListener = mock(PlayerExternalListener.class);
-        var handle = Handle.newBuilder()
-                .setHandle(1212L)
-                .build();
+        var filename = "test-file.mp4";
         var request = com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player.PlayRequest.newBuilder()
-                .setTorrent(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player.PlayRequest.Torrent.newBuilder()
-                        .setHandle(handle)
+                .setStream(ServerStream.newBuilder()
+                        .setFilename(filename)
                         .build())
                 .build();
         service.addListener(playerListener);
@@ -184,6 +182,6 @@ class PlayerExternalComponentServiceTest {
         listener.onPlayerPlaybackChanged(request);
 
         verify(playerListener).onRequestChanged(request);
-        verify(torrentService).addListener(eq(handle), isA(TorrentListener.class));
+        verify(streamServer).addListener(eq(filename), isA(StreamListener.class));
     }
 }

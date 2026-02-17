@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+option java_multiple_files = true;
+option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
+
+package fx.ipc.proto;
+
+import "message.proto";
+
+message Stream {
+  enum StreamState {
+    PREPARING = 0;
+    STREAMING = 1;
+    STOPPED = 2;
+  }
+
+  message StreamStats {
+    float progress = 1;
+    uint64 connections = 2;
+    uint32 download_speed = 3;
+    uint32 upload_speed = 4;
+    uint64 downloaded = 5;
+    uint64 total_size = 6;
+  }
+
+  message StreamEvent {
+    Type type = 1;
+    string filename = 2;
+    optional StreamState state = 3;
+    optional StreamStats stats = 4;
+
+    enum Type {
+      STATE_CHANGED = 0;
+      STATS_CHANGED = 1;
+    }
+  }
+
+  message Error {
+    Type type = 1;
+    optional AlreadyExists already_exists = 2;
+    optional NotFound not_found = 3;
+    optional IoError io = 4;
+    optional ParseError parse = 5;
+
+    message AlreadyExists {
+      string message = 1;
+    }
+
+    message NotFound {
+      string message = 1;
+    }
+
+    message IoError {
+      string message = 1;
+    }
+
+    message ParseError {
+      string message = 1;
+    }
+
+    enum Type {
+      ALREADY_EXISTS = 0;
+      NOT_FOUND = 1;
+      INVALID_STATE = 2;
+      INVALID_RANGE = 3;
+      PARSE = 4;
+      IO = 5;
+    }
+  }
+}
+
+message ServerStream {
+  string url = 1;
+  string filename = 2;
+}
+
+message StreamStateRequest {
+  string filename = 1;
+}
+
+message StreamStateResponse {
+  Response.Result result = 1;
+  optional Stream.StreamState state = 2;
+  optional Stream.Error error = 3;
+}

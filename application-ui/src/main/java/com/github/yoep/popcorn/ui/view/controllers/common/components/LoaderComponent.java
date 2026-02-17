@@ -4,6 +4,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.LoaderEvent;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Loading;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Stream;
 import com.github.yoep.popcorn.backend.loader.*;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.CloseLoadEvent;
@@ -117,7 +118,7 @@ public class LoaderComponent implements Initializable {
             }
 
             @Override
-            public void onProgressChanged(Loading.Progress progress) {
+            public void onProgressChanged(Stream.StreamStats progress) {
                 Platform.runLater(() -> onLoadingProgressChanged(progress));
             }
 
@@ -165,7 +166,7 @@ public class LoaderComponent implements Initializable {
         progressStatus.setVisible(false);
     }
 
-    private void onLoadingProgressChanged(Loading.Progress progress) {
+    private void onLoadingProgressChanged(Stream.StreamStats progress) {
         progressStatus.setVisible(true);
         progressBar.setProgress(progress.getProgress());
         progressBar.setVisible(true);
@@ -177,23 +178,18 @@ public class LoaderComponent implements Initializable {
             }
 
             @Override
-            public int seeds() {
-                return progress.getSeeds();
-            }
-
-            @Override
-            public int peers() {
-                return progress.getPeers();
+            public long connections() {
+                return progress.getConnections();
             }
 
             @Override
             public int downloadSpeed() {
-                return (int) progress.getDownloadSpeed();
+                return progress.getDownloadSpeed();
             }
 
             @Override
             public int uploadSpeed() {
-                return (int) progress.getUploadSpeed();
+                return progress.getUploadSpeed();
             }
 
             @Override

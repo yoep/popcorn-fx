@@ -1,7 +1,7 @@
 use crate::ipc::proto;
 use crate::ipc::proto::player::player::play_request;
 use crate::ipc::proto::subtitle::subtitle;
-use crate::ipc::proto::{message, player};
+use crate::ipc::proto::{player, stream};
 use popcorn_fx_core::core::players::{
     PlayRequest, PlaySubtitleRequest, Player, PlayerManagerEvent, PlayerState,
 };
@@ -52,14 +52,6 @@ impl From<&player::player::State> for PlayerState {
 
 impl From<&PlayRequest> for player::player::PlayRequest {
     fn from(value: &PlayRequest) -> Self {
-        let torrent = value
-            .torrent_stream()
-            .map(|e| message::Handle::from(&e.handle()))
-            .map(|handle| play_request::Torrent {
-                handle: MessageField::some(handle),
-                special_fields: Default::default(),
-            });
-
         Self {
             url: value.url().to_string(),
             title: value.title().to_string(),
@@ -69,7 +61,12 @@ impl From<&PlayRequest> for player::player::PlayRequest {
             quality: value.quality().clone(),
             auto_resume_timestamp: value.auto_resume_timestamp().clone(),
             subtitle: MessageField::some(play_request::PlaySubtitleRequest::from(value.subtitle())),
-            torrent: torrent.into(),
+            stream: MessageField::from_option(
+                value
+                    .stream()
+                    .map(|e| e.clone())
+                    .map(|e| Into::<stream::ServerStream>::into(e)),
+            ),
             special_fields: Default::default(),
         }
     }

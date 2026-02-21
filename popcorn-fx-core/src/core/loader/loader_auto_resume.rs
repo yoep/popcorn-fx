@@ -10,7 +10,6 @@ use crate::core::loader::{
     CancellationResult, LoadingData, LoadingError, LoadingResult, LoadingStrategy,
 };
 use crate::core::media::resume::AutoResumeService;
-use crate::core::torrents::Torrent;
 
 /// Represents a strategy for loading auto resume timestamps.
 #[derive(Display)]
@@ -123,7 +122,6 @@ impl LoadingStrategy for AutoResumeLoadingStrategy {
 mod tests {
     use super::*;
 
-    use crate::core::loader::TorrentData;
     use crate::core::media::resume::MockAutoResumeService;
     use crate::core::media::MovieOverview;
     use crate::core::playlist::{PlaylistItem, PlaylistMedia, PlaylistSubtitle, PlaylistTorrent};
@@ -173,7 +171,7 @@ mod tests {
             .expect_files()
             .returning(|| vec![create_file(filename)]);
         let mut data = LoadingData::from(item);
-        data.torrent = Some(TorrentData::Torrent(Box::new(torrent)));
+        data.torrent = Some(Box::new(torrent));
         let (tx, mut rx) = unbounded_channel();
         let (tx_filename, mut rx_filename) = unbounded_channel();
         let task = create_loading_task!();
@@ -242,7 +240,7 @@ mod tests {
             .expect_files()
             .returning(|| vec![create_file(filename)]);
         let mut data = LoadingData::from(item);
-        data.torrent = Some(TorrentData::Torrent(Box::new(torrent)));
+        data.torrent = Some(Box::new(torrent));
         let (tx, mut rx) = unbounded_channel();
         let (tx_filename, mut rx_filename) = unbounded_channel();
         let task = create_loading_task!();

@@ -1,13 +1,10 @@
 pub use errors::*;
 pub use manager::*;
-pub use stream_server::*;
+pub use stream::*;
 pub use torrent::*;
-pub use torrent_stream::*;
 
 pub mod collection;
 mod errors;
 mod manager;
-pub mod stream;
-mod stream_server;
+mod stream;
 mod torrent;
-mod torrent_stream;

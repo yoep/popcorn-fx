@@ -11,6 +11,7 @@ pub mod playback;
 pub mod players;
 pub mod playlist;
 pub mod storage;
+pub mod stream;
 pub mod subtitles;
 pub mod torrents;
 pub mod updater;

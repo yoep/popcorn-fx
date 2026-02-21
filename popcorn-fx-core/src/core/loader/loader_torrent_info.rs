@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::core::loader::task::LoadingTaskContext;
 use crate::core::loader::{
     CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingResult, LoadingState,
-    LoadingStrategy, Result, TorrentData,
+    LoadingStrategy, Result,
 };
 use crate::core::media::{
     Episode, MediaIdentifier, MediaType, MovieDetails, DEFAULT_AUDIO_LANGUAGE,
@@ -204,7 +204,7 @@ impl LoadingStrategy for TorrentInfoLoadingStrategy {
 
                     debug!("Updating torrent info to {:?}", info);
                     data.url = None; // remove the original url as the item has been enhanced with the data of it
-                    data.torrent = Some(TorrentData::Torrent(torrent));
+                    data.torrent = Some(torrent);
                 }
                 Err(e) => return LoadingResult::Err(e),
             }

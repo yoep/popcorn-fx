@@ -12,6 +12,7 @@ pub mod playback;
 pub mod player;
 pub mod playlist;
 pub mod settings;
+pub mod stream;
 pub mod subtitle;
 pub mod torrent;
 pub mod tracking;

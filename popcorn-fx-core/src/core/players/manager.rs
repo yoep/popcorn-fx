@@ -3,7 +3,7 @@ use crate::core::media::MediaIdentifier;
 use crate::core::players::{
     ManagerError, ManagerResult, PlayRequest, Player, PlayerEvent, PlayerState,
 };
-use crate::core::torrents::{TorrentManager, TorrentStreamServer};
+use crate::core::stream::StreamServer;
 use async_trait::async_trait;
 use derive_more::Display;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
@@ -151,17 +151,12 @@ pub struct DefaultPlayerManager {
 
 impl DefaultPlayerManager {
     /// Create a new `DefaultPlayerManager` instance.
-    pub fn new(
-        event_publisher: EventPublisher,
-        torrent_manager: Arc<dyn TorrentManager>,
-        torrent_stream_server: Arc<dyn TorrentStreamServer>,
-    ) -> Self {
+    pub fn new(event_publisher: EventPublisher, stream_server: Arc<StreamServer>) -> Self {
         let (player_event_sender, player_event_receiver) = unbounded_channel();
         let inner = Arc::new(InnerPlayerManager::new(
             player_event_sender,
             event_publisher,
-            torrent_manager,
-            torrent_stream_server,
+            stream_server,
         ));
 
         let inner_main = inner.clone();
@@ -228,8 +223,7 @@ struct InnerPlayerManager {
     players: RwLock<Vec<Arc<Box<dyn Player>>>>,
     player_listener_sender: UnboundedSender<PlayerEvent>,
     player_listener_cancellation: Mutex<CancellationToken>,
-    torrent_manager: Arc<dyn TorrentManager>,
-    torrent_stream_server: Arc<dyn TorrentStreamServer>,
+    stream_server: Arc<StreamServer>,
     callbacks: MultiThreadedCallback<PlayerManagerEvent>,
     event_publisher: EventPublisher,
     cancellation_token: CancellationToken,
@@ -239,8 +233,7 @@ impl InnerPlayerManager {
     fn new(
         listener_sender: UnboundedSender<PlayerEvent>,
         event_publisher: EventPublisher,
-        torrent_manager: Arc<dyn TorrentManager>,
-        torrent_stream_server: Arc<dyn TorrentStreamServer>,
+        stream_server: Arc<StreamServer>,
     ) -> Self {
         let instance = Self {
             active_player: Mutex::default(),
@@ -248,8 +241,7 @@ impl InnerPlayerManager {
             players: RwLock::default(),
             player_listener_sender: listener_sender,
             player_listener_cancellation: Mutex::new(CancellationToken::new()),
-            torrent_manager,
-            torrent_stream_server,
+            stream_server,
             callbacks: MultiThreadedCallback::new(),
             event_publisher,
             cancellation_token: Default::default(),
@@ -373,11 +365,11 @@ impl InnerPlayerManager {
                 trace!("Last known player duration was {}", duration);
                 if duration > 0 {
                     if let Some(request) = player.request().await {
-                        if let Some(handle) = request.torrent_stream().map(|e| e.handle()) {
-                            debug!("Stopping player stream of {}", handle);
-                            self.torrent_stream_server.stop_stream(handle).await;
-                            debug!("Stopping torrent download of {}", handle);
-                            self.torrent_manager.remove(&handle).await;
+                        if let Some(stream) = request.stream().as_ref() {
+                            debug!("Stopping player stream of {}", stream.filename);
+                            self.stream_server
+                                .stop_stream(stream.filename.as_str())
+                                .await;
                         }
                     } else {
                         warn!(
@@ -580,17 +572,18 @@ mod mock {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::event;
-    use crate::core::torrents::{MockTorrentManager, MockTorrentStreamServer, TorrentHandle};
-    use crate::testing::{MockPlayer, MockTorrentStream};
+    use crate::core::{event, stream};
+    use crate::testing::MockPlayer;
     use crate::{init_logger, recv_timeout};
 
     use super::*;
 
+    use crate::core::stream::ServerStream;
     use async_trait::async_trait;
     use std::time::Duration;
     use tokio::sync::mpsc::unbounded_channel;
     use tokio::{select, time};
+    use url::Url;
 
     #[derive(Debug, Display, Clone)]
     #[display("DummyPlayer")]
@@ -681,13 +674,8 @@ mod tests {
             rx
         });
         let player = Box::new(player) as Box<dyn Player>;
-        let torrent_manager = MockTorrentManager::new();
-        let torrent_stream_server = MockTorrentStreamServer::new();
-        let manager = DefaultPlayerManager::new(
-            EventPublisher::default(),
-            Arc::new(torrent_manager),
-            Arc::new(torrent_stream_server),
-        );
+        let stream_server = StreamServer::new().await.unwrap();
+        let manager = DefaultPlayerManager::new(EventPublisher::default(), Arc::new(stream_server));
 
         let _ = manager.add_player(player);
         let player = manager
@@ -719,14 +707,8 @@ mod tests {
         });
         let player = Box::new(player) as Box<dyn Player>;
         let (tx, mut rx) = unbounded_channel();
-        let event_publisher = EventPublisher::default();
-        let torrent_manager = MockTorrentManager::new();
-        let torrent_stream_server = MockTorrentStreamServer::new();
-        let manager = DefaultPlayerManager::new(
-            event_publisher.clone(),
-            Arc::new(torrent_manager),
-            Arc::new(torrent_stream_server),
-        );
+        let stream_server = StreamServer::new().await.unwrap();
+        let manager = DefaultPlayerManager::new(EventPublisher::default(), Arc::new(stream_server));
 
         let mut receiver = manager.subscribe();
         tokio::spawn(async move {
@@ -767,14 +749,8 @@ mod tests {
         });
         let player = Box::new(player) as Box<dyn Player>;
         let (tx, mut rx) = unbounded_channel();
-        let event_publisher = EventPublisher::default();
-        let torrent_manager = MockTorrentManager::new();
-        let torrent_stream_server = MockTorrentStreamServer::new();
-        let manager = DefaultPlayerManager::new(
-            event_publisher.clone(),
-            Arc::new(torrent_manager),
-            Arc::new(torrent_stream_server),
-        );
+        let stream_server = StreamServer::new().await.unwrap();
+        let manager = DefaultPlayerManager::new(EventPublisher::default(), Arc::new(stream_server));
 
         let mut receiver = manager.subscribe();
         tokio::spawn(async move {
@@ -814,14 +790,8 @@ mod tests {
         let player1 = Box::new(DummyPlayer::new("Id1"));
         let player2 = Box::new(DummyPlayer::new(player2_id));
         let (tx, mut rx) = unbounded_channel();
-        let event_publisher = EventPublisher::default();
-        let torrent_manager = MockTorrentManager::new();
-        let torrent_stream_server = MockTorrentStreamServer::new();
-        let manager = DefaultPlayerManager::new(
-            event_publisher.clone(),
-            Arc::new(torrent_manager),
-            Arc::new(torrent_stream_server),
-        );
+        let stream_server = StreamServer::new().await.unwrap();
+        let manager = DefaultPlayerManager::new(EventPublisher::default(), Arc::new(stream_server));
 
         let mut receiver = manager.subscribe();
         tokio::spawn(async move {
@@ -874,13 +844,8 @@ mod tests {
         let mut player = MockPlayer::new();
         player.expect_id().return_const(player_id.to_string());
         let player = Box::new(player) as Box<dyn Player>;
-        let torrent_manager = MockTorrentManager::new();
-        let torrent_stream_server = MockTorrentStreamServer::new();
-        let manager = DefaultPlayerManager::new(
-            EventPublisher::default(),
-            Arc::new(torrent_manager),
-            Arc::new(torrent_stream_server),
-        );
+        let stream_server = StreamServer::new().await.unwrap();
+        let manager = DefaultPlayerManager::new(EventPublisher::default(), Arc::new(stream_server));
 
         let _ = manager.add_player(player);
         let result = manager.by_id(player_id);
@@ -901,13 +866,8 @@ mod tests {
         let mut player2 = MockPlayer::default();
         player2.expect_id().return_const(player_id.to_string());
         let player2 = Box::new(player2) as Box<dyn Player>;
-        let torrent_manager = MockTorrentManager::new();
-        let torrent_stream_server = MockTorrentStreamServer::new();
-        let manager = DefaultPlayerManager::new(
-            EventPublisher::default(),
-            Arc::new(torrent_manager),
-            Arc::new(torrent_stream_server),
-        );
+        let stream_server = StreamServer::new().await.unwrap();
+        let manager = DefaultPlayerManager::new(EventPublisher::default(), Arc::new(stream_server));
 
         let _ = manager.add_player(player);
         let result = manager.by_id(player_id);
@@ -929,17 +889,14 @@ mod tests {
     async fn test_player_stopped_event() {
         init_logger!();
         let player_id = "SomeId123";
-        let torrent_handle = TorrentHandle::new();
-        let mut stream = MockTorrentStream::new();
-        stream.inner.expect_handle().return_const(torrent_handle);
-        stream
-            .inner
-            .expect_stream_handle()
-            .return_const(torrent_handle);
+        let filename = "my-video.mp4";
         let request = PlayRequest::builder()
             .url("http://localhost/my-video.mkv")
             .title("FooBar")
-            .torrent_stream(Box::new(stream))
+            .stream(ServerStream {
+                url: Url::parse("http://localhost:6000/my-video.mp4").unwrap(),
+                filename: filename.to_string(),
+            })
             .build();
         let player_callbacks = MultiThreadedCallback::new();
         let player_subscription = player_callbacks.subscribe();
@@ -951,27 +908,10 @@ mod tests {
             .times(1)
             .return_once(move || player_subscription);
         player.expect_request().times(1).return_const(request);
-        let (tx_torrent_manager_remove, mut rx_torrent_manager_remove) = unbounded_channel();
-        let mut torrent_manager = MockTorrentManager::new();
-        torrent_manager
-            .expect_remove()
-            .times(1)
-            .returning(move |handle| {
-                tx_torrent_manager_remove.send(*handle).unwrap();
-            });
-        let mut torrent_stream_server = MockTorrentStreamServer::new();
-        torrent_stream_server
-            .expect_stop_stream()
-            .times(1)
-            .withf(move |handle| handle.clone() == torrent_handle)
-            .return_const(());
         let (tx_player_manager, mut rx_player_manager) = unbounded_channel();
         let (tx_events, mut rx_events) = unbounded_channel();
-        let manager = DefaultPlayerManager::new(
-            EventPublisher::default(),
-            Arc::new(torrent_manager),
-            Arc::new(torrent_stream_server),
-        );
+        let stream_server = Arc::new(StreamServer::new().await.unwrap());
+        let manager = DefaultPlayerManager::new(EventPublisher::default(), stream_server.clone());
 
         // subscribe to the player manager events
         let mut receiver = manager.subscribe();
@@ -1030,12 +970,12 @@ mod tests {
         );
 
         // verify if the torrent was removed from the torrent manager
-        let result = recv_timeout!(
-            &mut rx_torrent_manager_remove,
-            Duration::from_millis(500),
-            "expected the torrent to have been removed"
-        );
-        assert_eq!(torrent_handle, result);
+        let result = stream_server
+            .state(filename)
+            .await
+            .err()
+            .expect("expected an error");
+        assert_eq!(stream::Error::NotFound(filename.to_string()), result);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -1061,13 +1001,8 @@ mod tests {
             tx.send(e).unwrap();
         });
         player.expect_request().return_const(request.clone());
-        let torrent_manager = MockTorrentManager::new();
-        let torrent_stream_server = MockTorrentStreamServer::new();
-        let manager = DefaultPlayerManager::new(
-            EventPublisher::default(),
-            Arc::new(torrent_manager),
-            Arc::new(torrent_stream_server),
-        );
+        let stream_server = StreamServer::new().await.unwrap();
+        let manager = DefaultPlayerManager::new(EventPublisher::default(), Arc::new(stream_server));
 
         let _ = manager.add_player(Box::new(player));
         manager.set_active_player(player_id).await;
@@ -1086,13 +1021,8 @@ mod tests {
         let mut player1 = MockPlayer::default();
         player1.expect_id().return_const(player_id.to_string());
         let player = Box::new(player1) as Box<dyn Player>;
-        let torrent_manager = MockTorrentManager::new();
-        let torrent_stream_server = MockTorrentStreamServer::new();
-        let manager = DefaultPlayerManager::new(
-            EventPublisher::default(),
-            Arc::new(torrent_manager),
-            Arc::new(torrent_stream_server),
-        );
+        let stream_server = StreamServer::new().await.unwrap();
+        let manager = DefaultPlayerManager::new(EventPublisher::default(), Arc::new(stream_server));
 
         let result = manager.add_player(player);
         assert_eq!(Ok(()), result, "expected the player to have been added");

@@ -1,8 +1,6 @@
 use std::io;
 use thiserror::Error;
 
-use crate::core::torrents::TorrentStreamState;
-
 /// The torrent package specific results.
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -14,8 +12,6 @@ pub enum Error {
     InvalidUrl(String),
     #[error("Torrent file {0} cannot be found")]
     FileNotFound(String),
-    #[error("Torrent stream has invalid state {0}")]
-    InvalidStreamState(TorrentStreamState),
     #[error("Torrent handle {0} is not valid")]
     InvalidHandle(String),
     #[error("The torrent info couldn't be resolved, {0}")]

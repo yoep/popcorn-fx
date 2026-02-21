@@ -1,14 +1,8 @@
 use crate::core::media::MediaIdentifier;
 use crate::core::playlist::PlaylistItem;
+use crate::core::stream::ServerStream;
 use crate::core::subtitles::model::{Subtitle, SubtitleInfo};
-use crate::core::torrents::{Torrent, TorrentHandle, TorrentStream};
-use async_trait::async_trait;
-use fx_callback::{Callback, Subscriber, Subscription};
-use fx_torrent;
-use fx_torrent::{Metrics, PieceIndex, PiecePriority, TorrentEvent, TorrentState};
-use std::collections::BTreeMap;
-use std::ops::Range;
-use std::path::PathBuf;
+use crate::core::torrents::Torrent;
 
 /// A structure representing loading data for a media item.
 ///
@@ -27,9 +21,11 @@ pub struct LoadingData {
     pub auto_resume_timestamp: Option<u64>,
     pub subtitle: SubtitleData,
     /// The torrent information associated with the media item.
-    pub torrent: Option<TorrentData>,
+    pub torrent: Option<Box<dyn Torrent>>,
     /// The filename of the torrent that needs to be loaded
     pub torrent_file: Option<String>,
+    /// The stream of the media item.
+    pub stream: Option<ServerStream>,
 }
 
 impl PartialEq for LoadingData {
@@ -44,6 +40,7 @@ impl PartialEq for LoadingData {
             && self.auto_resume_timestamp == other.auto_resume_timestamp
             && self.torrent.is_some() == other.torrent.is_some()
             && self.torrent_file == other.torrent_file
+            && self.stream.is_some() == other.stream.is_some()
     }
 
     fn ne(&self, other: &Self) -> bool {
@@ -65,6 +62,7 @@ impl From<&str> for LoadingData {
             subtitle: SubtitleData::default(),
             torrent: None,
             torrent_file: None,
+            stream: None,
         }
     }
 }
@@ -87,138 +85,7 @@ impl From<PlaylistItem> for LoadingData {
             },
             torrent: None,
             torrent_file: value.torrent.filename,
-        }
-    }
-}
-
-/// The torrent loading data identifying a torrent or torrent stream.
-#[derive(Debug)]
-pub enum TorrentData {
-    Torrent(Box<dyn Torrent>),
-    Stream(Box<dyn TorrentStream>),
-}
-
-impl TorrentData {
-    /// Check if the torrent data is a torrent stream.
-    /// Returns true if the torrent data is a torrent stream.
-    pub fn is_stream(&self) -> bool {
-        matches!(self, TorrentData::Stream(_))
-    }
-}
-
-impl Callback<TorrentEvent> for TorrentData {
-    fn subscribe(&self) -> Subscription<TorrentEvent> {
-        match self {
-            TorrentData::Torrent(e) => e.subscribe(),
-            TorrentData::Stream(e) => e.subscribe(),
-        }
-    }
-
-    fn subscribe_with(&self, subscriber: Subscriber<TorrentEvent>) {
-        match self {
-            TorrentData::Torrent(e) => e.subscribe_with(subscriber),
-            TorrentData::Stream(e) => e.subscribe_with(subscriber),
-        }
-    }
-}
-
-#[async_trait]
-impl Torrent for TorrentData {
-    fn handle(&self) -> TorrentHandle {
-        match self {
-            TorrentData::Torrent(e) => e.handle(),
-            TorrentData::Stream(e) => e.handle(),
-        }
-    }
-
-    async fn absolute_file_path(&self, file: &fx_torrent::File) -> PathBuf {
-        match self {
-            TorrentData::Torrent(e) => e.absolute_file_path(file).await,
-            TorrentData::Stream(e) => e.absolute_file_path(file).await,
-        }
-    }
-
-    async fn files(&self) -> Vec<fx_torrent::File> {
-        match self {
-            TorrentData::Torrent(e) => e.files().await,
-            TorrentData::Stream(e) => e.files().await,
-        }
-    }
-
-    async fn file_by_name(&self, name: &str) -> Option<fx_torrent::File> {
-        match self {
-            TorrentData::Torrent(e) => e.file_by_name(name).await,
-            TorrentData::Stream(e) => e.file_by_name(name).await,
-        }
-    }
-
-    async fn largest_file(&self) -> Option<fx_torrent::File> {
-        match self {
-            TorrentData::Torrent(e) => e.largest_file().await,
-            TorrentData::Stream(e) => e.largest_file().await,
-        }
-    }
-
-    async fn has_bytes(&self, bytes: &Range<usize>) -> bool {
-        match self {
-            TorrentData::Torrent(e) => e.has_bytes(bytes).await,
-            TorrentData::Stream(e) => e.has_bytes(bytes).await,
-        }
-    }
-
-    async fn has_piece(&self, piece: usize) -> bool {
-        match self {
-            TorrentData::Torrent(e) => e.has_piece(piece).await,
-            TorrentData::Stream(e) => e.has_piece(piece).await,
-        }
-    }
-
-    async fn prioritize_bytes(&self, bytes: &Range<usize>) {
-        match self {
-            TorrentData::Torrent(e) => e.prioritize_bytes(bytes).await,
-            TorrentData::Stream(e) => e.prioritize_bytes(bytes).await,
-        }
-    }
-
-    async fn prioritize_pieces(&self, pieces: &[PieceIndex]) {
-        match self {
-            TorrentData::Torrent(e) => e.prioritize_pieces(pieces).await,
-            TorrentData::Stream(e) => e.prioritize_pieces(pieces).await,
-        }
-    }
-
-    async fn piece_priorities(&self) -> BTreeMap<PieceIndex, PiecePriority> {
-        match self {
-            TorrentData::Torrent(e) => e.piece_priorities().await,
-            TorrentData::Stream(e) => e.piece_priorities().await,
-        }
-    }
-
-    async fn total_pieces(&self) -> usize {
-        match self {
-            TorrentData::Torrent(e) => e.total_pieces().await,
-            TorrentData::Stream(e) => e.total_pieces().await,
-        }
-    }
-
-    async fn sequential_mode(&self) {
-        match self {
-            TorrentData::Torrent(e) => e.sequential_mode().await,
-            TorrentData::Stream(e) => e.sequential_mode().await,
-        }
-    }
-
-    async fn state(&self) -> TorrentState {
-        match self {
-            TorrentData::Torrent(e) => e.state().await,
-            TorrentData::Stream(e) => e.state().await,
-        }
-    }
-
-    fn stats(&self) -> &Metrics {
-        match self {
-            TorrentData::Torrent(e) => e.stats(),
-            TorrentData::Stream(e) => e.stats(),
+            stream: None,
         }
     }
 }
@@ -297,6 +164,7 @@ mod tests {
             subtitle: SubtitleData::default(),
             torrent: None,
             torrent_file: None,
+            stream: None,
         };
 
         let result = LoadingData::from(item);

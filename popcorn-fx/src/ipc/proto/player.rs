@@ -355,8 +355,8 @@ pub mod player {
         pub auto_resume_timestamp: ::std::option::Option<u64>,
         // @@protoc_insertion_point(field:fx.ipc.proto.Player.PlayRequest.subtitle)
         pub subtitle: ::protobuf::MessageField<play_request::PlaySubtitleRequest>,
-        // @@protoc_insertion_point(field:fx.ipc.proto.Player.PlayRequest.torrent)
-        pub torrent: ::protobuf::MessageField<play_request::Torrent>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.Player.PlayRequest.stream)
+        pub stream: ::protobuf::MessageField<super::super::stream::ServerStream>,
         // special fields
         // @@protoc_insertion_point(special_field:fx.ipc.proto.Player.PlayRequest.special_fields)
         pub special_fields: ::protobuf::SpecialFields,
@@ -409,7 +409,7 @@ pub mod player {
                         ::protobuf::rt::read_singular_message_into_field(is, &mut self.subtitle)?;
                     },
                     74 => {
-                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.torrent)?;
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.stream)?;
                     },
                     tag => {
                         ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
@@ -448,7 +448,7 @@ pub mod player {
                 let len = v.compute_size();
                 my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
             }
-            if let Some(v) = self.torrent.as_ref() {
+            if let Some(v) = self.stream.as_ref() {
                 let len = v.compute_size();
                 my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
             }
@@ -482,7 +482,7 @@ pub mod player {
             if let Some(v) = self.subtitle.as_ref() {
                 ::protobuf::rt::write_message_field_with_cached_size(8, v, os)?;
             }
-            if let Some(v) = self.torrent.as_ref() {
+            if let Some(v) = self.stream.as_ref() {
                 ::protobuf::rt::write_message_field_with_cached_size(9, v, os)?;
             }
             os.write_unknown_fields(self.special_fields.unknown_fields())?;
@@ -510,7 +510,7 @@ pub mod player {
             self.quality = ::std::option::Option::None;
             self.auto_resume_timestamp = ::std::option::Option::None;
             self.subtitle.clear();
-            self.torrent.clear();
+            self.stream.clear();
             self.special_fields.clear();
         }
 
@@ -524,7 +524,7 @@ pub mod player {
                 quality: ::std::option::Option::None,
                 auto_resume_timestamp: ::std::option::Option::None,
                 subtitle: ::protobuf::MessageField::none(),
-                torrent: ::protobuf::MessageField::none(),
+                stream: ::protobuf::MessageField::none(),
                 special_fields: ::protobuf::SpecialFields::new(),
             };
             &instance
@@ -533,97 +533,6 @@ pub mod player {
 
     /// Nested message and enums of message `PlayRequest`
     pub mod play_request {
-        // @@protoc_insertion_point(message:fx.ipc.proto.Player.PlayRequest.Torrent)
-        #[derive(PartialEq,Clone,Default,Debug)]
-        pub struct Torrent {
-            // message fields
-            // @@protoc_insertion_point(field:fx.ipc.proto.Player.PlayRequest.Torrent.handle)
-            pub handle: ::protobuf::MessageField<super::super::super::message::Handle>,
-            // special fields
-            // @@protoc_insertion_point(special_field:fx.ipc.proto.Player.PlayRequest.Torrent.special_fields)
-            pub special_fields: ::protobuf::SpecialFields,
-        }
-
-        impl<'a> ::std::default::Default for &'a Torrent {
-            fn default() -> &'a Torrent {
-                <Torrent as ::protobuf::Message>::default_instance()
-            }
-        }
-
-        impl Torrent {
-            pub fn new() -> Torrent {
-                ::std::default::Default::default()
-            }
-        }
-
-        impl ::protobuf::Message for Torrent {
-            const NAME: &'static str = "Torrent";
-
-            fn is_initialized(&self) -> bool {
-                true
-            }
-
-            fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
-                while let Some(tag) = is.read_raw_tag_or_eof()? {
-                    match tag {
-                        10 => {
-                            ::protobuf::rt::read_singular_message_into_field(is, &mut self.handle)?;
-                        },
-                        tag => {
-                            ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
-                        },
-                    };
-                }
-                ::std::result::Result::Ok(())
-            }
-
-            // Compute sizes of nested messages
-            #[allow(unused_variables)]
-            fn compute_size(&self) -> u64 {
-                let mut my_size = 0;
-                if let Some(v) = self.handle.as_ref() {
-                    let len = v.compute_size();
-                    my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
-                }
-                my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
-                self.special_fields.cached_size().set(my_size as u32);
-                my_size
-            }
-
-            fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-                if let Some(v) = self.handle.as_ref() {
-                    ::protobuf::rt::write_message_field_with_cached_size(1, v, os)?;
-                }
-                os.write_unknown_fields(self.special_fields.unknown_fields())?;
-                ::std::result::Result::Ok(())
-            }
-
-            fn special_fields(&self) -> &::protobuf::SpecialFields {
-                &self.special_fields
-            }
-
-            fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
-                &mut self.special_fields
-            }
-
-            fn new() -> Torrent {
-                Torrent::new()
-            }
-
-            fn clear(&mut self) {
-                self.handle.clear();
-                self.special_fields.clear();
-            }
-
-            fn default_instance() -> &'static Torrent {
-                static instance: Torrent = Torrent {
-                    handle: ::protobuf::MessageField::none(),
-                    special_fields: ::protobuf::SpecialFields::new(),
-                };
-                &instance
-            }
-        }
-
         // @@protoc_insertion_point(message:fx.ipc.proto.Player.PlayRequest.PlaySubtitleRequest)
         #[derive(PartialEq,Clone,Default,Debug)]
         pub struct PlaySubtitleRequest {

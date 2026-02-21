@@ -5,7 +5,7 @@ use crate::core::config::ApplicationConfig;
 use crate::core::loader::task::LoadingTaskContext;
 use crate::core::loader::{
     CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingProgress, LoadingState,
-    LoadingStrategy, Result, TorrentData,
+    LoadingStrategy, Result,
 };
 use crate::core::torrents::{Torrent, TorrentEvent, TorrentManager, TorrentState};
 use crate::core::{loader, torrents};
@@ -110,7 +110,7 @@ impl LoadingStrategy for TorrentLoadingStrategy {
         data: &mut LoadingData,
         context: &LoadingTaskContext,
     ) -> loader::LoadingResult {
-        if let Some(TorrentData::Torrent(torrent)) = data.torrent.as_ref() {
+        if let Some(torrent) = data.torrent.as_ref() {
             if let Some(torrent_filename) = data.torrent_file.as_ref() {
                 trace!("Processing torrent info of {:?}", torrent_filename);
                 context.send_event(LoadingEvent::StateChanged(LoadingState::Connecting));
@@ -120,7 +120,7 @@ impl LoadingStrategy for TorrentLoadingStrategy {
                     .await
                 {
                     Ok(torrent) => {
-                        data.torrent = Some(TorrentData::Torrent(torrent));
+                        data.torrent = Some(torrent);
                     }
                     Err(err) => {
                         return loader::LoadingResult::Err(err);
@@ -147,7 +147,7 @@ impl LoadingStrategy for TorrentLoadingStrategy {
 mod tests {
     use crate::core::loader::LoadingResult;
     use crate::core::playlist::{PlaylistItem, PlaylistTorrent};
-    use crate::core::torrents::{MockTorrent, MockTorrentManager, Torrent, TorrentHandle};
+    use crate::core::torrents::{MockTorrent, MockTorrentManager, TorrentHandle};
     use crate::{create_loading_task, init_logger, recv_timeout};
     use std::time::Duration;
     use tokio::sync::mpsc::unbounded_channel;
@@ -200,8 +200,7 @@ mod tests {
         });
         let mut torrent = MockTorrent::new();
         torrent.expect_handle().return_const(handle);
-        let torrent = Box::new(torrent) as Box<dyn Torrent>;
-        data.torrent = Some(TorrentData::Torrent(torrent));
+        data.torrent = Some(Box::new(torrent));
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = ApplicationConfig::builder().storage(temp_path).build();

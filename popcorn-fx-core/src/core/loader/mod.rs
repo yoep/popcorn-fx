@@ -32,10 +32,9 @@ pub mod tests {
         CancellationResult, LoadingChain, LoadingData, LoadingError, LoadingEvent, LoadingResult,
         LoadingStrategy,
     };
-    use std::fmt::{Debug, Formatter};
-
     use async_trait::async_trait;
     use derive_more::Display;
+    use std::fmt::{Debug, Formatter};
     use std::sync::Arc;
     use std::time::Duration;
     use tokio::sync::mpsc::UnboundedSender;
@@ -52,6 +51,95 @@ pub mod tests {
         ($chain:expr) => {
             crate::core::loader::tests::new_loading_task($chain)
         };
+    }
+
+    /// Create a new loading data instance.
+    #[macro_export]
+    macro_rules! create_loading_data {
+        () => {{
+            use crate::core::loader::LoadingData;
+            LoadingData {
+                url: None,
+                title: None,
+                caption: None,
+                thumb: None,
+                parent_media: None,
+                media: None,
+                quality: None,
+                auto_resume_timestamp: None,
+                subtitle: Default::default(),
+                torrent: None,
+                torrent_file: None,
+                stream: None,
+            }
+        }};
+        ($torrent:expr) => {{
+            use crate::core::loader::LoadingData;
+            use crate::core::torrents::Torrent;
+
+            let torrent: Box<dyn Torrent> = $torrent;
+
+            LoadingData {
+                url: None,
+                title: None,
+                caption: None,
+                thumb: None,
+                parent_media: None,
+                media: None,
+                quality: None,
+                auto_resume_timestamp: None,
+                subtitle: Default::default(),
+                torrent: Some(torrent),
+                torrent_file: None,
+                stream: None,
+            }
+        }};
+        ($torrent:expr, $torrent_file:expr) => {{
+            use crate::core::loader::LoadingData;
+            use crate::core::torrents::Torrent;
+
+            let torrent: Box<dyn Torrent> = $torrent;
+            let torrent_file = AsRef::<str>::as_ref($torrent_file).to_string();
+
+            LoadingData {
+                url: None,
+                title: None,
+                caption: None,
+                thumb: None,
+                parent_media: None,
+                media: None,
+                quality: None,
+                auto_resume_timestamp: None,
+                subtitle: Default::default(),
+                torrent: Some(torrent),
+                torrent_file: Some(torrent_file),
+                stream: None,
+            }
+        }};
+        ($torrent:expr, $torrent_file:expr, $stream:expr) => {{
+            use crate::core::loader::LoadingData;
+            use crate::core::stream::ServerStream;
+            use crate::core::torrents::Torrent;
+
+            let torrent: Box<dyn Torrent> = $torrent;
+            let torrent_file = AsRef::<str>::as_ref($torrent_file).to_string();
+            let stream: ServerStream = $stream;
+
+            LoadingData {
+                url: None,
+                title: None,
+                caption: None,
+                thumb: None,
+                parent_media: None,
+                media: None,
+                quality: None,
+                auto_resume_timestamp: None,
+                subtitle: Default::default(),
+                torrent: Some(torrent),
+                torrent_file: Some(torrent_file),
+                stream: Some(stream),
+            }
+        }};
     }
 
     /// Create a new loading task for the given chain of loading strategies

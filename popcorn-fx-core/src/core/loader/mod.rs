@@ -1,5 +1,6 @@
 pub use data::*;
 pub use loader_auto_resume::*;
+pub use loader_file::*;
 pub use loader_media_torrent::*;
 pub use loader_player::*;
 pub use loader_subtitles::*;
@@ -13,6 +14,7 @@ pub use media_loader::*;
 
 mod data;
 mod loader_auto_resume;
+mod loader_file;
 mod loader_media_torrent;
 mod loader_player;
 mod loader_subtitles;
@@ -69,7 +71,7 @@ pub mod tests {
                 auto_resume_timestamp: None,
                 subtitle: Default::default(),
                 torrent: None,
-                torrent_file: None,
+                filename: None,
                 stream: None,
             }
         }};
@@ -90,7 +92,7 @@ pub mod tests {
                 auto_resume_timestamp: None,
                 subtitle: Default::default(),
                 torrent: Some(torrent),
-                torrent_file: None,
+                filename: None,
                 stream: None,
             }
         }};
@@ -112,7 +114,7 @@ pub mod tests {
                 auto_resume_timestamp: None,
                 subtitle: Default::default(),
                 torrent: Some(torrent),
-                torrent_file: Some(torrent_file),
+                filename: Some(torrent_file),
                 stream: None,
             }
         }};
@@ -136,7 +138,7 @@ pub mod tests {
                 auto_resume_timestamp: None,
                 subtitle: Default::default(),
                 torrent: Some(torrent),
-                torrent_file: Some(torrent_file),
+                filename: Some(torrent_file),
                 stream: Some(stream),
             }
         }};

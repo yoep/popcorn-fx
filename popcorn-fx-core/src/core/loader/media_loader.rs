@@ -638,7 +638,7 @@ mod tests {
             quality: None,
             auto_resume_timestamp: None,
             torrent: None,
-            torrent_file: None,
+            filename: None,
             subtitle: SubtitleData::default(),
             stream: None,
         };
@@ -677,7 +677,7 @@ mod tests {
                 subtitle: None,
             },
             torrent: None,
-            torrent_file: None,
+            filename: None,
             stream: None,
         };
 

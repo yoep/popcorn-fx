@@ -195,7 +195,7 @@ impl LoadingStrategy for TorrentInfoLoadingStrategy {
                             {
                                 Ok(torrent_file) => {
                                     debug!("Updating torrent file info to {:?}", torrent_file);
-                                    data.torrent_file = Some(torrent_file.filename());
+                                    data.filename = Some(torrent_file.filename());
                                 }
                                 Err(e) => return LoadingResult::Err(e),
                             }
@@ -448,10 +448,7 @@ mod tests {
         assert_eq!(magnet_url.to_string(), resolve_url);
 
         if let LoadingResult::Ok = result {
-            assert!(
-                data.torrent_file.is_some(),
-                "expected torrent file to be Some"
-            );
+            assert!(data.filename.is_some(), "expected torrent file to be Some");
         } else {
             assert!(
                 false,

@@ -64,7 +64,7 @@ impl LoadingStrategy for AutoResumeLoadingStrategy {
 
         // try to get the filename from the torrent
         if let Some(torrent) = data.torrent.as_ref() {
-            if let Some(torrent_filename) = data.torrent_file.as_ref() {
+            if let Some(torrent_filename) = data.filename.as_ref() {
                 let files = torrent.files().await;
                 filename = files
                     .into_iter()

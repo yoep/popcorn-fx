@@ -731,7 +731,7 @@ mod tests {
                 subtitle: None,
             },
             torrent: None,
-            torrent_file: None,
+            filename: None,
             stream: None,
         };
         let expected = PlayRequest {

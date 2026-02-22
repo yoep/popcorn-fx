@@ -70,7 +70,7 @@ impl Debug for TorrentStreamLoadingStrategy {
 #[async_trait]
 impl LoadingStrategy for TorrentStreamLoadingStrategy {
     async fn process(&self, data: &mut LoadingData, context: &LoadingTaskContext) -> LoadingResult {
-        let filename = match data.torrent_file.as_ref() {
+        let filename = match data.filename.as_ref() {
             Some(filename) => filename,
             None => return LoadingResult::Ok,
         };
@@ -212,7 +212,7 @@ mod tests {
                 .return_once(move |handle| {
                     let _ = tx.send(*handle);
                 });
-            let mut stream_server = StreamServer::new().await.unwrap();
+            let stream_server = StreamServer::new().await.unwrap();
             let mut stream_resource = MockStreamingResource::new();
             stream_resource
                 .expect_filename()

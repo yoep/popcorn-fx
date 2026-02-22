@@ -99,7 +99,7 @@ impl LoadingStrategy for MediaTorrentUrlLoadingStrategy {
                     let url = torrent_info.url().to_string();
                     debug!("Updating playlist item url to {} for media {}", url, media);
                     data.url = Some(url.clone());
-                    data.torrent_file = torrent_info.file().map(|e| e.clone());
+                    data.filename = torrent_info.file().map(|e| e.clone());
                     info!("Loading media url {}", url);
                 } else {
                     return LoadingResult::Err(LoadingError::MediaError(format!(

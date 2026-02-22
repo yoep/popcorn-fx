@@ -22,8 +22,8 @@ pub struct LoadingData {
     pub subtitle: SubtitleData,
     /// The torrent information associated with the media item.
     pub torrent: Option<Box<dyn Torrent>>,
-    /// The filename of the torrent that needs to be loaded
-    pub torrent_file: Option<String>,
+    /// The filename that is loaded or should be loaded
+    pub filename: Option<String>,
     /// The stream of the media item.
     pub stream: Option<ServerStream>,
 }
@@ -39,7 +39,7 @@ impl PartialEq for LoadingData {
             && self.quality == other.quality
             && self.auto_resume_timestamp == other.auto_resume_timestamp
             && self.torrent.is_some() == other.torrent.is_some()
-            && self.torrent_file == other.torrent_file
+            && self.filename == other.filename
             && self.stream.is_some() == other.stream.is_some()
     }
 
@@ -61,7 +61,7 @@ impl From<&str> for LoadingData {
             auto_resume_timestamp: None,
             subtitle: SubtitleData::default(),
             torrent: None,
-            torrent_file: None,
+            filename: None,
             stream: None,
         }
     }
@@ -84,7 +84,7 @@ impl From<PlaylistItem> for LoadingData {
                 subtitle: None,
             },
             torrent: None,
-            torrent_file: value.torrent.filename,
+            filename: value.torrent.filename,
             stream: None,
         }
     }
@@ -163,7 +163,7 @@ mod tests {
             auto_resume_timestamp: None,
             subtitle: SubtitleData::default(),
             torrent: None,
-            torrent_file: None,
+            filename: None,
             stream: None,
         };
 

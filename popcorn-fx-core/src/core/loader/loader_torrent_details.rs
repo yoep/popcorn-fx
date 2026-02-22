@@ -51,7 +51,7 @@ impl LoadingStrategy for TorrentDetailsLoadingStrategy {
         if let Some(torrent) = data.torrent.as_ref() {
             // check if a specific file has been set to be loaded
             // if not, stop the loading chain and show the retrieved details
-            if let None = data.torrent_file.as_ref() {
+            if let None = data.filename.as_ref() {
                 let handle = torrent.handle();
                 return match self.torrent_manager.info(&handle).await {
                     Ok(torrent_info) => {
@@ -129,7 +129,7 @@ mod tests {
             auto_resume_timestamp: None,
             subtitle: SubtitleData::default(),
             torrent: Some(Box::new(torrent)),
-            torrent_file: None,
+            filename: None,
             stream: None,
         };
         let (tx, mut rx) = unbounded_channel();
@@ -190,7 +190,7 @@ mod tests {
             auto_resume_timestamp: None,
             subtitle: SubtitleData::default(),
             torrent: Some(Box::new(torrent)),
-            torrent_file: None,
+            filename: None,
             stream: None,
         };
         let (tx, mut rx) = unbounded_channel();

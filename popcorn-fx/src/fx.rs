@@ -7,8 +7,8 @@ use popcorn_fx_core::core::config::{ApplicationConfig, PopcornProperties};
 use popcorn_fx_core::core::event::EventPublisher;
 use popcorn_fx_core::core::images::{DefaultImageLoader, ImageLoader};
 use popcorn_fx_core::core::loader::{
-    AutoResumeLoadingStrategy, DefaultMediaLoader, LoadingStrategy, MediaLoader,
-    MediaTorrentUrlLoadingStrategy, PlayerLoadingStrategy, SubtitlesLoadingStrategy,
+    AutoResumeLoadingStrategy, DefaultMediaLoader, FileLoadingStrategy, LoadingStrategy,
+    MediaLoader, MediaTorrentUrlLoadingStrategy, PlayerLoadingStrategy, SubtitlesLoadingStrategy,
     TorrentDetailsLoadingStrategy, TorrentInfoLoadingStrategy, TorrentLoadingStrategy,
     TorrentStreamLoadingStrategy,
 };
@@ -316,6 +316,7 @@ impl PopcornFX {
                 event_publisher.clone(),
                 torrent_manager.clone(),
             )),
+            Box::new(FileLoadingStrategy::new(stream_server.clone())),
             Box::new(PlayerLoadingStrategy::new(player_manager.clone())),
         ];
         let media_loader = Arc::new(DefaultMediaLoader::new(loading_chain)) as Arc<dyn MediaLoader>;

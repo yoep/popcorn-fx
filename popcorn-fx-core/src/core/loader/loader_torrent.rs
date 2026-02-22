@@ -111,7 +111,7 @@ impl LoadingStrategy for TorrentLoadingStrategy {
         context: &LoadingTaskContext,
     ) -> loader::LoadingResult {
         if let Some(torrent) = data.torrent.as_ref() {
-            if let Some(torrent_filename) = data.torrent_file.as_ref() {
+            if let Some(torrent_filename) = data.filename.as_ref() {
                 trace!("Processing torrent info of {:?}", torrent_filename);
                 context.send_event(LoadingEvent::StateChanged(LoadingState::Connecting));
 

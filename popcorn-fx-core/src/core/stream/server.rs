@@ -38,7 +38,7 @@ const DLNA_CONTENT_FEATURES: &str =
 const PLAIN_TEXT_TYPE: &str = "text/plain";
 
 /// The information about a video stream that has been started on the server.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ServerStream {
     /// The url to access the video stream.
     pub url: Url,

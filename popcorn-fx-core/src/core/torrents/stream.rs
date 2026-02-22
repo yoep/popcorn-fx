@@ -629,6 +629,8 @@ mod tests {
     use crate::core::torrents::TorrentHandle;
     use crate::create_torrent_file;
     use crate::init_logger;
+    use crate::recv_timeout;
+    use std::time::Duration;
     use tempfile::tempdir;
     use tokio::sync::mpsc::unbounded_channel;
 
@@ -661,6 +663,102 @@ mod tests {
             let result = stream.filename();
 
             assert_eq!(filename, result);
+        }
+    }
+
+    mod torrent_events {
+        use super::*;
+        use fx_torrent::Metrics;
+        use tokio::sync::oneshot;
+        use tokio::time::timeout;
+
+        #[tokio::test]
+        async fn test_on_state_event() {
+            init_logger!();
+            let filename = "test_filename.mp4";
+            let pieces_len = 20;
+            let callbacks = MultiThreadedCallback::new();
+            let mut torrent = create_torrent(TorrentHandle::new(), pieces_len, false);
+            torrent
+                .expect_file_by_name()
+                .returning(move |file| Some(create_torrent_file!(file, pieces_len)));
+            torrent.expect_stats().return_const(Metrics::default());
+            let subscribe_callbacks = callbacks.clone();
+            torrent
+                .expect_subscribe()
+                .returning(move || subscribe_callbacks.subscribe());
+            let torrent_manager = MockTorrentManager::new();
+            let stream = TorrentStreamingResource::new(
+                filename,
+                Box::new(torrent),
+                Arc::new(torrent_manager),
+            )
+            .await;
+
+            // subscribe to the stream events
+            let mut receiver = stream.subscribe();
+
+            // invoke the state change event
+            callbacks.invoke(TorrentEvent::StateChanged(TorrentState::Finished));
+
+            let event = recv_timeout!(&mut receiver, Duration::from_millis(250));
+            match &*event {
+                StreamEvent::StateChanged(result) => {
+                    assert_eq!(StreamState::Streaming, *result);
+                }
+                _ => assert!(
+                    false,
+                    "expected StreamEvent::StateChanged, but got {:?}",
+                    event
+                ),
+            }
+        }
+
+        #[tokio::test]
+        async fn test_on_stats_event() {
+            init_logger!();
+            let filename = "test_filename.mp4";
+            let pieces_len = 20;
+            let callbacks = MultiThreadedCallback::new();
+            let mut torrent = create_torrent(TorrentHandle::new(), pieces_len, false);
+            torrent
+                .expect_file_by_name()
+                .returning(move |file| Some(create_torrent_file!(file, pieces_len)));
+            torrent.expect_stats().return_const(Metrics::default());
+            let subscribe_callbacks = callbacks.clone();
+            torrent
+                .expect_subscribe()
+                .returning(move || subscribe_callbacks.subscribe());
+            let torrent_manager = MockTorrentManager::new();
+            let stream = TorrentStreamingResource::new(
+                filename,
+                Box::new(torrent),
+                Arc::new(torrent_manager),
+            )
+            .await;
+
+            // subscribe to the stream events
+            let mut receiver = stream.subscribe();
+            let (tx, mut rx) = oneshot::channel();
+            tokio::spawn(async move {
+                while let Some(event) = receiver.recv().await {
+                    if let StreamEvent::StatsChanged(stats) = &*event {
+                        let _ = tx.send(stats.clone());
+                        break;
+                    }
+                }
+            });
+
+            // invoke the state change event
+            let stats = Metrics::default();
+            stats.peers.set(16);
+            callbacks.invoke(TorrentEvent::Stats(stats.clone()));
+
+            let result = timeout(Duration::from_millis(250), &mut rx)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(16, result.connections);
         }
     }
 

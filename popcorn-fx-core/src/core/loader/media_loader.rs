@@ -5,7 +5,8 @@ use crate::core::media::{
     Episode, Images, MediaIdentifier, MediaOverview, MovieDetails, ShowDetails,
 };
 use crate::core::playlist::PlaylistItem;
-use crate::core::torrents;
+use crate::core::stream::{Error, StreamStats};
+use crate::core::{stream, torrents};
 use async_trait::async_trait;
 use derive_more::Display;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
@@ -16,6 +17,7 @@ use log::{debug, trace};
 pub use mock::*;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::io;
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::select;
@@ -30,7 +32,7 @@ use tokio_util::sync::CancellationToken;
 pub type Result<T> = std::result::Result<T, LoadingError>;
 
 /// An enum representing events related to media loading.
-#[derive(Debug, Display, Clone, PartialEq)]
+#[derive(Debug, Display, PartialEq)]
 pub enum MediaLoaderEvent {
     /// Indicates that loading has started for a media item with the associated event details.
     #[display("Loading started for {}", _1)]
@@ -156,25 +158,23 @@ impl From<&LoadingData> for LoadingStartedEvent {
 
 #[derive(Debug, Clone, Display, PartialEq)]
 #[display(
-    "progress: {}, seeds: {}, peers: {}, download_speed: {}",
+    "progress: {}, connections: {}, download_speed: {}, upload_speed: {}",
     progress,
-    seeds,
-    peers,
-    download_speed
+    connections,
+    download_speed,
+    upload_speed
 )]
 pub struct LoadingProgress {
     /// Progress indication between 0 and 1 that represents the progress of the download.
     pub progress: f32,
-    /// The number of seeds available for the torrent.
-    pub seeds: usize,
-    /// The number of peers connected to the torrent.
-    pub peers: usize,
+    /// The number of connections created for streaming the media resource.
+    pub connections: usize,
     /// The total download transfer rate in bytes of payload only, not counting protocol chatter.
     pub download_speed: u32,
     /// The total upload transfer rate in bytes of payload only, not counting protocol chatter.
     pub upload_speed: u32,
     /// The total amount of data downloaded in bytes.
-    pub downloaded: u64,
+    pub downloaded: usize,
     /// The total size of the torrent in bytes.
     pub total_size: usize,
 }
@@ -183,23 +183,37 @@ impl From<Metrics> for LoadingProgress {
     fn from(value: Metrics) -> Self {
         Self {
             progress: value.progress(),
-            seeds: value.peers.get() as usize,
-            peers: value.peers.get() as usize,
+            connections: value.peers.get() as usize,
             download_speed: value.download_useful.rate(),
             upload_speed: value.upload_useful.rate(),
-            downloaded: value.wanted_completed_size.get(),
+            downloaded: value.wanted_completed_size.get() as usize,
             total_size: value.wanted_size.get() as usize,
         }
     }
 }
 
+impl From<StreamStats> for LoadingProgress {
+    fn from(value: StreamStats) -> Self {
+        Self {
+            progress: value.progress,
+            connections: value.connections,
+            download_speed: value.download_speed,
+            upload_speed: value.upload_speed,
+            downloaded: value.downloaded,
+            total_size: value.total_size,
+        }
+    }
+}
+
 /// Represents an error that may occur while a media item is being loaded.
-#[derive(Debug, Clone, PartialEq, Error)]
+#[derive(Debug, PartialEq, Error)]
 pub enum LoadingError {
     #[error("failed to parse URL: {0}")]
     ParseError(String),
     #[error("failed to load torrent, {0}")]
     TorrentError(torrents::Error),
+    #[error("failed to start stream, {0}")]
+    StreamError(stream::Error),
     #[error("failed to process media information, {0}")]
     MediaError(String),
     #[error("loading timed-out, {0}")]
@@ -208,6 +222,29 @@ pub enum LoadingError {
     InvalidData(String),
     #[error("loading task has been cancelled")]
     Cancelled,
+}
+
+impl Clone for LoadingError {
+    fn clone(&self) -> Self {
+        match self {
+            LoadingError::ParseError(e) => Self::ParseError(e.clone()),
+            LoadingError::TorrentError(e) => Self::TorrentError(e.clone()),
+            LoadingError::StreamError(e) => match e {
+                Error::AlreadyExists(e) => Self::StreamError(Error::AlreadyExists(e.clone())),
+                Error::NotFound(e) => Self::StreamError(Error::NotFound(e.clone())),
+                Error::InvalidState => Self::StreamError(Error::InvalidState),
+                Error::InvalidRange => Self::StreamError(Error::InvalidRange),
+                Error::Parse(e) => Self::StreamError(Error::Parse(e.clone())),
+                Error::Io(e) => {
+                    Self::StreamError(Error::Io(io::Error::new(e.kind(), e.to_string())))
+                }
+            },
+            LoadingError::MediaError(e) => Self::MediaError(e.clone()),
+            LoadingError::TimeoutError(e) => Self::TimeoutError(e.clone()),
+            LoadingError::InvalidData(e) => Self::InvalidData(e.clone()),
+            LoadingError::Cancelled => Self::Cancelled,
+        }
+    }
 }
 
 /// A handle representing a loading process for media items in a playlist.
@@ -601,8 +638,9 @@ mod tests {
             quality: None,
             auto_resume_timestamp: None,
             torrent: None,
-            torrent_file: None,
+            filename: None,
             subtitle: SubtitleData::default(),
+            stream: None,
         };
 
         let result = LoadingData::from(url);
@@ -639,7 +677,8 @@ mod tests {
                 subtitle: None,
             },
             torrent: None,
-            torrent_file: None,
+            filename: None,
+            stream: None,
         };
 
         let result = LoadingData::from(item);
@@ -698,8 +737,7 @@ mod tests {
         };
         let expected_result = LoadingProgress {
             progress: 0.125,
-            seeds: 10,
-            peers: 2,
+            connections: 10,
             download_speed: 0,
             upload_speed: 0,
             downloaded: 0,

@@ -98,17 +98,18 @@ impl LoadingStrategy for PlayerLoadingStrategy {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::loader::{LoadingData, TorrentData};
+    use crate::core::loader::LoadingData;
     use crate::core::media::MovieDetails;
     use crate::core::players::MockPlayerManager;
     use crate::core::playlist::{PlaylistItem, PlaylistMedia};
-    use crate::testing::MockTorrentStream;
     use crate::{create_loading_task, init_logger, recv_timeout};
 
     use super::*;
 
+    use crate::core::stream::ServerStream;
     use std::time::Duration;
     use tokio::sync::mpsc::unbounded_channel;
+    use url::Url;
 
     #[tokio::test]
     async fn test_process_youtube_url() {
@@ -177,7 +178,10 @@ mod tests {
             torrent: Default::default(),
         };
         let mut data = LoadingData::from(item);
-        data.torrent = Some(TorrentData::Stream(Box::new(MockTorrentStream::new())));
+        data.stream = Some(ServerStream {
+            url: Url::parse("http://localhost:8079/my-video.mkv").unwrap(),
+            filename: "my-video.mkv".to_string(),
+        });
         let (tx, mut rx) = unbounded_channel();
         let task = create_loading_task!();
         let context = task.context();
@@ -225,7 +229,10 @@ mod tests {
             torrent: Default::default(),
         };
         let mut data = LoadingData::from(item);
-        data.torrent = Some(TorrentData::Stream(Box::new(MockTorrentStream::new())));
+        data.stream = Some(ServerStream {
+            url: Url::parse("http://localhost:9000/my-video.mkv").unwrap(),
+            filename: "my-video.mkv".to_string(),
+        });
         let (tx, mut rx) = unbounded_channel();
         let task = create_loading_task!();
         let context = task.context();

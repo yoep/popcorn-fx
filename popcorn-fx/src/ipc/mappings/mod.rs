@@ -6,6 +6,7 @@ mod playback;
 mod player;
 mod playlist;
 mod settings;
+mod stream;
 mod subtitle;
 mod torrent;
 mod tracking;

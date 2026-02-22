@@ -56,12 +56,6 @@ message Torrent {
     STOPPED = 8;
   }
 
-  enum StreamState {
-    STREAM_PREPARING = 0;
-    STREAMING = 1;
-    STREAM_STOPPED = 2;
-  }
-
   message Stats {
     float progress = 1;
     uint64 upload = 2;
@@ -86,8 +80,11 @@ message Torrent {
     Type type = 1;
     optional InvalidUrl invalid_url = 2;
     optional FileNotFound file_not_found = 3;
-    optional InvalidStreamState invalid_stream_state = 4;
-    optional InvalidHandle invalid_handle = 5;
+    optional InvalidHandle invalid_handle = 4;
+    optional TorrentResolvingFailed torrent_resolving_failed = 5;
+    optional TorrentCollectionLoadingFailed torrent_collection_loading_failed = 6;
+    optional TorrentError torrent_error = 7;
+    optional IoError io = 8;
 
     message InvalidUrl {
       string url = 1;
@@ -97,19 +94,34 @@ message Torrent {
       string file = 1;
     }
 
-    message InvalidStreamState {
-      StreamState state = 1;
-    }
-
     message InvalidHandle {
       string handle = 1;
+    }
+
+    message TorrentResolvingFailed {
+      string message = 1;
+    }
+
+    message TorrentCollectionLoadingFailed {
+      string message = 1;
+    }
+
+    message TorrentError {
+      string message = 1;
+    }
+
+    message IoError {
+      string message = 1;
     }
 
     enum Type {
       INVALID_URL = 0;
       FILE_NOT_FOUND = 1;
-      INVALID_STREAM_STATE = 2;
-      INVALID_HANDLE = 3;
+      INVALID_HANDLE = 2;
+      TORRENT_RESOLVING_FAILED = 3;
+      TORRENT_COLLECTION_LOADING_FAILED = 4;
+      TORRENT_ERROR = 5;
+      IO = 6;
     }
   }
 }

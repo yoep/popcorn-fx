@@ -5,11 +5,12 @@ import com.github.yoep.player.popcorn.listeners.PlayerControlsListener;
 import com.github.yoep.player.popcorn.player.PopcornPlayer;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentListener;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
-import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Handle;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ServerStream;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Stream;
+import com.github.yoep.popcorn.backend.stream.StreamListener;
+import com.github.yoep.popcorn.backend.stream.StreamServer;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,7 +34,7 @@ class PlayerControlsServiceTest {
     @Mock
     private PlayerControlsListener listener;
     @Mock
-    private TorrentService torrentService;
+    private StreamServer streamServer;
 
     private PlayerControlsService service;
 
@@ -53,7 +54,7 @@ class PlayerControlsServiceTest {
             return null;
         }).when(videoService).addListener(isA(PlaybackListener.class));
 
-        service = new PlayerControlsService(player, screenService, videoService, torrentService);
+        service = new PlayerControlsService(player, screenService, videoService, streamServer);
         service.addListener(listener);
     }
 
@@ -169,26 +170,26 @@ class PlayerControlsServiceTest {
 
     @Test
     void testPlaybackListener_whenRequestIsStreamRequest_shouldInvokeDownloadStatusChanged() {
-        var downloadStatus = mock(DownloadStatus.class);
-        var listenerHolder = new AtomicReference<TorrentListener>();
+        var listenerHolder = new AtomicReference<StreamListener>();
         var request = Player.PlayRequest.newBuilder()
                 .setSubtitle(Player.PlayRequest.PlaySubtitleRequest.newBuilder()
                         .setEnabled(true)
                         .build())
-                .setTorrent(Player.PlayRequest.Torrent.newBuilder()
-                        .setHandle(Handle.newBuilder()
-                                .setHandle(222L)
-                                .build())
+                .setStream(ServerStream.newBuilder()
+                        .setFilename("test-video.mp4")
                         .build())
                 .build();
         doAnswer(invocation -> {
-            listenerHolder.set(invocation.getArgument(1, TorrentListener.class));
+            listenerHolder.set(invocation.getArgument(1, StreamListener.class));
             return null;
-        }).when(torrentService).addListener(isA(Handle.class), isA(TorrentListener.class));
+        }).when(streamServer).addListener(isA(String.class), isA(StreamListener.class));
 
         playbackListenerHolder.get().onPlay(request);
-        listenerHolder.get().onDownloadStatus(downloadStatus);
+        listenerHolder.get().onStatsChanged(Stream.StreamStats.newBuilder()
+                .setProgress(2.5f)
+                .setConnections(2)
+                .build());
 
-        verify(listener).onDownloadStatusChanged(downloadStatus);
+        verify(listener).onDownloadStatusChanged(isA(DownloadStatus.class));
     }
 }

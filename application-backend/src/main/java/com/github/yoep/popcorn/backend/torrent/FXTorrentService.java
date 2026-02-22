@@ -69,13 +69,8 @@ public class FXTorrentService implements TorrentService {
             }
 
             @Override
-            public int seeds() {
-                return (int) stats.getTotalPeers();
-            }
-
-            @Override
-            public int peers() {
-                return (int) stats.getTotalPeers();
+            public long connections() {
+                return stats.getTotalPeers();
             }
 
             @Override

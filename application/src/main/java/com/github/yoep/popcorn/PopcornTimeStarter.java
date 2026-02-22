@@ -40,7 +40,6 @@ public class PopcornTimeStarter {
         var ioc = PopcornTimeApplication.getIOC();
         ioc.registerInstance(createApplicationArguments(args));
 
-        System.out.println("Starting Popcorn Time");
         try (var fxLib = ioc.registerInstance(new FxLib(args))) {
             var executorService = ioc.registerInstance(Executors.newCachedThreadPool(e -> new Thread(e, "popcorn-fx")));
             var channel = ioc.registerInstance(new FxChannel(fxLib, executorService));

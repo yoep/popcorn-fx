@@ -10,7 +10,7 @@ use crate::core::loader::task::LoadingTaskContext;
 use crate::core::loader::{
     CancellationResult, LoadingData, LoadingError, LoadingResult, LoadingStrategy,
 };
-use crate::core::torrents::{Torrent, TorrentManager};
+use crate::core::torrents::TorrentManager;
 
 /// Represents a loading strategy for handling torrent details.
 ///
@@ -51,7 +51,7 @@ impl LoadingStrategy for TorrentDetailsLoadingStrategy {
         if let Some(torrent) = data.torrent.as_ref() {
             // check if a specific file has been set to be loaded
             // if not, stop the loading chain and show the retrieved details
-            if let None = data.torrent_file.as_ref() {
+            if let None = data.filename.as_ref() {
                 let handle = torrent.handle();
                 return match self.torrent_manager.info(&handle).await {
                     Ok(torrent_info) => {
@@ -97,7 +97,7 @@ mod tests {
     use tokio::sync::mpsc::unbounded_channel;
 
     use crate::core::loader::loading_chain::DEFAULT_ORDER;
-    use crate::core::loader::{SubtitleData, TorrentData};
+    use crate::core::loader::SubtitleData;
     use crate::core::torrents::{MockTorrent, MockTorrentManager, TorrentHandle, TorrentInfo};
     use crate::{create_loading_task, init_logger, recv_timeout};
 
@@ -128,8 +128,9 @@ mod tests {
             quality: None,
             auto_resume_timestamp: None,
             subtitle: SubtitleData::default(),
-            torrent: Some(TorrentData::Torrent(Box::new(torrent))),
-            torrent_file: None,
+            torrent: Some(Box::new(torrent)),
+            filename: None,
+            stream: None,
         };
         let (tx, mut rx) = unbounded_channel();
         let event_publisher = EventPublisher::default();
@@ -188,8 +189,9 @@ mod tests {
             quality: None,
             auto_resume_timestamp: None,
             subtitle: SubtitleData::default(),
-            torrent: Some(TorrentData::Torrent(Box::new(torrent))),
-            torrent_file: None,
+            torrent: Some(Box::new(torrent)),
+            filename: None,
+            stream: None,
         };
         let (tx, mut rx) = unbounded_channel();
         let event_publisher = EventPublisher::default();

@@ -1,21 +1,8 @@
+use crate::core::stream::{Error, Result};
 use std::fmt::{Display, Formatter};
-
-use thiserror::Error;
 
 const BYTES_PREFIX: &str = "bytes=";
 const BYTES_LEN: usize = BYTES_PREFIX.len();
-
-/// The result of the [Range] actions.
-pub type Result<T> = std::result::Result<T, RangeError>;
-
-/// The range errors that can occur.
-#[derive(Debug, Clone, Error)]
-pub enum RangeError {
-    #[error("Range value {0} is invalid")]
-    InvalidValue(String),
-    #[error("Range parse error, {0}")]
-    Parse(String),
-}
 
 /// The HTTP range information according to rfc7233.
 /// The requested range only allows for `bytes` type, any other types will result in an [Err].
@@ -28,7 +15,7 @@ pub struct Range {
 impl Range {
     pub fn parse(value: &str) -> Result<Vec<Self>> {
         if !value.starts_with(BYTES_PREFIX) {
-            return Err(RangeError::InvalidValue(value.to_string()));
+            return Err(Error::InvalidRange);
         }
 
         let range_value = &value[BYTES_LEN..];
@@ -45,7 +32,7 @@ impl Range {
         let values: Vec<&str> = value.split("-").collect();
         let start = values[0]
             .parse::<u64>()
-            .map_err(|e| RangeError::Parse(e.to_string()))?;
+            .map_err(|e| Error::Parse(e.to_string()))?;
         let end_value = values[1];
         let mut end = None;
 
@@ -53,7 +40,7 @@ impl Range {
             end = Some(
                 end_value
                     .parse::<u64>()
-                    .map_err(|e| RangeError::Parse(e.to_string()))?,
+                    .map_err(|e| Error::Parse(e.to_string()))?,
             );
         }
 
@@ -98,7 +85,7 @@ mod test {
 
         assert!(ranges.is_err(), "expected an error to be returned");
         match ranges.err().unwrap() {
-            RangeError::InvalidValue(_) => {}
+            Error::InvalidRange => {}
             _ => assert!(false, "expected the RangeError::InvalidValue"),
         }
     }
@@ -111,7 +98,7 @@ mod test {
 
         assert!(ranges.is_err(), "expected an error to have been returned");
         match ranges.err().unwrap() {
-            RangeError::Parse(_) => {}
+            Error::Parse(_) => {}
             _ => assert!(false, "expected the RangeError::Parse"),
         }
     }
@@ -124,7 +111,7 @@ mod test {
 
         assert!(ranges.is_err(), "expected an error to have been returned");
         match ranges.err().unwrap() {
-            RangeError::Parse(_) => {}
+            Error::Parse(_) => {}
             _ => assert!(false, "expected the RangeError::Parse"),
         }
     }

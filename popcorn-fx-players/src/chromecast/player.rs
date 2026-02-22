@@ -1108,10 +1108,10 @@ mod tests {
     use crate::chromecast::transcode::{MockTranscoder, TranscodeOutput, TranscodeType};
     use popcorn_fx_core::core::media::MovieOverview;
     use popcorn_fx_core::core::players::PlayRequest;
+    use popcorn_fx_core::core::stream::ServerStream;
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo};
     use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
-    use popcorn_fx_core::testing::MockTorrentStream;
     use popcorn_fx_core::{assert_timeout, init_logger, recv_timeout};
     use rust_cast::channels::media::StatusEntry;
     use rust_cast::channels::receiver::Volume;
@@ -1119,6 +1119,7 @@ mod tests {
     use serde_json::Number;
     use std::sync::mpsc::channel;
     use tokio::sync::mpsc::unbounded_channel;
+    use url::Url;
 
     #[tokio::test]
     async fn test_player_new() {
@@ -1277,7 +1278,10 @@ mod tests {
             .subtitles_enabled(true)
             .media(Box::new(movie))
             .quality("720p")
-            .torrent_stream(Box::new(MockTorrentStream::new()))
+            .stream(ServerStream {
+                url: Url::parse("http://localhost:9000/my-video.mkv").unwrap(),
+                filename: "my-video.mkv".to_string(),
+            })
             .build();
         let (tx, mut rx) = unbounded_channel();
         let player = test_instance.player.take().unwrap();

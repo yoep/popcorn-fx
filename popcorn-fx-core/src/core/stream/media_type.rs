@@ -7,7 +7,7 @@ use thiserror::Error;
 
 /// The default known mime types supported by HTTPD.
 /// More info: https://svn.apache.org/viewvc/httpd/httpd/trunk/docs/conf/mime.types
-const MIME_TYPES: &str = include_str!("../../../../resources/mime.types");
+const MIME_TYPES: &str = include_str!("../../../resources/mime.types");
 
 /// The media type result.
 pub type MediaTypeResult<T> = Result<T, MediaTypeError>;

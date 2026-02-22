@@ -7,14 +7,17 @@ import com.github.yoep.player.popcorn.listeners.PlayerControlsListener;
 import com.github.yoep.player.popcorn.player.PopcornPlayer;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentListener;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
-import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Handle;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ServerStream;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Stream;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
+import com.github.yoep.popcorn.backend.stream.IStreamServer;
+import com.github.yoep.popcorn.backend.stream.StreamListener;
+import com.github.yoep.popcorn.backend.stream.StreamServer;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Objects;
 import java.util.Optional;
 
 @Slf4j
@@ -22,19 +25,23 @@ public class PlayerControlsService extends AbstractListenerService<PlayerControl
     private final PopcornPlayer player;
     private final ScreenService screenService;
     private final VideoService videoService;
-    private final TorrentService torrentService;
+    private final IStreamServer streamServer;
 
     private final PlaybackListener playbackListener = createPlaybackListener();
     private final PlayerListener playerListener = createPlayerListener();
-    private final TorrentListener torrentListener = createStreamListener();
+    private final StreamListener streamListener = createStreamListener();
 
-    private Handle torrentHandle;
+    private String filename;
 
-    public PlayerControlsService(PopcornPlayer player, ScreenService screenService, VideoService videoService, TorrentService torrentService) {
+    public PlayerControlsService(PopcornPlayer player, ScreenService screenService, VideoService videoService, IStreamServer streamServer) {
+        Objects.requireNonNull(player, "player cannot be null");
+        Objects.requireNonNull(screenService, "screenService cannot be null");
+        Objects.requireNonNull(videoService, "videoService cannot be null");
+        Objects.requireNonNull(streamServer, "streamServer cannot be null");
         this.player = player;
         this.screenService = screenService;
         this.videoService = videoService;
-        this.torrentService = torrentService;
+        this.streamServer = streamServer;
         init();
     }
 
@@ -103,14 +110,14 @@ public class PlayerControlsService extends AbstractListenerService<PlayerControl
 
     private void onPlayRequest(Player.PlayRequest request) {
         invokeListeners(e -> e.onSubtitleStateChanged(request.getSubtitle().getEnabled()));
-        Optional.ofNullable(this.torrentHandle)
-                .ifPresent(handle -> torrentService.removeListener(handle, torrentListener));
-        Optional.ofNullable(request.getTorrent())
-                .filter(Player.PlayRequest.Torrent::hasHandle)
-                .map(Player.PlayRequest.Torrent::getHandle)
-                .ifPresent(e -> {
-                    this.torrentHandle = e;
-                    torrentService.addListener(e, torrentListener);
+        Optional.ofNullable(this.filename)
+                .ifPresent(handle -> streamServer.removeListener(handle, streamListener));
+        Optional.ofNullable(request.getStream())
+                .filter(e -> request.hasStream())
+                .map(ServerStream::getFilename)
+                .ifPresent(filename -> {
+                    this.filename = filename;
+                    streamServer.addListener(filename, streamListener);
                 });
     }
 
@@ -131,8 +138,38 @@ public class PlayerControlsService extends AbstractListenerService<PlayerControl
     }
 
 
-    private void onStreamProgressChanged(DownloadStatus status) {
-        invokeListeners(e -> e.onDownloadStatusChanged(status));
+    private void onStreamProgressChanged(Stream.StreamStats stats) {
+        invokeListeners(e -> e.onDownloadStatusChanged(new DownloadStatus() {
+            @Override
+            public float progress() {
+                return stats.getProgress();
+            }
+
+            @Override
+            public long connections() {
+                return stats.getConnections();
+            }
+
+            @Override
+            public int downloadSpeed() {
+                return stats.getDownloadSpeed();
+            }
+
+            @Override
+            public int uploadSpeed() {
+                return stats.getUploadSpeed();
+            }
+
+            @Override
+            public long downloaded() {
+                return stats.getDownloaded();
+            }
+
+            @Override
+            public long totalSize() {
+                return stats.getTotalSize();
+            }
+        }));
     }
 
     private PlayerListener createPlayerListener() {
@@ -168,8 +205,18 @@ public class PlayerControlsService extends AbstractListenerService<PlayerControl
         };
     }
 
-    private TorrentListener createStreamListener() {
-        return this::onStreamProgressChanged;
+    private StreamListener createStreamListener() {
+        return new StreamListener() {
+            @Override
+            public void onStateChanged(Stream.StreamState state) {
+                // no-op
+            }
+
+            @Override
+            public void onStatsChanged(Stream.StreamStats stats) {
+                onStreamProgressChanged(stats);
+            }
+        };
     }
 
     //endregion

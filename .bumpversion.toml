@@ -11,37 +11,50 @@ replace = 'pub const VERSION: &str = "{new_version}";'
 
 [[tool.bumpversion.files]]
 filename = "popcorn-fx/Cargo.toml"
-search = 'version = "{current_version}"'
+regex = true
+search = '^version = "{current_version}"'
 replace = 'version = "{new_version}"'
 
 [[tool.bumpversion.files]]
 filename = "popcorn-fx-bootstrap/Cargo.toml"
-search = 'version = "{current_version}"'
+regex = true
+search = '^version = "{current_version}"'
 replace = 'version = "{new_version}"'
 
 [[tool.bumpversion.files]]
 filename = "popcorn-fx-core/Cargo.toml"
-search = 'version = "{current_version}"'
+regex = true
+search = '^version = "{current_version}"'
+replace = 'version = "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "popcorn-fx-logging/Cargo.toml"
+regex = true
+search = '^version = "{current_version}"'
 replace = 'version = "{new_version}"'
 
 [[tool.bumpversion.files]]
 filename = "popcorn-fx-opensubtitles/Cargo.toml"
-search = 'version = "{current_version}"'
+regex = true
+search = '^version = "{current_version}"'
 replace = 'version = "{new_version}"'
 
 [[tool.bumpversion.files]]
 filename = "popcorn-fx-platform/Cargo.toml"
-search = 'version = "{current_version}"'
+regex = true
+search = '^version = "{current_version}"'
 replace = 'version = "{new_version}"'
 
 [[tool.bumpversion.files]]
 filename = "popcorn-fx-players/Cargo.toml"
-search = 'version = "{current_version}"'
+regex = true
+search = '^version = "{current_version}"'
 replace = 'version = "{new_version}"'
 
 [[tool.bumpversion.files]]
 filename = "popcorn-fx-trakt/Cargo.toml"
-search = 'version = "{current_version}"'
+regex = true
+search = '^version = "{current_version}"'
 replace = 'version = "{new_version}"'
 
 [[tool.bumpversion.files]]

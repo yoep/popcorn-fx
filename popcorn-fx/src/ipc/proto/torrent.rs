@@ -944,10 +944,16 @@ pub mod torrent {
         pub invalid_url: ::protobuf::MessageField<error::InvalidUrl>,
         // @@protoc_insertion_point(field:fx.ipc.proto.Torrent.Error.file_not_found)
         pub file_not_found: ::protobuf::MessageField<error::FileNotFound>,
-        // @@protoc_insertion_point(field:fx.ipc.proto.Torrent.Error.invalid_stream_state)
-        pub invalid_stream_state: ::protobuf::MessageField<error::InvalidStreamState>,
         // @@protoc_insertion_point(field:fx.ipc.proto.Torrent.Error.invalid_handle)
         pub invalid_handle: ::protobuf::MessageField<error::InvalidHandle>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.Torrent.Error.torrent_resolving_failed)
+        pub torrent_resolving_failed: ::protobuf::MessageField<error::TorrentResolvingFailed>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.Torrent.Error.torrent_collection_loading_failed)
+        pub torrent_collection_loading_failed: ::protobuf::MessageField<error::TorrentCollectionLoadingFailed>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.Torrent.Error.torrent_error)
+        pub torrent_error: ::protobuf::MessageField<error::TorrentError>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.Torrent.Error.io)
+        pub io: ::protobuf::MessageField<error::IoError>,
         // special fields
         // @@protoc_insertion_point(special_field:fx.ipc.proto.Torrent.Error.special_fields)
         pub special_fields: ::protobuf::SpecialFields,
@@ -985,10 +991,19 @@ pub mod torrent {
                         ::protobuf::rt::read_singular_message_into_field(is, &mut self.file_not_found)?;
                     },
                     34 => {
-                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.invalid_stream_state)?;
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.invalid_handle)?;
                     },
                     42 => {
-                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.invalid_handle)?;
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.torrent_resolving_failed)?;
+                    },
+                    50 => {
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.torrent_collection_loading_failed)?;
+                    },
+                    58 => {
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.torrent_error)?;
+                    },
+                    66 => {
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.io)?;
                     },
                     tag => {
                         ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
@@ -1013,11 +1028,23 @@ pub mod torrent {
                 let len = v.compute_size();
                 my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
             }
-            if let Some(v) = self.invalid_stream_state.as_ref() {
+            if let Some(v) = self.invalid_handle.as_ref() {
                 let len = v.compute_size();
                 my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
             }
-            if let Some(v) = self.invalid_handle.as_ref() {
+            if let Some(v) = self.torrent_resolving_failed.as_ref() {
+                let len = v.compute_size();
+                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+            }
+            if let Some(v) = self.torrent_collection_loading_failed.as_ref() {
+                let len = v.compute_size();
+                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+            }
+            if let Some(v) = self.torrent_error.as_ref() {
+                let len = v.compute_size();
+                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+            }
+            if let Some(v) = self.io.as_ref() {
                 let len = v.compute_size();
                 my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
             }
@@ -1036,11 +1063,20 @@ pub mod torrent {
             if let Some(v) = self.file_not_found.as_ref() {
                 ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
             }
-            if let Some(v) = self.invalid_stream_state.as_ref() {
+            if let Some(v) = self.invalid_handle.as_ref() {
                 ::protobuf::rt::write_message_field_with_cached_size(4, v, os)?;
             }
-            if let Some(v) = self.invalid_handle.as_ref() {
+            if let Some(v) = self.torrent_resolving_failed.as_ref() {
                 ::protobuf::rt::write_message_field_with_cached_size(5, v, os)?;
+            }
+            if let Some(v) = self.torrent_collection_loading_failed.as_ref() {
+                ::protobuf::rt::write_message_field_with_cached_size(6, v, os)?;
+            }
+            if let Some(v) = self.torrent_error.as_ref() {
+                ::protobuf::rt::write_message_field_with_cached_size(7, v, os)?;
+            }
+            if let Some(v) = self.io.as_ref() {
+                ::protobuf::rt::write_message_field_with_cached_size(8, v, os)?;
             }
             os.write_unknown_fields(self.special_fields.unknown_fields())?;
             ::std::result::Result::Ok(())
@@ -1062,8 +1098,11 @@ pub mod torrent {
             self.type_ = ::protobuf::EnumOrUnknown::new(error::Type::INVALID_URL);
             self.invalid_url.clear();
             self.file_not_found.clear();
-            self.invalid_stream_state.clear();
             self.invalid_handle.clear();
+            self.torrent_resolving_failed.clear();
+            self.torrent_collection_loading_failed.clear();
+            self.torrent_error.clear();
+            self.io.clear();
             self.special_fields.clear();
         }
 
@@ -1072,8 +1111,11 @@ pub mod torrent {
                 type_: ::protobuf::EnumOrUnknown::from_i32(0),
                 invalid_url: ::protobuf::MessageField::none(),
                 file_not_found: ::protobuf::MessageField::none(),
-                invalid_stream_state: ::protobuf::MessageField::none(),
                 invalid_handle: ::protobuf::MessageField::none(),
+                torrent_resolving_failed: ::protobuf::MessageField::none(),
+                torrent_collection_loading_failed: ::protobuf::MessageField::none(),
+                torrent_error: ::protobuf::MessageField::none(),
+                io: ::protobuf::MessageField::none(),
                 special_fields: ::protobuf::SpecialFields::new(),
             };
             &instance
@@ -1262,96 +1304,6 @@ pub mod torrent {
             }
         }
 
-        // @@protoc_insertion_point(message:fx.ipc.proto.Torrent.Error.InvalidStreamState)
-        #[derive(PartialEq,Clone,Default,Debug)]
-        pub struct InvalidStreamState {
-            // message fields
-            // @@protoc_insertion_point(field:fx.ipc.proto.Torrent.Error.InvalidStreamState.state)
-            pub state: ::protobuf::EnumOrUnknown<super::StreamState>,
-            // special fields
-            // @@protoc_insertion_point(special_field:fx.ipc.proto.Torrent.Error.InvalidStreamState.special_fields)
-            pub special_fields: ::protobuf::SpecialFields,
-        }
-
-        impl<'a> ::std::default::Default for &'a InvalidStreamState {
-            fn default() -> &'a InvalidStreamState {
-                <InvalidStreamState as ::protobuf::Message>::default_instance()
-            }
-        }
-
-        impl InvalidStreamState {
-            pub fn new() -> InvalidStreamState {
-                ::std::default::Default::default()
-            }
-        }
-
-        impl ::protobuf::Message for InvalidStreamState {
-            const NAME: &'static str = "InvalidStreamState";
-
-            fn is_initialized(&self) -> bool {
-                true
-            }
-
-            fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
-                while let Some(tag) = is.read_raw_tag_or_eof()? {
-                    match tag {
-                        8 => {
-                            self.state = is.read_enum_or_unknown()?;
-                        },
-                        tag => {
-                            ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
-                        },
-                    };
-                }
-                ::std::result::Result::Ok(())
-            }
-
-            // Compute sizes of nested messages
-            #[allow(unused_variables)]
-            fn compute_size(&self) -> u64 {
-                let mut my_size = 0;
-                if self.state != ::protobuf::EnumOrUnknown::new(super::StreamState::STREAM_PREPARING) {
-                    my_size += ::protobuf::rt::int32_size(1, self.state.value());
-                }
-                my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
-                self.special_fields.cached_size().set(my_size as u32);
-                my_size
-            }
-
-            fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-                if self.state != ::protobuf::EnumOrUnknown::new(super::StreamState::STREAM_PREPARING) {
-                    os.write_enum(1, ::protobuf::EnumOrUnknown::value(&self.state))?;
-                }
-                os.write_unknown_fields(self.special_fields.unknown_fields())?;
-                ::std::result::Result::Ok(())
-            }
-
-            fn special_fields(&self) -> &::protobuf::SpecialFields {
-                &self.special_fields
-            }
-
-            fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
-                &mut self.special_fields
-            }
-
-            fn new() -> InvalidStreamState {
-                InvalidStreamState::new()
-            }
-
-            fn clear(&mut self) {
-                self.state = ::protobuf::EnumOrUnknown::new(super::StreamState::STREAM_PREPARING);
-                self.special_fields.clear();
-            }
-
-            fn default_instance() -> &'static InvalidStreamState {
-                static instance: InvalidStreamState = InvalidStreamState {
-                    state: ::protobuf::EnumOrUnknown::from_i32(0),
-                    special_fields: ::protobuf::SpecialFields::new(),
-                };
-                &instance
-            }
-        }
-
         // @@protoc_insertion_point(message:fx.ipc.proto.Torrent.Error.InvalidHandle)
         #[derive(PartialEq,Clone,Default,Debug)]
         pub struct InvalidHandle {
@@ -1442,6 +1394,366 @@ pub mod torrent {
             }
         }
 
+        // @@protoc_insertion_point(message:fx.ipc.proto.Torrent.Error.TorrentResolvingFailed)
+        #[derive(PartialEq,Clone,Default,Debug)]
+        pub struct TorrentResolvingFailed {
+            // message fields
+            // @@protoc_insertion_point(field:fx.ipc.proto.Torrent.Error.TorrentResolvingFailed.message)
+            pub message: ::std::string::String,
+            // special fields
+            // @@protoc_insertion_point(special_field:fx.ipc.proto.Torrent.Error.TorrentResolvingFailed.special_fields)
+            pub special_fields: ::protobuf::SpecialFields,
+        }
+
+        impl<'a> ::std::default::Default for &'a TorrentResolvingFailed {
+            fn default() -> &'a TorrentResolvingFailed {
+                <TorrentResolvingFailed as ::protobuf::Message>::default_instance()
+            }
+        }
+
+        impl TorrentResolvingFailed {
+            pub fn new() -> TorrentResolvingFailed {
+                ::std::default::Default::default()
+            }
+        }
+
+        impl ::protobuf::Message for TorrentResolvingFailed {
+            const NAME: &'static str = "TorrentResolvingFailed";
+
+            fn is_initialized(&self) -> bool {
+                true
+            }
+
+            fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+                while let Some(tag) = is.read_raw_tag_or_eof()? {
+                    match tag {
+                        10 => {
+                            self.message = is.read_string()?;
+                        },
+                        tag => {
+                            ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                        },
+                    };
+                }
+                ::std::result::Result::Ok(())
+            }
+
+            // Compute sizes of nested messages
+            #[allow(unused_variables)]
+            fn compute_size(&self) -> u64 {
+                let mut my_size = 0;
+                if !self.message.is_empty() {
+                    my_size += ::protobuf::rt::string_size(1, &self.message);
+                }
+                my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+                self.special_fields.cached_size().set(my_size as u32);
+                my_size
+            }
+
+            fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+                if !self.message.is_empty() {
+                    os.write_string(1, &self.message)?;
+                }
+                os.write_unknown_fields(self.special_fields.unknown_fields())?;
+                ::std::result::Result::Ok(())
+            }
+
+            fn special_fields(&self) -> &::protobuf::SpecialFields {
+                &self.special_fields
+            }
+
+            fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+                &mut self.special_fields
+            }
+
+            fn new() -> TorrentResolvingFailed {
+                TorrentResolvingFailed::new()
+            }
+
+            fn clear(&mut self) {
+                self.message.clear();
+                self.special_fields.clear();
+            }
+
+            fn default_instance() -> &'static TorrentResolvingFailed {
+                static instance: TorrentResolvingFailed = TorrentResolvingFailed {
+                    message: ::std::string::String::new(),
+                    special_fields: ::protobuf::SpecialFields::new(),
+                };
+                &instance
+            }
+        }
+
+        // @@protoc_insertion_point(message:fx.ipc.proto.Torrent.Error.TorrentCollectionLoadingFailed)
+        #[derive(PartialEq,Clone,Default,Debug)]
+        pub struct TorrentCollectionLoadingFailed {
+            // message fields
+            // @@protoc_insertion_point(field:fx.ipc.proto.Torrent.Error.TorrentCollectionLoadingFailed.message)
+            pub message: ::std::string::String,
+            // special fields
+            // @@protoc_insertion_point(special_field:fx.ipc.proto.Torrent.Error.TorrentCollectionLoadingFailed.special_fields)
+            pub special_fields: ::protobuf::SpecialFields,
+        }
+
+        impl<'a> ::std::default::Default for &'a TorrentCollectionLoadingFailed {
+            fn default() -> &'a TorrentCollectionLoadingFailed {
+                <TorrentCollectionLoadingFailed as ::protobuf::Message>::default_instance()
+            }
+        }
+
+        impl TorrentCollectionLoadingFailed {
+            pub fn new() -> TorrentCollectionLoadingFailed {
+                ::std::default::Default::default()
+            }
+        }
+
+        impl ::protobuf::Message for TorrentCollectionLoadingFailed {
+            const NAME: &'static str = "TorrentCollectionLoadingFailed";
+
+            fn is_initialized(&self) -> bool {
+                true
+            }
+
+            fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+                while let Some(tag) = is.read_raw_tag_or_eof()? {
+                    match tag {
+                        10 => {
+                            self.message = is.read_string()?;
+                        },
+                        tag => {
+                            ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                        },
+                    };
+                }
+                ::std::result::Result::Ok(())
+            }
+
+            // Compute sizes of nested messages
+            #[allow(unused_variables)]
+            fn compute_size(&self) -> u64 {
+                let mut my_size = 0;
+                if !self.message.is_empty() {
+                    my_size += ::protobuf::rt::string_size(1, &self.message);
+                }
+                my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+                self.special_fields.cached_size().set(my_size as u32);
+                my_size
+            }
+
+            fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+                if !self.message.is_empty() {
+                    os.write_string(1, &self.message)?;
+                }
+                os.write_unknown_fields(self.special_fields.unknown_fields())?;
+                ::std::result::Result::Ok(())
+            }
+
+            fn special_fields(&self) -> &::protobuf::SpecialFields {
+                &self.special_fields
+            }
+
+            fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+                &mut self.special_fields
+            }
+
+            fn new() -> TorrentCollectionLoadingFailed {
+                TorrentCollectionLoadingFailed::new()
+            }
+
+            fn clear(&mut self) {
+                self.message.clear();
+                self.special_fields.clear();
+            }
+
+            fn default_instance() -> &'static TorrentCollectionLoadingFailed {
+                static instance: TorrentCollectionLoadingFailed = TorrentCollectionLoadingFailed {
+                    message: ::std::string::String::new(),
+                    special_fields: ::protobuf::SpecialFields::new(),
+                };
+                &instance
+            }
+        }
+
+        // @@protoc_insertion_point(message:fx.ipc.proto.Torrent.Error.TorrentError)
+        #[derive(PartialEq,Clone,Default,Debug)]
+        pub struct TorrentError {
+            // message fields
+            // @@protoc_insertion_point(field:fx.ipc.proto.Torrent.Error.TorrentError.message)
+            pub message: ::std::string::String,
+            // special fields
+            // @@protoc_insertion_point(special_field:fx.ipc.proto.Torrent.Error.TorrentError.special_fields)
+            pub special_fields: ::protobuf::SpecialFields,
+        }
+
+        impl<'a> ::std::default::Default for &'a TorrentError {
+            fn default() -> &'a TorrentError {
+                <TorrentError as ::protobuf::Message>::default_instance()
+            }
+        }
+
+        impl TorrentError {
+            pub fn new() -> TorrentError {
+                ::std::default::Default::default()
+            }
+        }
+
+        impl ::protobuf::Message for TorrentError {
+            const NAME: &'static str = "TorrentError";
+
+            fn is_initialized(&self) -> bool {
+                true
+            }
+
+            fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+                while let Some(tag) = is.read_raw_tag_or_eof()? {
+                    match tag {
+                        10 => {
+                            self.message = is.read_string()?;
+                        },
+                        tag => {
+                            ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                        },
+                    };
+                }
+                ::std::result::Result::Ok(())
+            }
+
+            // Compute sizes of nested messages
+            #[allow(unused_variables)]
+            fn compute_size(&self) -> u64 {
+                let mut my_size = 0;
+                if !self.message.is_empty() {
+                    my_size += ::protobuf::rt::string_size(1, &self.message);
+                }
+                my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+                self.special_fields.cached_size().set(my_size as u32);
+                my_size
+            }
+
+            fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+                if !self.message.is_empty() {
+                    os.write_string(1, &self.message)?;
+                }
+                os.write_unknown_fields(self.special_fields.unknown_fields())?;
+                ::std::result::Result::Ok(())
+            }
+
+            fn special_fields(&self) -> &::protobuf::SpecialFields {
+                &self.special_fields
+            }
+
+            fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+                &mut self.special_fields
+            }
+
+            fn new() -> TorrentError {
+                TorrentError::new()
+            }
+
+            fn clear(&mut self) {
+                self.message.clear();
+                self.special_fields.clear();
+            }
+
+            fn default_instance() -> &'static TorrentError {
+                static instance: TorrentError = TorrentError {
+                    message: ::std::string::String::new(),
+                    special_fields: ::protobuf::SpecialFields::new(),
+                };
+                &instance
+            }
+        }
+
+        // @@protoc_insertion_point(message:fx.ipc.proto.Torrent.Error.IoError)
+        #[derive(PartialEq,Clone,Default,Debug)]
+        pub struct IoError {
+            // message fields
+            // @@protoc_insertion_point(field:fx.ipc.proto.Torrent.Error.IoError.message)
+            pub message: ::std::string::String,
+            // special fields
+            // @@protoc_insertion_point(special_field:fx.ipc.proto.Torrent.Error.IoError.special_fields)
+            pub special_fields: ::protobuf::SpecialFields,
+        }
+
+        impl<'a> ::std::default::Default for &'a IoError {
+            fn default() -> &'a IoError {
+                <IoError as ::protobuf::Message>::default_instance()
+            }
+        }
+
+        impl IoError {
+            pub fn new() -> IoError {
+                ::std::default::Default::default()
+            }
+        }
+
+        impl ::protobuf::Message for IoError {
+            const NAME: &'static str = "IoError";
+
+            fn is_initialized(&self) -> bool {
+                true
+            }
+
+            fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+                while let Some(tag) = is.read_raw_tag_or_eof()? {
+                    match tag {
+                        10 => {
+                            self.message = is.read_string()?;
+                        },
+                        tag => {
+                            ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                        },
+                    };
+                }
+                ::std::result::Result::Ok(())
+            }
+
+            // Compute sizes of nested messages
+            #[allow(unused_variables)]
+            fn compute_size(&self) -> u64 {
+                let mut my_size = 0;
+                if !self.message.is_empty() {
+                    my_size += ::protobuf::rt::string_size(1, &self.message);
+                }
+                my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+                self.special_fields.cached_size().set(my_size as u32);
+                my_size
+            }
+
+            fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+                if !self.message.is_empty() {
+                    os.write_string(1, &self.message)?;
+                }
+                os.write_unknown_fields(self.special_fields.unknown_fields())?;
+                ::std::result::Result::Ok(())
+            }
+
+            fn special_fields(&self) -> &::protobuf::SpecialFields {
+                &self.special_fields
+            }
+
+            fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+                &mut self.special_fields
+            }
+
+            fn new() -> IoError {
+                IoError::new()
+            }
+
+            fn clear(&mut self) {
+                self.message.clear();
+                self.special_fields.clear();
+            }
+
+            fn default_instance() -> &'static IoError {
+                static instance: IoError = IoError {
+                    message: ::std::string::String::new(),
+                    special_fields: ::protobuf::SpecialFields::new(),
+                };
+                &instance
+            }
+        }
+
         #[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
         // @@protoc_insertion_point(enum:fx.ipc.proto.Torrent.Error.Type)
         pub enum Type {
@@ -1449,10 +1761,16 @@ pub mod torrent {
             INVALID_URL = 0,
             // @@protoc_insertion_point(enum_value:fx.ipc.proto.Torrent.Error.Type.FILE_NOT_FOUND)
             FILE_NOT_FOUND = 1,
-            // @@protoc_insertion_point(enum_value:fx.ipc.proto.Torrent.Error.Type.INVALID_STREAM_STATE)
-            INVALID_STREAM_STATE = 2,
             // @@protoc_insertion_point(enum_value:fx.ipc.proto.Torrent.Error.Type.INVALID_HANDLE)
-            INVALID_HANDLE = 3,
+            INVALID_HANDLE = 2,
+            // @@protoc_insertion_point(enum_value:fx.ipc.proto.Torrent.Error.Type.TORRENT_RESOLVING_FAILED)
+            TORRENT_RESOLVING_FAILED = 3,
+            // @@protoc_insertion_point(enum_value:fx.ipc.proto.Torrent.Error.Type.TORRENT_COLLECTION_LOADING_FAILED)
+            TORRENT_COLLECTION_LOADING_FAILED = 4,
+            // @@protoc_insertion_point(enum_value:fx.ipc.proto.Torrent.Error.Type.TORRENT_ERROR)
+            TORRENT_ERROR = 5,
+            // @@protoc_insertion_point(enum_value:fx.ipc.proto.Torrent.Error.Type.IO)
+            IO = 6,
         }
 
         impl ::protobuf::Enum for Type {
@@ -1466,8 +1784,11 @@ pub mod torrent {
                 match value {
                     0 => ::std::option::Option::Some(Type::INVALID_URL),
                     1 => ::std::option::Option::Some(Type::FILE_NOT_FOUND),
-                    2 => ::std::option::Option::Some(Type::INVALID_STREAM_STATE),
-                    3 => ::std::option::Option::Some(Type::INVALID_HANDLE),
+                    2 => ::std::option::Option::Some(Type::INVALID_HANDLE),
+                    3 => ::std::option::Option::Some(Type::TORRENT_RESOLVING_FAILED),
+                    4 => ::std::option::Option::Some(Type::TORRENT_COLLECTION_LOADING_FAILED),
+                    5 => ::std::option::Option::Some(Type::TORRENT_ERROR),
+                    6 => ::std::option::Option::Some(Type::IO),
                     _ => ::std::option::Option::None
                 }
             }
@@ -1476,8 +1797,11 @@ pub mod torrent {
                 match str {
                     "INVALID_URL" => ::std::option::Option::Some(Type::INVALID_URL),
                     "FILE_NOT_FOUND" => ::std::option::Option::Some(Type::FILE_NOT_FOUND),
-                    "INVALID_STREAM_STATE" => ::std::option::Option::Some(Type::INVALID_STREAM_STATE),
                     "INVALID_HANDLE" => ::std::option::Option::Some(Type::INVALID_HANDLE),
+                    "TORRENT_RESOLVING_FAILED" => ::std::option::Option::Some(Type::TORRENT_RESOLVING_FAILED),
+                    "TORRENT_COLLECTION_LOADING_FAILED" => ::std::option::Option::Some(Type::TORRENT_COLLECTION_LOADING_FAILED),
+                    "TORRENT_ERROR" => ::std::option::Option::Some(Type::TORRENT_ERROR),
+                    "IO" => ::std::option::Option::Some(Type::IO),
                     _ => ::std::option::Option::None
                 }
             }
@@ -1485,8 +1809,11 @@ pub mod torrent {
             const VALUES: &'static [Type] = &[
                 Type::INVALID_URL,
                 Type::FILE_NOT_FOUND,
-                Type::INVALID_STREAM_STATE,
                 Type::INVALID_HANDLE,
+                Type::TORRENT_RESOLVING_FAILED,
+                Type::TORRENT_COLLECTION_LOADING_FAILED,
+                Type::TORRENT_ERROR,
+                Type::IO,
             ];
         }
 
@@ -1574,56 +1901,6 @@ pub mod torrent {
     impl ::std::default::Default for State {
         fn default() -> Self {
             State::INITIALIZING
-        }
-    }
-
-
-    #[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
-    // @@protoc_insertion_point(enum:fx.ipc.proto.Torrent.StreamState)
-    pub enum StreamState {
-        // @@protoc_insertion_point(enum_value:fx.ipc.proto.Torrent.StreamState.STREAM_PREPARING)
-        STREAM_PREPARING = 0,
-        // @@protoc_insertion_point(enum_value:fx.ipc.proto.Torrent.StreamState.STREAMING)
-        STREAMING = 1,
-        // @@protoc_insertion_point(enum_value:fx.ipc.proto.Torrent.StreamState.STREAM_STOPPED)
-        STREAM_STOPPED = 2,
-    }
-
-    impl ::protobuf::Enum for StreamState {
-        const NAME: &'static str = "StreamState";
-
-        fn value(&self) -> i32 {
-            *self as i32
-        }
-
-        fn from_i32(value: i32) -> ::std::option::Option<StreamState> {
-            match value {
-                0 => ::std::option::Option::Some(StreamState::STREAM_PREPARING),
-                1 => ::std::option::Option::Some(StreamState::STREAMING),
-                2 => ::std::option::Option::Some(StreamState::STREAM_STOPPED),
-                _ => ::std::option::Option::None
-            }
-        }
-
-        fn from_str(str: &str) -> ::std::option::Option<StreamState> {
-            match str {
-                "STREAM_PREPARING" => ::std::option::Option::Some(StreamState::STREAM_PREPARING),
-                "STREAMING" => ::std::option::Option::Some(StreamState::STREAMING),
-                "STREAM_STOPPED" => ::std::option::Option::Some(StreamState::STREAM_STOPPED),
-                _ => ::std::option::Option::None
-            }
-        }
-
-        const VALUES: &'static [StreamState] = &[
-            StreamState::STREAM_PREPARING,
-            StreamState::STREAMING,
-            StreamState::STREAM_STOPPED,
-        ];
-    }
-
-    impl ::std::default::Default for StreamState {
-        fn default() -> Self {
-            StreamState::STREAM_PREPARING
         }
     }
 

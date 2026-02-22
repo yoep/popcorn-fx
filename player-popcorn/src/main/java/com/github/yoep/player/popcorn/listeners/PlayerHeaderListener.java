@@ -21,5 +21,5 @@ public interface PlayerHeaderListener {
      *
      * @param progress The last known progress update.
      */
-    void onDownloadStatusChanged( DownloadStatus progress);
+    void onDownloadStatusChanged(DownloadStatus progress);
 }

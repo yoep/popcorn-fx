@@ -2,8 +2,6 @@ use crate::data_installer::{DataInstaller, DefaultDataInstaller};
 use directories::BaseDirs;
 use log::{debug, error, trace, warn};
 use popcorn_fx_core::core::launcher::LauncherOptions;
-use std::fs::OpenOptions;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -69,7 +67,6 @@ enum Action {
 /// use popcorn_fx::bootstrapper::Bootstrapper;
 ///
 /// let bootstrapper = Bootstrapper::builder()
-///     .path(env::var("PATH").unwrap())
 ///     .args(env::args().collect())
 ///     .build();
 ///
@@ -77,7 +74,6 @@ enum Action {
 /// ```
 #[derive(Debug)]
 pub struct Bootstrapper {
-    pub path: String,
     pub args: Vec<String>,
     pub data_path: PathBuf,
     pub process_path: Option<String>,
@@ -333,7 +329,6 @@ impl BootstrapperBuilder {
         let data_path = data_base_path.join(DATA_DIRECTORY_NAME);
 
         Bootstrapper {
-            path: self.path.expect("Path is not set"),
             args: args.collect(),
             data_installer: Box::new(DefaultDataInstaller {
                 data_path: data_path.clone(),
@@ -392,7 +387,6 @@ mod test {
         let mut data_installer = MockDataInstaller::new();
         data_installer.expect_prepare().returning(|| Ok(()));
         let bootstrap = Bootstrapper {
-            path: "".to_string(),
             args: vec!["popcorn-fx".to_string()],
             data_path: PathBuf::from(temp_path),
             process_path: Some("echo".to_string()),
@@ -419,7 +413,6 @@ mod test {
             .expect_prepare()
             .returning(|| Err(DataInstallerError::MissingAppData(PathBuf::from("."))));
         let bootstrap = Bootstrapper {
-            path: "".to_string(),
             args: vec![],
             data_path: PathBuf::from(temp_path),
             process_path: Some("echo".to_string()),
@@ -443,7 +436,6 @@ mod test {
         let mut data_installer = MockDataInstaller::new();
         data_installer.expect_prepare().returning(|| Ok(()));
         let bootstrap = Bootstrapper {
-            path: "".to_string(),
             args: vec![],
             data_path: PathBuf::from(temp_path),
             process_path: Some("lorem".to_string()),

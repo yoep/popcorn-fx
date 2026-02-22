@@ -7,8 +7,8 @@ use popcorn_fx_core::core::config::{ApplicationConfig, PopcornProperties};
 use popcorn_fx_core::core::event::EventPublisher;
 use popcorn_fx_core::core::images::{DefaultImageLoader, ImageLoader};
 use popcorn_fx_core::core::loader::{
-    AutoResumeLoadingStrategy, DefaultMediaLoader, LoadingStrategy, MediaLoader,
-    MediaTorrentUrlLoadingStrategy, PlayerLoadingStrategy, SubtitlesLoadingStrategy,
+    AutoResumeLoadingStrategy, DefaultMediaLoader, FileLoadingStrategy, LoadingStrategy,
+    MediaLoader, MediaTorrentUrlLoadingStrategy, PlayerLoadingStrategy, SubtitlesLoadingStrategy,
     TorrentDetailsLoadingStrategy, TorrentInfoLoadingStrategy, TorrentLoadingStrategy,
     TorrentStreamLoadingStrategy,
 };
@@ -26,14 +26,14 @@ use popcorn_fx_core::core::platform::PlatformData;
 use popcorn_fx_core::core::playback::PlaybackControls;
 use popcorn_fx_core::core::players::{DefaultPlayerManager, PlayerManager};
 use popcorn_fx_core::core::playlist::PlaylistManager;
+use popcorn_fx_core::core::stream::StreamServer;
 use popcorn_fx_core::core::subtitles::model::SubtitleType;
 use popcorn_fx_core::core::subtitles::parsers::{SrtParser, VttParser};
 use popcorn_fx_core::core::subtitles::{
     DefaultSubtitleManager, SubtitleManager, SubtitleProvider, SubtitleServer,
 };
 use popcorn_fx_core::core::torrents::collection::TorrentCollection;
-use popcorn_fx_core::core::torrents::stream::FXTorrentStreamServer;
-use popcorn_fx_core::core::torrents::{FxTorrentManager, TorrentManager, TorrentStreamServer};
+use popcorn_fx_core::core::torrents::{FxTorrentManager, TorrentManager};
 use popcorn_fx_core::core::updater::Updater;
 use popcorn_fx_logging::FxLogger;
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
@@ -43,6 +43,7 @@ use popcorn_fx_players::dlna::DlnaDiscovery;
 use popcorn_fx_players::vlc::VlcDiscovery;
 use popcorn_fx_players::Discovery;
 use popcorn_fx_trakt::trakt::TraktProvider;
+use rustls::crypto::CryptoProvider;
 use std::env;
 use std::fmt::{Debug, Formatter};
 use std::path::PathBuf;
@@ -171,12 +172,12 @@ pub struct PopcornFX {
     playlist_manager: PlaylistManager,
     providers: Arc<ProviderManager>,
     settings: ApplicationConfig,
+    stream_server: Arc<StreamServer>,
     subtitle_manager: Arc<Box<dyn SubtitleManager>>,
     subtitle_provider: Arc<dyn SubtitleProvider>,
     subtitle_server: Arc<SubtitleServer>,
     torrent_collection: TorrentCollection,
     torrent_manager: Arc<dyn TorrentManager>,
-    torrent_stream_server: Arc<dyn TorrentStreamServer>,
     tracking_provider: Arc<dyn TrackingProvider>,
     tracking_sync: Arc<SyncMediaTracking>,
     updater: Arc<Updater>,
@@ -201,12 +202,12 @@ impl PopcornFX {
             warn!("INSECURE CONNECTIONS ARE ENABLED");
         }
 
-        trace!("Registering default crypto provider");
-        rustls::crypto::aws_lc_rs::default_provider()
-            .install_default()
-            .map_err(|_| {
-                Error::Initialization("failed to initialize crypto provider".to_string())
-            })?;
+        if CryptoProvider::get_default().is_none() {
+            trace!("Registering default crypto provider");
+            if let Err(_) = rustls::crypto::aws_lc_rs::default_provider().install_default() {
+                warn!("Unable to register default crypto provider");
+            }
+        }
 
         info!("Creating new popcorn fx instance with {:?}", args);
         let app_directory_path = args.app_directory.as_str();
@@ -259,11 +260,11 @@ impl PopcornFX {
             .await
             .map_err(|e| Error::Initialization(e.to_string()))?,
         ) as Arc<dyn TorrentManager>;
-        let torrent_stream_server = Arc::new(
-            FXTorrentStreamServer::new()
+        let stream_server = Arc::new(
+            StreamServer::new()
                 .await
                 .map_err(|e| Error::Initialization(e.to_string()))?,
-        ) as Arc<dyn TorrentStreamServer>;
+        );
         let torrent_collection = TorrentCollection::new(app_directory_path);
         let auto_resume_service = Arc::new(
             DefaultAutoResumeService::builder()
@@ -293,8 +294,7 @@ impl PopcornFX {
             Arc::new(DefaultImageLoader::new(cache_manager.clone())) as Arc<dyn ImageLoader>;
         let player_manager = Arc::new(Box::new(DefaultPlayerManager::new(
             event_publisher.clone(),
-            torrent_manager.clone(),
-            torrent_stream_server.clone(),
+            stream_server.clone(),
         )) as Box<dyn PlayerManager>);
         let loading_chain: Vec<Box<dyn LoadingStrategy>> = vec![
             Box::new(MediaTorrentUrlLoadingStrategy::new()),
@@ -310,12 +310,13 @@ impl PopcornFX {
             )),
             Box::new(TorrentStreamLoadingStrategy::new(
                 torrent_manager.clone(),
-                torrent_stream_server.clone(),
+                stream_server.clone(),
             )),
             Box::new(TorrentDetailsLoadingStrategy::new(
                 event_publisher.clone(),
                 torrent_manager.clone(),
             )),
+            Box::new(FileLoadingStrategy::new(stream_server.clone())),
             Box::new(PlayerLoadingStrategy::new(player_manager.clone())),
         ];
         let media_loader = Arc::new(DefaultMediaLoader::new(loading_chain)) as Arc<dyn MediaLoader>;
@@ -384,12 +385,12 @@ impl PopcornFX {
             subtitle_server,
             torrent_collection,
             torrent_manager,
-            torrent_stream_server,
             tracking_provider,
             tracking_sync,
             updater: app_updater,
             watched_service,
             player_discovery_services,
+            stream_server,
             opts: args,
         })
     }
@@ -439,9 +440,9 @@ impl PopcornFX {
         &self.torrent_manager
     }
 
-    /// The torrent stream server which handles the video streams.
-    pub fn torrent_stream_server(&self) -> &Arc<dyn TorrentStreamServer> {
-        &self.torrent_stream_server
+    /// Returns the server which handles the video streams.
+    pub fn stream_server(&self) -> &Arc<StreamServer> {
+        &self.stream_server
     }
 
     /// The torrent collection that stores magnet uri info.

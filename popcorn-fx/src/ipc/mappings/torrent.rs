@@ -3,7 +3,7 @@ use crate::ipc::proto::message;
 use crate::ipc::proto::torrent::{torrent, torrent_event};
 use fx_torrent::{Metrics, TorrentEvent, TorrentHealth, TorrentHealthState, TorrentState};
 use popcorn_fx_core::core::torrents::collection::MagnetInfo;
-use popcorn_fx_core::core::torrents::{Error, TorrentInfo, TorrentStreamState};
+use popcorn_fx_core::core::torrents::{Error, TorrentInfo};
 use protobuf::MessageField;
 
 impl From<&TorrentHealth> for torrent::Health {
@@ -42,16 +42,6 @@ impl From<&TorrentState> for torrent::State {
             TorrentState::Paused => Self::PAUSED,
             TorrentState::Error => Self::ERROR,
             TorrentState::Stopped => Self::STOPPED,
-        }
-    }
-}
-
-impl From<&TorrentStreamState> for torrent::StreamState {
-    fn from(value: &TorrentStreamState) -> Self {
-        match value {
-            TorrentStreamState::Preparing => Self::STREAM_PREPARING,
-            TorrentStreamState::Streaming => Self::STREAMING,
-            TorrentStreamState::Stopped => Self::STREAM_STOPPED,
         }
     }
 }
@@ -274,22 +264,6 @@ mod tests {
         assert_eq!(
             torrent::State::ERROR,
             torrent::State::from(&TorrentState::Error)
-        );
-    }
-
-    #[test]
-    fn test_torrent_stream_state_from() {
-        assert_eq!(
-            torrent::StreamState::STREAM_PREPARING,
-            torrent::StreamState::from(&TorrentStreamState::Preparing)
-        );
-        assert_eq!(
-            torrent::StreamState::STREAMING,
-            torrent::StreamState::from(&TorrentStreamState::Streaming)
-        );
-        assert_eq!(
-            torrent::StreamState::STREAM_STOPPED,
-            torrent::StreamState::from(&TorrentStreamState::Stopped)
         );
     }
 

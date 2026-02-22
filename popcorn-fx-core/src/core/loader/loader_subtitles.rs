@@ -90,7 +90,7 @@ impl SubtitlesLoadingStrategy {
             } else {
                 subtitles = self.handle_movie_subtitles(media).await
             }
-        } else if let Some(filename) = data.torrent_file.as_ref() {
+        } else if let Some(filename) = data.filename.as_ref() {
             subtitles = self
                 .subtitle_provider
                 .file_subtitles(filename.as_str())
@@ -178,7 +178,7 @@ impl SubtitlesLoadingStrategy {
         subtitle: &SubtitleInfo,
         data: &LoadingData,
     ) -> Option<Subtitle> {
-        let filename = data.torrent_file.clone().or_else(|| {
+        let filename = data.filename.clone().or_else(|| {
             data.url.clone().map(|e| {
                 debug!("Retrieving filename from url {}", e);
                 Path::new(e.as_str())

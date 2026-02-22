@@ -1,5 +1,5 @@
 use crate::ipc::proto::loader::loader_event;
-use crate::ipc::proto::{loader, message};
+use crate::ipc::proto::{loader, message, stream};
 use popcorn_fx_core::core::loader::{LoadingState, MediaLoaderEvent};
 use protobuf::MessageField;
 
@@ -32,13 +32,12 @@ impl From<&MediaLoaderEvent> for loader::LoaderEvent {
                 event.event = loader_event::Event::PROGRESS_CHANGED.into();
                 event.progress_changed = MessageField::some(loader_event::ProgressChanged {
                     handle: MessageField::some(message::Handle::from(handle)),
-                    progress: MessageField::some(loader::loading::Progress {
+                    progress: MessageField::some(stream::stream::StreamStats {
                         progress: progress.progress,
-                        seeds: progress.seeds as u32,
-                        peers: progress.peers as u32,
-                        download_speed: progress.download_speed as u64,
-                        upload_speed: progress.upload_speed as u64,
-                        downloaded: progress.downloaded,
+                        connections: progress.connections as u64,
+                        download_speed: progress.download_speed,
+                        upload_speed: progress.upload_speed,
+                        downloaded: progress.downloaded as u64,
                         total_size: progress.total_size as u64,
                         special_fields: Default::default(),
                     }),
@@ -143,8 +142,7 @@ mod tests {
             handle,
             LoadingProgress {
                 progress: 13.5,
-                seeds: 30,
-                peers: 10,
+                connections: 30,
                 download_speed: 2048,
                 upload_speed: 512,
                 downloaded: 10000,
@@ -157,10 +155,9 @@ mod tests {
             state_changed: Default::default(),
             progress_changed: MessageField::some(loader_event::ProgressChanged {
                 handle: MessageField::some(message::Handle::from(&handle)),
-                progress: MessageField::some(loading::Progress {
+                progress: MessageField::some(stream::stream::StreamStats {
                     progress: 13.5,
-                    seeds: 30,
-                    peers: 10,
+                    connections: 30,
                     download_speed: 2048,
                     upload_speed: 512,
                     downloaded: 10000,

@@ -2,11 +2,12 @@ package com.github.yoep.player.popcorn.services;
 
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlayerHeaderListener;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentListener;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
-import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Handle;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ServerStream;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Stream;
+import com.github.yoep.popcorn.backend.stream.StreamListener;
+import com.github.yoep.popcorn.backend.stream.StreamServer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,7 +24,7 @@ class PlayerHeaderServiceTest {
     @Mock
     private VideoService videoService;
     @Mock
-    private TorrentService torrentService;
+    private StreamServer streamServer;
     @Mock
     private PlayerHeaderListener listener;
 
@@ -38,7 +39,7 @@ class PlayerHeaderServiceTest {
             return null;
         }).when(videoService).addListener(isA(PlaybackListener.class));
 
-        service = new PlayerHeaderService(videoService, torrentService);
+        service = new PlayerHeaderService(videoService, streamServer);
         service.addListener(listener);
     }
 
@@ -69,10 +70,8 @@ class PlayerHeaderServiceTest {
     @Test
     void testPlaybackListener_whenRequestIsStreamingRequest_shouldSetStreamStateToTrue() {
         var request = Player.PlayRequest.newBuilder()
-                .setTorrent(Player.PlayRequest.Torrent.newBuilder()
-                        .setHandle(Handle.newBuilder()
-                                .setHandle(111L)
-                                .build())
+                .setStream(ServerStream.newBuilder()
+                        .setFilename("test.mp4")
                         .build())
                 .build();
 
@@ -83,23 +82,22 @@ class PlayerHeaderServiceTest {
 
     @Test
     void testPlaybackListener_whenRequestIsStreamingRequest_shouldInvokeDownloadStatusChangedOnListeners() {
-        var streamListener = new AtomicReference<TorrentListener>();
-        var progress = mock(DownloadStatus.class);
+        var streamListener = new AtomicReference<StreamListener>();
         var request = Player.PlayRequest.newBuilder()
-                .setTorrent(Player.PlayRequest.Torrent.newBuilder()
-                        .setHandle(Handle.newBuilder()
-                                .setHandle(123L)
-                                .build())
+                .setStream(ServerStream.newBuilder()
+                        .setFilename("test.mp4")
                         .build())
                 .build();
         doAnswer(invocation -> {
-            streamListener.set(invocation.getArgument(1, TorrentListener.class));
+            streamListener.set(invocation.getArgument(1, StreamListener.class));
             return null;
-        }).when(torrentService).addListener(isA(Handle.class), isA(TorrentListener.class));
+        }).when(streamServer).addListener(isA(String.class), isA(StreamListener.class));
 
         listenerHolder.get().onPlay(request);
-        streamListener.get().onDownloadStatus(progress);
+        streamListener.get().onStatsChanged(Stream.StreamStats.newBuilder()
+                .setProgress(10.5f)
+                .build());
 
-        verify(listener).onDownloadStatusChanged(progress);
+        verify(listener).onDownloadStatusChanged(isA(DownloadStatus.class));
     }
 }

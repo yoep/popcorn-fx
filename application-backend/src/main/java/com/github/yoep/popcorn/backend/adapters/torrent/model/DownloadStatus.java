@@ -8,14 +8,9 @@ public interface DownloadStatus {
     float progress();
 
     /**
-     * The number of seeders that are seeding that this client is currently connected to.
+     * The number of connections that this client is currently connected to.
      */
-    int seeds();
-
-    /**
-     * The number of peers that are seeding that this client is currently connected to.
-     */
-    int peers();
+    long connections();
 
     /**
      * The total rates for all peers for this torrent. These will usually have better

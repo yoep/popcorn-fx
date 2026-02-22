@@ -214,7 +214,7 @@ public class StreamInfo extends Icon {
 
             downloadValue.setText(SizeUtils.toDisplaySize(DownloadStatus.downloadSpeed()) + "/s");
             uploadValue.setText(SizeUtils.toDisplaySize(DownloadStatus.uploadSpeed()) + "/s");
-            activePeersValue.setText(String.valueOf(DownloadStatus.seeds()));
+            activePeersValue.setText(String.valueOf(DownloadStatus.connections()));
             downloadedValue.setText(downloaded);
         }
 

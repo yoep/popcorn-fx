@@ -3,8 +3,8 @@ use crate::ipc::{
     ApplicationMessageHandler, EventMessageHandler, FavoritesMessageHandler, ImagesMessageHandler,
     IpcChannel, IpcChannelProcessor, LoaderMessageHandler, LogMessageHandler, MediaMessageHandler,
     MessageHandler, PlayerMessageHandler, PlaylistMessageHandler, SettingsMessageHandler,
-    SubtitleMessageHandler, TorrentMessageHandler, TrackingMessageHandler, UpdateMessageHandler,
-    WatchedMessageHandler,
+    StreamMessageHandler, SubtitleMessageHandler, TorrentMessageHandler, TrackingMessageHandler,
+    UpdateMessageHandler, WatchedMessageHandler,
 };
 use clap::{CommandFactory, Error, FromArgMatches};
 use log::info;
@@ -78,6 +78,10 @@ async fn start(conn: TcpStream, args: PopcornFxArgs) -> io::Result<()> {
             channel.clone(),
         )),
         Box::new(SettingsMessageHandler::new(popcorn_fx.clone())),
+        Box::new(StreamMessageHandler::new(
+            popcorn_fx.clone(),
+            channel.clone(),
+        )),
         Box::new(SubtitleMessageHandler::new(popcorn_fx.clone())),
         Box::new(SubtitleMessageHandler::new(popcorn_fx.clone())),
         Box::new(TorrentMessageHandler::new(

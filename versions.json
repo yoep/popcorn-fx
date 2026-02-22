@@ -22,13 +22,13 @@
     }
   },
   "runtime": {
-    "version": "21.0.2",
+    "version": "21.0.3",
     "platforms": {
-      "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.9.1/patch_runtime_21.0.2_debian_x86_64.tar.gz",
-      "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.9.1/patch_runtime_21.0.2_debian_arm64.tar.gz",
-      "macos.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.9.1/patch_runtime_21.0.2_mac_x86_64.tar.gz",
-      "macos.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.9.1/patch_runtime_21.0.2_mac_arm64.tar.gz",
-      "windows.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.9.1/patch_runtime_21.0.2_windows_amd64.tar.gz"
+      "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.9.1/patch_runtime_21.0.3_debian_x86_64.tar.gz",
+      "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.9.1/patch_runtime_21.0.3_debian_arm64.tar.gz",
+      "macos.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.9.1/patch_runtime_21.0.3_mac_x86_64.tar.gz",
+      "macos.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.9.1/patch_runtime_21.0.3_mac_arm64.tar.gz",
+      "windows.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.9.1/patch_runtime_21.0.3_windows_amd64.tar.gz"
     }
   }
 }

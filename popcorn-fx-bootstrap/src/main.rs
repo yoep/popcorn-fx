@@ -6,7 +6,6 @@ use popcorn_fx_logging::FxLogger;
 use signal_hook::consts::TERM_SIGNALS;
 use signal_hook::flag;
 use std::env;
-use std::env::VarError;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -37,10 +36,6 @@ const DATA_DIR: &str = "DATA_DIR";
 ///
 /// * `DATA_DIR`: The directory where the application's data files are stored. This is used to store
 ///   the application's data files from which the application is actually launched.
-///
-/// # Errors
-///
-/// This function returns a `BootstrapError` if there was an issue with bootstrapping the application.
 #[tokio::main]
 async fn main() -> Result<(), BootstrapError> {
     let root_level = env::var("LOG_LEVEL")
@@ -62,14 +57,6 @@ async fn main() -> Result<(), BootstrapError> {
     // Initialize the `Bootstrapper` instance with environment variables and launch the application.
     let bootstrapper = Arc::new(
         Bootstrapper::builder()
-            .path(
-                env::var("PATH")
-                    .or_else(|e| {
-                        eprintln!("PATH variable is invalid, {}", e);
-                        Ok::<String, VarError>("".to_string())
-                    })
-                    .unwrap(),
-            )
             .args(env::args().collect())
             .data_base_path(
                 env::var(DATA_DIR)

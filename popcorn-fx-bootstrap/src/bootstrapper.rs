@@ -174,16 +174,15 @@ impl Bootstrapper {
             command.arg(vm_arg.as_str());
         }
 
+        let env_path = env::var("PATH").unwrap_or_default();
+        let mut application_path = vec![data_version_path_value];
+        for entry in env_path.split(PATH_SEPARATOR) {
+            application_path.push(entry);
+        }
+
+        trace!("Setting process command path to {:?}", application_path);
         command
-            .env(
-                "PATH",
-                format!(
-                    "{}{}{}",
-                    data_version_path_value,
-                    PATH_SEPARATOR,
-                    env::var("PATH").unwrap_or_default()
-                ),
-            )
+            .env("PATH", application_path.join(PATH_SEPARATOR))
             .arg("-jar")
             .arg(jar_path.to_str().unwrap())
             .args(self.args.clone())
@@ -233,7 +232,6 @@ impl Bootstrapper {
 ///
 /// ```no_run
 /// let bootstrapper = BootstrapperBuilder::default()
-///     .path("/usr/bin/my_program".to_string())
 ///     .args(vec!["arg1".to_string(), "arg2".to_string()])
 ///     .data_base_path("/var/lib/my_program".into())
 ///     .process_path("echo")
@@ -242,7 +240,6 @@ impl Bootstrapper {
 /// ```
 #[derive(Default)]
 pub struct BootstrapperBuilder {
-    path: Option<String>,
     args: Option<Vec<String>>,
     data_base_path: Option<PathBuf>,
     installation_path: Option<PathBuf>,
@@ -250,20 +247,6 @@ pub struct BootstrapperBuilder {
 }
 
 impl BootstrapperBuilder {
-    /// Sets the `$PATH` variable value for the `Bootstrapper`.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// let bootstrapper = BootstrapperBuilder::default()
-    ///     .path("/usr/bin/my_program".to_string())
-    ///     .build();
-    /// ```
-    pub fn path(mut self, path: String) -> Self {
-        self.path = Some(path);
-        self
-    }
-
     /// Sets the program arguments to pass to the `Bootstrapper`.
     pub fn args(mut self, args: Vec<String>) -> Self {
         self.args = Some(args);
@@ -361,7 +344,6 @@ mod test {
 
         Bootstrapper::builder()
             .args(vec!["popcorn-fx".to_string()])
-            .path("".to_string())
             .data_base_path(Some(PathBuf::from(temp_path)))
             .build();
     }
@@ -374,7 +356,6 @@ mod test {
 
         Bootstrapper::builder()
             .args(vec!["popcorn-fx".to_string()])
-            .path("".to_string())
             .data_base_path(Some(PathBuf::from(temp_path)))
             .build();
     }

@@ -24,7 +24,7 @@ mkdir -p "$INSTALLATION_PACKAGE/opt/popcorn-time/main/${VERSION}/"
 cp -v ${ASSETS_DIR}/popcorn-time "$INSTALLATION_PACKAGE/opt/popcorn-time/"
 cp -v ${ASSETS_DIR}/popcorn-time.png "$INSTALLATION_PACKAGE/opt/popcorn-time/"
 cp -v -R "$PACKAGE_DIR/runtimes" "$INSTALLATION_PACKAGE/opt/popcorn-time/main/"
-cp -v "$PACKAGE_DIR/libpopcorn_fx.so" "$INSTALLATION_PACKAGE/opt/popcorn-time/main/${VERSION}/"
+cp -v "$PACKAGE_DIR/libfx" "$INSTALLATION_PACKAGE/opt/popcorn-time/main/${VERSION}/"
 cp -v "$PACKAGE_DIR/popcorn-time.jar" "$INSTALLATION_PACKAGE/opt/popcorn-time/main/${VERSION}/"
 chmod 644 "$INSTALLATION_PACKAGE/opt/popcorn-time/popcorn-time.png"
 

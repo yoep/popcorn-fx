@@ -26,7 +26,7 @@ envsubst < ./assets/mac/Info.plist > ${SOURCE_CONTENTS_FOLDER}/Info.plist
 cp -v ./LICENSE ${SOURCE_CONTENTS_FOLDER}/Resources/
 cp -v ./assets/mac/popcorn-time.icns ${SOURCE_CONTENTS_FOLDER}/Resources/
 cp -rv ./target/package/runtimes ${SOURCE_CONTENTS_FOLDER}/Resources/main/
-cp -rv ./target/package/*.dylib ${SOURCE_CONTENTS_FOLDER}/Resources/main/${VERSION}/
+cp -rv ./target/package/libfx ${SOURCE_CONTENTS_FOLDER}/Resources/main/${VERSION}/
 cp -v ./target/package/popcorn-time.jar ${SOURCE_CONTENTS_FOLDER}/Resources/main/${VERSION}/
 
 cp -v ./target/package/popcorn-time ${SOURCE_CONTENTS_FOLDER}/MacOS/

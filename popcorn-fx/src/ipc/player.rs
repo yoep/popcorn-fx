@@ -1,13 +1,12 @@
 use crate::fx::PopcornFX;
 use crate::ipc::proto::message::{response, FxMessage};
-use crate::ipc::proto::player;
 use crate::ipc::proto::player::{
     register_player_response, DiscoverPlayersRequest, GetActivePlayerRequest,
     GetActivePlayerResponse, GetPlayerByIdRequest, GetPlayerByIdResponse, GetPlayerStateRequest,
     GetPlayerStateResponse, GetPlayerVolumeRequest, GetPlayerVolumeResponse, GetPlayersRequest,
-    GetPlayersResponse, PlayerPauseRequest, PlayerResumeRequest, PlayerSeekRequest,
-    PlayerStopRequest, RegisterPlayerRequest, RegisterPlayerResponse, RemovePlayerRequest,
-    StartPlayersDiscoveryRequest, UpdateActivePlayerRequest,
+    GetPlayersResponse, InvokePlayerEvent, PlayerPauseRequest, PlayerResumeRequest,
+    PlayerSeekRequest, PlayerStopRequest, RegisterPlayerRequest, RegisterPlayerResponse,
+    RemovePlayerRequest, StartPlayersDiscoveryRequest, UpdateActivePlayerRequest,
 };
 use crate::ipc::{proto, Error, IpcChannel, MessageHandler, Result};
 use async_trait::async_trait;
@@ -16,6 +15,7 @@ use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{error, trace, warn};
 use popcorn_fx_core::core::players::{PlayRequest, Player, PlayerEvent, PlayerState};
 use protobuf::{Message, MessageField};
+use std::collections::HashMap;
 use std::future::Future;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -23,6 +23,7 @@ use tokio::sync::Mutex;
 #[derive(Debug)]
 pub struct PlayerMessageHandler {
     instance: Arc<PopcornFX>,
+    proto_players: Mutex<HashMap<String, ProtoPlayerWrapper>>,
 }
 
 impl PlayerMessageHandler {
@@ -30,10 +31,10 @@ impl PlayerMessageHandler {
         let mut receiver = instance.player_manager().subscribe();
         tokio::spawn(async move {
             while let Some(event) = receiver.recv().await {
-                let proto_event = player::PlayerManagerEvent::from(&*event);
+                let proto_event = proto::player::PlayerManagerEvent::from(&*event);
 
                 if let Err(e) = channel
-                    .send(proto_event, player::PlayerManagerEvent::NAME)
+                    .send(proto_event, proto::player::PlayerManagerEvent::NAME)
                     .await
                 {
                     error!("Failed to send player manager event, {}", e);
@@ -41,7 +42,10 @@ impl PlayerMessageHandler {
             }
         });
 
-        Self { instance }
+        Self {
+            instance,
+            proto_players: Default::default(),
+        }
     }
 
     async fn execute_player_action<S, F, Fut>(&self, id: S, action: F)
@@ -87,6 +91,7 @@ impl MessageHandler for PlayerMessageHandler {
                 | PlayerResumeRequest::NAME
                 | PlayerStopRequest::NAME
                 | PlayerSeekRequest::NAME
+                | InvokePlayerEvent::NAME
         )
     }
 
@@ -169,6 +174,13 @@ impl MessageHandler for PlayerMessageHandler {
                 if let Some(proto_player) = request.player.0 {
                     let player = ProtoPlayerWrapper::new(*proto_player, channel.clone());
 
+                    // store the proto player in the handler for future events
+                    {
+                        let mut proto_players = self.proto_players.lock().await;
+                        proto_players.insert(player.id().to_string(), player.clone());
+                        trace!("Stored proto player {}", player.id());
+                    }
+
                     if let Err(err) = self.instance.player_manager().add_player(Box::new(player)) {
                         warn!("Failed to register new player, {}", err);
                         response.result = response::Result::ERROR.into();
@@ -191,6 +203,7 @@ impl MessageHandler for PlayerMessageHandler {
                     .remove_player(request.player.id.as_str());
             }
             DiscoverPlayersRequest::NAME => {
+                let _request = DiscoverPlayersRequest::parse_from_bytes(&message.payload)?;
                 // TODO
             }
             StartPlayersDiscoveryRequest::NAME => {
@@ -231,6 +244,27 @@ impl MessageHandler for PlayerMessageHandler {
                 })
                 .await;
             }
+            InvokePlayerEvent::NAME => {
+                let event = InvokePlayerEvent::parse_from_bytes(&message.payload)?;
+                let player_id = event.id;
+                let event =
+                    PlayerEvent::try_from(event.event.into_option().ok_or(Error::MissingField)?)?;
+
+                // try to find the proto player
+                let mut proto_players = self.proto_players.lock().await;
+                let player = match proto_players.get_mut(player_id.as_str()) {
+                    Some(player) => player,
+                    None => {
+                        warn!(
+                            "Proto player {} not found, unable to handle event",
+                            player_id
+                        );
+                        return Ok(());
+                    }
+                };
+
+                player.invoke_event(event);
+            }
             _ => {
                 return Err(Error::UnsupportedMessage(
                     message.message_type().to_string(),
@@ -242,31 +276,31 @@ impl MessageHandler for PlayerMessageHandler {
     }
 }
 
-#[derive(Debug, Display)]
-#[display("{}", "proto.name")]
+#[derive(Debug, Clone, Display)]
+#[display("{}", inner.proto.name)]
 struct ProtoPlayerWrapper {
-    proto: proto::player::Player,
-    channel: IpcChannel,
-    request: Mutex<Option<PlayRequest>>,
-    callbacks: MultiThreadedCallback<PlayerEvent>,
+    inner: Arc<InnerProtoPlayer>,
 }
 
 impl ProtoPlayerWrapper {
     pub fn new(player: proto::player::Player, channel: IpcChannel) -> Self {
         Self {
-            proto: player,
-            channel,
-            request: Default::default(),
-            callbacks: MultiThreadedCallback::new(),
+            inner: Arc::new(InnerProtoPlayer {
+                proto: player,
+                channel,
+                request: Default::default(),
+                callbacks: MultiThreadedCallback::new(),
+            }),
         }
     }
 
     async fn internal_player_state(&self) -> Result<PlayerState> {
         let receiver = self
+            .inner
             .channel
             .get(
                 GetPlayerStateRequest {
-                    player_id: self.proto.id.clone(),
+                    player_id: self.inner.proto.id.clone(),
                     special_fields: Default::default(),
                 },
                 GetPlayerStateRequest::NAME,
@@ -287,41 +321,45 @@ impl ProtoPlayerWrapper {
             self,
             message_type
         );
-        if let Err(e) = self.channel.send(message, message_type).await {
+        if let Err(e) = self.inner.channel.send(message, message_type).await {
             error!(
                 "Proto player {} failed to send message \"{}\", {}",
                 self, message_type, e
             );
         }
     }
+
+    fn invoke_event(&self, event: PlayerEvent) {
+        self.inner.callbacks.invoke(event);
+    }
 }
 
 impl Callback<PlayerEvent> for ProtoPlayerWrapper {
     fn subscribe(&self) -> Subscription<PlayerEvent> {
-        self.callbacks.subscribe()
+        self.inner.callbacks.subscribe()
     }
 
     fn subscribe_with(&self, subscriber: Subscriber<PlayerEvent>) {
-        self.callbacks.subscribe_with(subscriber)
+        self.inner.callbacks.subscribe_with(subscriber)
     }
 }
 
 #[async_trait]
 impl Player for ProtoPlayerWrapper {
     fn id(&self) -> &str {
-        self.proto.id.as_str()
+        self.inner.proto.id.as_str()
     }
 
     fn name(&self) -> &str {
-        self.proto.name.as_str()
+        self.inner.proto.name.as_str()
     }
 
     fn description(&self) -> &str {
-        self.proto.description.as_str()
+        self.inner.proto.description.as_str()
     }
 
     fn graphic_resource(&self) -> Vec<u8> {
-        self.proto.graphic_resource.clone()
+        self.inner.proto.graphic_resource.clone()
     }
 
     async fn state(&self) -> PlayerState {
@@ -332,15 +370,16 @@ impl Player for ProtoPlayerWrapper {
     }
 
     async fn request(&self) -> Option<PlayRequest> {
-        self.request.lock().await.clone()
+        self.inner.request.lock().await.clone()
     }
 
     async fn current_volume(&self) -> Option<u32> {
         let response = self
+            .inner
             .channel
             .get(
                 GetPlayerVolumeRequest {
-                    player_id: self.proto.id.clone(),
+                    player_id: self.inner.proto.id.clone(),
                     special_fields: Default::default(),
                 },
                 GetPlayerVolumeResponse::NAME,
@@ -376,54 +415,54 @@ impl Player for ProtoPlayerWrapper {
         let proto_request = proto::player::player::PlayRequest::from(&request);
         self.send_channel_message(
             proto::player::PlayerPlayRequest {
-                player_id: self.proto.id.clone(),
+                player_id: self.inner.proto.id.clone(),
                 request: MessageField::some(proto_request),
                 special_fields: Default::default(),
             },
             proto::player::PlayerPlayRequest::NAME,
         )
         .await;
-        self.request.lock().await.replace(request);
+        self.inner.request.lock().await.replace(request);
     }
 
     async fn pause(&self) {
         self.send_channel_message(
-            proto::player::PlayerPauseRequest {
-                player_id: self.proto.id.clone(),
+            PlayerPauseRequest {
+                player_id: self.inner.proto.id.clone(),
                 special_fields: Default::default(),
             },
-            proto::player::PlayerPauseRequest::NAME,
+            PlayerPauseRequest::NAME,
         )
         .await;
     }
 
     async fn resume(&self) {
         self.send_channel_message(
-            proto::player::PlayerResumeRequest {
-                player_id: self.proto.id.clone(),
+            PlayerResumeRequest {
+                player_id: self.inner.proto.id.clone(),
                 special_fields: Default::default(),
             },
-            proto::player::PlayerResumeRequest::NAME,
+            PlayerResumeRequest::NAME,
         )
         .await;
     }
 
     async fn seek(&self, time: u64) {
         self.send_channel_message(
-            proto::player::PlayerSeekRequest {
-                player_id: self.proto.id.clone(),
+            PlayerSeekRequest {
+                player_id: self.inner.proto.id.clone(),
                 time,
                 special_fields: Default::default(),
             },
-            proto::player::PlayerSeekRequest::NAME,
+            PlayerSeekRequest::NAME,
         )
         .await;
     }
 
     async fn stop(&self) {
         self.send_channel_message(
-            proto::player::PlayerStopRequest {
-                player_id: self.proto.id.clone(),
+            PlayerStopRequest {
+                player_id: self.inner.proto.id.clone(),
                 special_fields: Default::default(),
             },
             proto::player::PlayerStopRequest::NAME,
@@ -434,8 +473,16 @@ impl Player for ProtoPlayerWrapper {
 
 impl PartialEq for ProtoPlayerWrapper {
     fn eq(&self, other: &Self) -> bool {
-        self.proto == other.proto
+        self.inner.proto == other.inner.proto
     }
+}
+
+#[derive(Debug)]
+struct InnerProtoPlayer {
+    proto: proto::player::Player,
+    channel: IpcChannel,
+    request: Mutex<Option<PlayRequest>>,
+    callbacks: MultiThreadedCallback<PlayerEvent>,
 }
 
 #[cfg(test)]
@@ -614,7 +661,7 @@ mod tests {
         incoming
             .send(
                 UpdateActivePlayerRequest {
-                    player: MessageField::some(player::Player {
+                    player: MessageField::some(proto::player::Player {
                         id: player_id.to_string(),
                         name: "player-name".to_string(),
                         description: "player-description".to_string(),
@@ -654,12 +701,12 @@ mod tests {
     #[tokio::test]
     async fn test_process_register_player_request() {
         init_logger!();
-        let proto_player = player::Player {
+        let proto_player = proto::player::Player {
             id: "my-player-id".to_string(),
             name: "player-name".to_string(),
             description: "player-description".to_string(),
             graphic_resource: vec![0, 11, 14],
-            state: player::player::State::STOPPED.into(),
+            state: proto::player::player::State::STOPPED.into(),
             special_fields: Default::default(),
         };
         let temp_dir = tempdir().unwrap();
@@ -732,12 +779,12 @@ mod tests {
         incoming
             .send(
                 RemovePlayerRequest {
-                    player: MessageField::some(player::Player {
+                    player: MessageField::some(proto::player::Player {
                         id: player_id.to_string(),
                         name: "mock-player".to_string(),
                         description: "player-description".to_string(),
                         graphic_resource: vec![],
-                        state: player::player::State::READY.into(),
+                        state: proto::player::player::State::READY.into(),
                         special_fields: Default::default(),
                     }),
                     special_fields: Default::default(),
@@ -965,7 +1012,7 @@ mod tests {
                     .send_reply(
                         &message,
                         GetPlayerStateResponse {
-                            state: player::player::State::READY.into(),
+                            state: proto::player::player::State::READY.into(),
                             special_fields: Default::default(),
                         },
                         GetPlayerStateResponse::NAME,
@@ -995,7 +1042,7 @@ mod tests {
             .quality("1080p")
             .subtitles_enabled(true)
             .build();
-        let proto_play_request = player::player::PlayRequest::from(&play_request);
+        let proto_play_request = proto::player::player::PlayRequest::from(&play_request);
         let (tx, rx) = oneshot::channel();
         let (incoming, outgoing) = create_channel_pair().await;
         let player = create_proto_player(player_id, outgoing.clone());
@@ -1121,12 +1168,12 @@ mod tests {
 
     fn create_proto_player(player_id: &str, channel: IpcChannel) -> ProtoPlayerWrapper {
         ProtoPlayerWrapper::new(
-            player::Player {
+            proto::player::Player {
                 id: player_id.to_string(),
                 name: "TestProtoPlayer".to_string(),
                 description: "ProtoPlayerDescription".to_string(),
                 graphic_resource: vec![],
-                state: player::player::State::READY.into(),
+                state: proto::player::player::State::READY.into(),
                 special_fields: Default::default(),
             },
             channel,

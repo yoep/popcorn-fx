@@ -179,3 +179,40 @@ message PlayerManagerEvent {
     PLAYER_STATE_CHANGED = 5;
   }
 }
+
+message PlayerEvent {
+  Event event = 1;
+  optional DurationChanged duration_changed = 2;
+  optional TimeChanged time_changed = 3;
+  optional StateChanged state_changed = 4;
+  optional VolumeChanged volume_changed = 5;
+
+  message DurationChanged {
+    uint64 duration = 1;
+  }
+
+  message TimeChanged {
+    uint64 time = 1;
+  }
+
+  message StateChanged {
+    Player.State state = 1;
+  }
+
+  message VolumeChanged {
+    uint32 volume = 1;
+  }
+
+  enum Event {
+    DURATION_CHANGED = 0;
+    TIME_CHANGED = 1;
+    STATE_CHANGED = 2;
+    VOLUME_CHANGED = 3;
+  }
+}
+
+// Invoke a new player event.
+message InvokePlayerEvent {
+  string id = 1;          // The unique id of the player.
+  PlayerEvent event = 2;  // The event from the player.
+}

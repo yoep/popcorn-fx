@@ -74,23 +74,26 @@ impl InnerProcessor {
         loop {
             select! {
                 _ = self.channel.closed() => break,
-                Some(message) = self.channel.recv() => self.do_safe_process(message, processor).await,
+                message = self.channel.recv() => match message {
+                    None => break,
+                    Some(message) => self.do_safe_process(message, processor),
+                },
             }
         }
         self.cancellation_token.cancel();
         debug!("IPC channel processor main loop ended");
     }
 
-    async fn do_safe_process(&self, message: FxMessage, processor: &Arc<InnerProcessor>) {
+    fn do_safe_process(&self, message: FxMessage, processor: &Arc<InnerProcessor>) {
         let processor = processor.clone();
         tokio::spawn(async move {
-            if let Err(e) = processor.handle_message(message).await {
+            if let Err(e) = processor.on_message(message).await {
                 warn!("IPC channel processor failed to process message, {}", e);
             }
         });
     }
 
-    async fn handle_message(&self, message: FxMessage) -> Result<()> {
+    async fn on_message(&self, message: FxMessage) -> Result<()> {
         let message_type = message.type_.as_str();
         if message_type == ApplicationTerminationRequest::NAME {
             debug!("IPC channel processor is being terminated");
@@ -140,7 +143,6 @@ mod tests {
     use crate::ipc::test::create_channel_pair;
     use crate::timeout;
     use mockall::mock;
-
     use popcorn_fx_core::init_logger;
     use std::time::Duration;
     use tokio::sync::mpsc::unbounded_channel;

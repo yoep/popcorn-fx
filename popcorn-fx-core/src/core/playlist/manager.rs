@@ -20,7 +20,7 @@ pub enum PlaylistManagerEvent {
     #[display("Playlist has been changed")]
     PlaylistChanged,
     /// Event indicating that the next item will start playing after a specified delay.
-    #[display("Playing next item in {:?} seconds", "_0.playing_in")]
+    #[display("Playing next item in {:?} seconds", _0.playing_in)]
     PlayingNext(PlayingNextInfo),
     /// Event indicating a change in the playlist state.
     #[display("Playlist state changed to {}", _0)]
@@ -70,14 +70,14 @@ impl PlaylistManager {
         };
 
         let inner_main = manager.inner.clone();
-        let callback = manager
-            .inner
-            .event_publisher
-            .subscribe(HIGHEST_ORDER + 10)
-            .expect("expected to be able to subscribe");
-        let player_event_receiver = manager.inner.player_manager.subscribe();
         tokio::spawn(async move {
-            inner_main.start(callback, player_event_receiver).await;
+            let callback = inner_main
+                .event_publisher
+                .subscribe(HIGHEST_ORDER + 10)
+                .expect("expected to be able to subscribe");
+            let player_event_receiver = inner_main.player_manager.subscribe();
+
+            inner_main.run(callback, player_event_receiver).await;
         });
 
         manager
@@ -162,8 +162,8 @@ struct InnerPlaylistManager {
     player_duration: Mutex<u64>,
     player_playing_in: Mutex<Option<(Option<u64>, PlaylistItem)>>,
     loader: Arc<dyn MediaLoader>,
-    loading_handle: Arc<Mutex<Option<LoadingHandle>>>,
-    state: Arc<Mutex<PlaylistState>>,
+    loading_handle: Mutex<Option<LoadingHandle>>,
+    state: Mutex<PlaylistState>,
     callbacks: MultiThreadedCallback<PlaylistManagerEvent>,
     event_publisher: EventPublisher,
     cancellation_token: CancellationToken,
@@ -181,8 +181,8 @@ impl InnerPlaylistManager {
             player_duration: Default::default(),
             player_playing_in: Default::default(),
             loader,
-            loading_handle: Arc::new(Mutex::new(None)),
-            state: Arc::new(Mutex::new(PlaylistState::Idle)),
+            loading_handle: Mutex::new(None),
+            state: Mutex::new(PlaylistState::Idle),
             callbacks: MultiThreadedCallback::new(),
             event_publisher,
             cancellation_token: Default::default(),
@@ -191,9 +191,9 @@ impl InnerPlaylistManager {
         instance
     }
 
-    /// Start the main loop of the playlist manager.
+    /// Run the main loop of the playlist manager.
     /// This loop will handle any command that needs to be processed for the playlist manager.
-    async fn start(
+    async fn run(
         &self,
         mut event_receiver: EventCallback,
         mut player_event_receiver: Subscription<PlayerManagerEvent>,
@@ -201,15 +201,15 @@ impl InnerPlaylistManager {
         loop {
             select! {
                 _ = self.cancellation_token.cancelled() => break,
-                Some(handler) = event_receiver.recv() => self.handle_event(handler).await,
-                Some(event) = player_event_receiver.recv() => self.handle_player_event((*event).clone()).await
+                Some(handler) = event_receiver.recv() => self.on_event(handler).await,
+                Some(event) = player_event_receiver.recv() => self.on_player_event((*event).clone()).await
             }
         }
 
         debug!("Playlist manager main loop ended");
     }
 
-    async fn handle_event(&self, mut handler: EventHandler) {
+    async fn on_event(&self, mut handler: EventHandler) {
         if let Some(event) = handler.event_ref() {
             if let Event::ClosePlayer = event {
                 if self.is_next_allowed().await {
@@ -280,11 +280,17 @@ impl InnerPlaylistManager {
         *self.state.lock().await
     }
 
-    async fn update_state(&self, state: PlaylistState) {
-        Self::update_state_stat(state, &self.state, &self.callbacks).await
+    async fn update_state(&self, new_state: PlaylistState) {
+        let mut state = self.state.lock().await;
+        if *state != new_state {
+            *state = new_state;
+            self.callbacks
+                .invoke(PlaylistManagerEvent::StateChanged(new_state));
+            trace!("Playlist state changed to {}", new_state);
+        }
     }
 
-    async fn handle_player_event(&self, event: PlayerManagerEvent) {
+    async fn on_player_event(&self, event: PlayerManagerEvent) {
         trace!("Processing player manager event {:?}", event);
         match event {
             PlayerManagerEvent::PlayerDurationChanged(e) => {
@@ -293,60 +299,65 @@ impl InnerPlaylistManager {
                 *player_duration = e;
             }
             PlayerManagerEvent::PlayerTimeChanged(time) => {
-                let duration = self.player_duration.lock().await.clone();
-
-                if duration > 0 && time <= duration {
-                    let remaining_time = (duration - time) / 1000;
-
-                    trace!(
-                        "Player has {} seconds remaining within the playback",
-                        remaining_time
-                    );
-                    if let Some(next_item) = self.next_cloned().await {
-                        let playing_in: Option<u64>;
-
-                        if remaining_time <= PLAYING_NEXT_IN_THRESHOLD_SECONDS {
-                            playing_in = Some(remaining_time);
-                        } else {
-                            playing_in = None;
-                        }
-
-                        {
-                            let mut mutex = self.player_playing_in.lock().await;
-                            let invocation_allowed: bool;
-
-                            if let Some((last_playing_in, item)) = mutex.as_ref() {
-                                invocation_allowed =
-                                    last_playing_in != &playing_in || item != &next_item;
-                            } else {
-                                invocation_allowed = true;
-                            }
-
-                            if invocation_allowed {
-                                *mutex = Some((playing_in.clone(), next_item.clone()));
-                                if remaining_time <= 3 {
-                                    debug!("Playing next item in {:?} seconds", remaining_time);
-                                } else {
-                                    trace!("Playing next item in {:?} seconds", remaining_time);
-                                }
-
-                                self.callbacks.invoke(PlaylistManagerEvent::PlayingNext(
-                                    PlayingNextInfo {
-                                        playing_in,
-                                        item: next_item,
-                                    },
-                                ));
-                            }
-                        }
-                    } else {
-                        trace!("Reached end of playlist, PlaylistManagerEvent::PlayingNext won't be invoked");
-                    }
-                }
+                self.on_player_time_changed(time).await;
             }
             PlayerManagerEvent::PlayerStateChanged(state) => {
                 self.handle_player_state_event(state).await
             }
             _ => {}
+        }
+    }
+
+    async fn on_player_time_changed(&self, time: u64) {
+        let duration = *self.player_duration.lock().await;
+        // early exit if we're unable to determine remaining time of the playback
+        if duration == 0 || time > duration {
+            return;
+        }
+        // early exit if the playlist has reached the end
+        let next_item = match self.next_cloned().await {
+            Some(next_item) => next_item,
+            None => {
+                trace!(
+                    "Reached end of playlist, PlaylistManagerEvent::PlayingNext won't be invoked"
+                );
+                return;
+            }
+        };
+
+        let remaining_time = (duration - time) / 1000;
+        trace!(
+            "Player has {} seconds remaining within the playback",
+            remaining_time
+        );
+        let playing_in: Option<u64> = if remaining_time <= PLAYING_NEXT_IN_THRESHOLD_SECONDS {
+            Some(remaining_time)
+        } else {
+            None
+        };
+
+        let mut player_playing_in = self.player_playing_in.lock().await;
+        let invocation_allowed: bool;
+
+        if let Some((last_playing_in, item)) = player_playing_in.as_ref() {
+            invocation_allowed = last_playing_in != &playing_in || item != &next_item;
+        } else {
+            invocation_allowed = true;
+        }
+
+        if invocation_allowed {
+            *player_playing_in = Some((playing_in.clone(), next_item.clone()));
+            if remaining_time <= 3 {
+                debug!("Playing next item in {:?} seconds", remaining_time);
+            } else {
+                trace!("Playing next item in {:?} seconds", remaining_time);
+            }
+
+            self.callbacks
+                .invoke(PlaylistManagerEvent::PlayingNext(PlayingNextInfo {
+                    playing_in,
+                    item: next_item,
+                }));
         }
     }
 
@@ -402,22 +413,6 @@ impl InnerPlaylistManager {
             .filter(|e| e <= &PLAYING_NEXT_IN_THRESHOLD_SECONDS);
 
         self.has_next().await && duration > 0 && playing_in.is_some()
-    }
-
-    async fn update_state_stat(
-        new_state: PlaylistState,
-        state: &Arc<Mutex<PlaylistState>>,
-        callbacks: &MultiThreadedCallback<PlaylistManagerEvent>,
-    ) {
-        trace!("Updating playlist state to {}", new_state);
-        let event_state = new_state.clone();
-        {
-            let mut guard = state.lock().await;
-            *guard = new_state;
-        }
-
-        debug!("Updated playlist state to {}", event_state);
-        callbacks.invoke(PlaylistManagerEvent::StateChanged(event_state));
     }
 }
 

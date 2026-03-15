@@ -33,12 +33,12 @@ message RemoveFromWatchlistRequest {
 message WatchedEvent {
   Event event = 1;
   optional WatchedStateChanged watched_state_changed = 2;
-  
+
   message WatchedStateChanged {
     string imdb_id = 1;
     bool new_state = 2;
   }
-  
+
   enum Event {
     STATE_CHANGED = 0;
   }

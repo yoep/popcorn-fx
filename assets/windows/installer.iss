@@ -41,7 +41,6 @@ Source: "../../target/package/popcorn-time.jar"; DestDir: "{app}\main\0.9.2"; Fl
 Source: "../../target/package/libfx.exe"; DestDir: "{app}\main\0.9.2"; Flags: ignoreversion
 Source: "../../target/package/libfx.pdb"; DestDir: "{app}\main\0.9.2"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "popcorn-time.ico"; DestDir: "{app}"; Flags: ignoreversion
-Source: "ffprobe.exe"; DestDir: "{app}\main\0.9.2"; Flags: ignoreversion skipifsourcedoesntexist
 
 [UninstallDelete]
 Type: files; Name: "{userappdata}\popcorn-fx"

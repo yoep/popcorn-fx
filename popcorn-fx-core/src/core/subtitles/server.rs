@@ -1,7 +1,7 @@
 use crate::core::subtitles::model::{Subtitle, SubtitleType};
 use crate::core::subtitles::Result;
 use crate::core::subtitles::{SubtitleError, SubtitleProvider};
-use crate::core::utils::network::ip_addr;
+use crate::core::utils::network::local_ip_addr;
 use axum::body::Body;
 use axum::extract::Path as AxumPath;
 use axum::extract::State;
@@ -41,7 +41,7 @@ impl SubtitleServer {
     /// Create a new subtitle server for the given provider on the given port.
     pub async fn with_port(port: u16, provider: Arc<dyn SubtitleProvider>) -> Result<Self> {
         let listener = TcpListener::bind((Ipv4Addr::UNSPECIFIED, port)).await?;
-        let addr = (ip_addr(), listener.local_addr()?.port()).into();
+        let addr = (local_ip_addr(), listener.local_addr()?.port()).into();
         let inner = Arc::new(InnerServer {
             addr,
             provider,

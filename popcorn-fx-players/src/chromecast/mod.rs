@@ -36,7 +36,7 @@ mod tests {
     use popcorn_fx_core::core::subtitles::{
         MockSubtitleProvider, SubtitleProvider, SubtitleServer,
     };
-    use popcorn_fx_core::core::utils::network::{available_socket, ip_addr};
+    use popcorn_fx_core::core::utils::network::{available_socket, local_ip_addr};
 
     use crate::chromecast::device::{MockFxCastDevice, DEFAULT_RECEIVER};
     use crate::chromecast::transcode::{MockTranscoder, Transcoder};
@@ -84,7 +84,7 @@ mod tests {
                 .await
                 .expect("expected a TCP address to be bound");
             let socket_addr = listener.local_addr().expect("expected a valid socket");
-            let addr = SocketAddr::new(ip_addr(), socket_addr.port());
+            let addr = SocketAddr::new(local_ip_addr(), socket_addr.port());
             let cert = rcgen::generate_simple_self_signed([]).unwrap();
             let responses = Arc::new(RwLock::new(HashMap::new()));
 

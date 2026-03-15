@@ -195,7 +195,7 @@ impl LoadingStrategy for TorrentInfoLoadingStrategy {
                             {
                                 Ok(torrent_file) => {
                                     debug!("Updating torrent file info to {:?}", torrent_file);
-                                    data.filename = Some(torrent_file.filename());
+                                    data.filename = Some(torrent_file.filename().to_string());
                                 }
                                 Err(e) => return LoadingResult::Err(e),
                             }

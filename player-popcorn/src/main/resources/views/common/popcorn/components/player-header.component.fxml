@@ -27,6 +27,6 @@
             </padding>
             -
         </Label>
-        <Label fx:id="caption" styleClass="title, muted" cache="true" />
+        <Label fx:id="caption" styleClass="title, text-secondary" cache="true" />
     </HBox>
 </GridPane>

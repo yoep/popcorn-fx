@@ -6,7 +6,6 @@
     </envs>
     <option name="MAIN_CLASS_NAME" value="com.github.yoep.popcorn.PopcornTimeStarter" />
     <module name="application" />
-    <option name="PROGRAM_PARAMETERS" value="-" />
     <option name="VM_PARAMETERS" value="-Dprism.dirtyopts=false -Dsun.awt.disablegrab=true -Dprism.verbose=true -Dprism.lcdtext=false -Xms100M -XX:+UseG1GC -XX:+HeapDumpOnOutOfMemoryError -XX:+EnableDynamicAgentLoading" />
     <extension name="coverage">
       <pattern>

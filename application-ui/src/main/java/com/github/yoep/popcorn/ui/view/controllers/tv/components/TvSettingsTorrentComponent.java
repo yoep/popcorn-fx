@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
+import java.util.Arrays;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 
@@ -37,7 +38,9 @@ public class TvSettingsTorrentComponent implements Initializable {
 
     private void initializeCleaningMode() {
         cleanupModes.setItemFactory(item -> new Button(localeText.get(CLEANING_MODE_PREFIX + item.name().toLowerCase())));
-        cleanupModes.setItems(ApplicationSettings.TorrentSettings.CleaningMode.values());
+        cleanupModes.setItems(Arrays.stream(ApplicationSettings.TorrentSettings.CleaningMode.values())
+                .filter(e -> e != ApplicationSettings.TorrentSettings.CleaningMode.UNRECOGNIZED)
+                .toArray(ApplicationSettings.TorrentSettings.CleaningMode[]::new));
         cleanupModes.selectedItemProperty().addListener((observable, oldValue, newValue)
                 -> onCleanupModeChanged(newValue));
 

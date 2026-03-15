@@ -76,7 +76,9 @@ message ApplicationSettings {
   }
 
   message ServerSettings {
-    optional string api_server = 1;
+    repeated string movie_api_servers = 1;
+    repeated string serie_api_servers = 2;
+    bool update_api_servers_automatically = 3;
   }
 
   message PlaybackSettings {

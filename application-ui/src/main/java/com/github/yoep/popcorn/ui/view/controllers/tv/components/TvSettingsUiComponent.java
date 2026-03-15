@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
+import com.github.yoep.popcorn.ui.messages.SettingsMessage;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractSettingsUiComponent;
 import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
 import com.github.yoep.popcorn.ui.view.controls.Overlay;
@@ -30,7 +31,7 @@ public class TvSettingsUiComponent extends AbstractSettingsUiComponent implement
     @FXML
     Button uiScale;
     @FXML
-    AxisItemSelection<ApplicationSettings.UISettings.Scale> uiScales;
+    AxisItemSelection<UiScaleHolder> uiScales;
     @FXML
     Button startScreen;
     @FXML
@@ -42,11 +43,11 @@ public class TvSettingsUiComponent extends AbstractSettingsUiComponent implement
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        initializeListeners();
+        requestFocus();
         initializeSettings();
     }
 
-    private void initializeListeners() {
+    private void requestFocus() {
         defaultLanguage.sceneProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
                 defaultLanguage.requestFocus();
@@ -55,62 +56,93 @@ public class TvSettingsUiComponent extends AbstractSettingsUiComponent implement
     }
 
     private void initializeSettings() {
-        languages.setItemFactory(item -> new Button(localeText.get("language_" + item.toString())));
+        languages.setItemFactory(item -> new Button(localeText.get("language_" + item.getLanguage())));
         languages.setItems(ApplicationConfig.supportedLanguages().toArray(Locale[]::new));
-        languages.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            getSettings().whenComplete((settings, throwable) -> {
-                if (throwable == null) {
-                    applicationConfig.update(ApplicationSettings.UISettings.newBuilder(settings)
-                            .setDefaultLanguage(newValue.toString())
-                            .build());
-                } else {
-                    log.error("Failed to retrieve settings", throwable);
-                }
-            });
-            defaultLanguage.setText(localeText.get("language_" + newValue));
-            defaultLanguageOverlay.hide();
-        });
 
+        uiScales.setItems(ApplicationConfig.supportedUIScales().stream()
+                .map(UiScaleHolder::new)
+                .toArray(UiScaleHolder[]::new));
 
-        uiScales.setItems(ApplicationConfig.supportedUIScales().toArray(ApplicationSettings.UISettings.Scale[]::new));
-        uiScales.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            getSettings().whenComplete((settings, throwable) -> {
-                if (throwable == null) {
-                    applicationConfig.update(ApplicationSettings.UISettings.newBuilder(settings)
-                            .setScale(newValue)
-                            .build());
-                } else {
-                    log.error("Failed to retrieve settings", throwable);
-                }
-            });
-            uiScale.setText(newValue.toString());
-        });
-
-        initializeStartScreen();
-
-        getSettings().thenAccept(settings -> Platform.runLater(() -> {
-            languages.setSelectedItem(Locale.forLanguageTag(settings.getDefaultLanguage()));
-            uiScales.setSelectedItem(settings.getScale());
-            startScreens.setSelectedItem(settings.getStartScreen());
-        }));
-    }
-
-    private void initializeStartScreen() {
         startScreens.setItemFactory(item -> new Button(localeText.get("filter_" + item.name().toLowerCase())));
         startScreens.setItems(startScreens());
-        startScreens.selectedItemProperty().addListener((observable, oldValue, newValue) -> onStartScreenChanged(newValue));
+
+        getSettings().whenComplete((settings, throwable) -> {
+            if (throwable == null) {
+                Platform.runLater(() -> {
+                    onSettingsLoaded(settings);
+                    initializeListeners();
+                });
+            } else {
+                log.error("Failed to retrieve settings", throwable);
+                showErrorNotification(SettingsMessage.SETTINGS_FAILED_TO_LOAD);
+            }
+        });
     }
 
-    private void onStartScreenChanged(Media.Category newValue) {
-        getSettings().thenAccept(settings -> {
-            applicationConfig.update(ApplicationSettings.UISettings.newBuilder(settings)
-                    .setStartScreen(newValue)
-                    .build());
+    private void initializeListeners() {
+        languages.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            saveSettings();
+            onLanguageChanged(newValue);
+            defaultLanguageOverlay.hide();
         });
-        startScreen.setText(localeText.get("filter_" + newValue.name().toLowerCase()));
+        uiScales.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            saveSettings();
+            onScaleChanged(newValue);
+        });
+        startScreens.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            onStartScreenChanged(newValue.name());
+            saveSettings();
+        });
+    }
+
+    private void onSettingsLoaded(ApplicationSettings.UISettings settings) {
+        var language = Locale.forLanguageTag(settings.getDefaultLanguage());
+        languages.setSelectedItem(language);
+        onLanguageChanged(language);
+
+        var scale = new UiScaleHolder(settings.getScale());
+        uiScales.setSelectedItem(scale);
+        onScaleChanged(scale);
+
+        startScreens.setSelectedItem(settings.getStartScreen());
+        onStartScreenChanged(settings.getStartScreen().name());
+    }
+
+    private void onLanguageChanged(Locale newValue) {
+        defaultLanguage.setText(localeText.get("language_" + newValue.getLanguage()));
+    }
+
+    private void onScaleChanged(UiScaleHolder newValue) {
+        var percentage = (int) (newValue.scale.getFactor() * 100);
+        uiScale.setText(percentage + "%");
+    }
+
+    private void onStartScreenChanged(String newValue) {
+        startScreen.setText(localeText.get("filter_" + newValue.toLowerCase()));
+    }
+
+    private void saveSettings() {
+        applicationConfig.update(createSettings());
+        showNotification();
+    }
+
+    private ApplicationSettings.UISettings createSettings() {
+        return ApplicationSettings.UISettings.newBuilder()
+                .setDefaultLanguage(languages.getSelectedItem().toString())
+                .setStartScreen(startScreens.getSelectedItem())
+                .setScale(uiScales.getSelectedItem().scale)
+                .build();
     }
 
     private CompletableFuture<ApplicationSettings.UISettings> getSettings() {
         return applicationConfig.getSettings().thenApply(ApplicationSettings::getUiSettings);
+    }
+
+    private record UiScaleHolder(ApplicationSettings.UISettings.Scale scale) {
+        @Override
+        public String toString() {
+            var percentage = (int) (scale.getFactor() * 100);
+            return (percentage + "%");
+        }
     }
 }

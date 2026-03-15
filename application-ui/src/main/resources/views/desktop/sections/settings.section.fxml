@@ -28,7 +28,7 @@
                 <fx:include source="../components/settings-trakt.component.fxml"/>
 
                 <!-- Server -->
-                <fx:include source="../components/settings-server.component.fxml"/>
+                <fx:include source="../components/settings-servers.component.fxml"/>
 
                 <!-- Actions -->
                 <fx:include source="../../common/components/settings-actions.component.fxml"/>

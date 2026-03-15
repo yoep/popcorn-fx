@@ -187,7 +187,7 @@ class ApplicationConfigTest {
     @Test
     void testUpdate_ServerSettings() {
         var settings = ApplicationSettings.ServerSettings.newBuilder()
-                .setApiServer("http://localhost:98766/api")
+                .addMovieApiServers("http://localhost:98766/api")
                 .build();
         var request = new AtomicReference<UpdateServerSettingsRequest>();
         doAnswer(invocations -> {

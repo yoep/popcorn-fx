@@ -1,48 +1,35 @@
-use derive_more::Display;
 use serde::Deserialize;
 use serde::Serialize;
 
-const DEFAULT_API_SERVER: fn() -> Option<String> = || None;
-
 /// The api server preferences of the user for the application.
-#[derive(Debug, Display, Clone, Serialize, Deserialize, PartialEq)]
-#[display("api_server: {:?}", api_server)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ServerSettings {
-    /// The api server to use
-    #[serde(default = "DEFAULT_API_SERVER")]
-    pub api_server: Option<String>,
+    #[serde(default)]
+    pub movie_api_servers: Vec<String>,
+    #[serde(default)]
+    pub serie_api_servers: Vec<String>,
+    #[serde(default)]
+    pub update_api_servers_automatically: bool,
 }
 
 impl ServerSettings {
-    /// The configured API server to use for all [crate::core::media::Media] providers.
-    pub fn api_server(&self) -> Option<&String> {
-        match &self.api_server {
-            None => None,
-            Some(e) => Some(e),
-        }
+    /// Returns the slice of the api servers for movies.
+    pub fn movie_api_servers_as_slice(&self) -> &[String] {
+        &self.movie_api_servers
+    }
+
+    /// Returns the slice of the api servers for series.
+    pub fn serie_api_servers_as_slice(&self) -> &[String] {
+        &self.serie_api_servers
     }
 }
 
 impl Default for ServerSettings {
     fn default() -> Self {
         Self {
-            api_server: DEFAULT_API_SERVER(),
+            movie_api_servers: Default::default(),
+            serie_api_servers: Default::default(),
+            update_api_servers_automatically: false,
         }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn test_server_settings_default() {
-        let expected_result = ServerSettings {
-            api_server: DEFAULT_API_SERVER(),
-        };
-
-        let result = ServerSettings::default();
-
-        assert_eq!(expected_result, result)
     }
 }

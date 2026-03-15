@@ -183,29 +183,32 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
         cancelContentUpdater();
 
         // reset the page
-        endOfItems = false;
-        updating = true;
-        lastKnownScrollPosition = 0;
-        lastFocusedItem = null;
         synchronized (contentUpdaterLock) {
+            updating = true;
+            endOfItems = false;
+            lastKnownScrollPosition = 0;
+            lastFocusedItem = null;
             items.clear();
             setPage(0);
         }
-        updating = false;
 
         runOnFx(() -> {
             synchronized (contentUpdaterLock) {
                 itemsPane.getChildren().clear();
             }
         });
+
+        updating = false;
     }
 
     /**
      * Load a new page into the infinite scroll pane.
      */
     public void loadNewPage() {
-        if (!updating && !endOfItems)
-            increasePage();
+        synchronized (contentUpdaterLock) {
+            if (!updating && !endOfItems)
+                increasePage();
+        }
     }
 
     /**
@@ -321,7 +324,6 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
 
     private void finished() {
         updating = false;
-
         removeLoaderItem();
     }
 
@@ -341,12 +343,12 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
     }
 
     private void onPageChanged() {
-        // lock the loader to prevent any check issues due to threading
-        synchronized (loaderLock) {
-            // check if the content is already being updated
-            // if so, ignore this page change
-            if (updating && !forcePageLoad)
+        // check if the content is already being updated
+        // if so, ignore this page change
+        synchronized (contentUpdaterLock) {
+            if (updating && !forcePageLoad) {
                 return;
+            }
         }
 
         updating = true;
@@ -473,6 +475,11 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
     }
 
     private void traverseFocusToItems() {
+        // do not try to traverse the focus if the scroll pane is not visible
+        if (!this.isVisible()) {
+            return;
+        }
+
         // check if any items is focusable and already has the focus
         // if so, we're not going to traverse the focus
         var focusAlreadyTraversed = items.stream()
@@ -480,8 +487,9 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
                 .filter(Node::isFocusTraversable)
                 .anyMatch(Node::isFocused);
 
-        if (focusAlreadyTraversed)
+        if (focusAlreadyTraversed) {
             return;
+        }
 
         // if we can traverse the focus and none of the items has the focus
         // we move

@@ -1,0 +1,117 @@
+* {
+    -text-primary: #fff;
+    -text-primary-emphasis: #e6e6e6;
+    -text-secondary: #909498;
+    -text-secondary-emphasis: #333;
+    -text-success: #299000;
+    -text-success-emphasis: #75b798;
+    -text-danger: #d53f3f;
+    -text-danger-emphasis: #d66b6b;
+    -text-warning: #ffc900;
+    -text-warning-subtle: #e6c345;
+    -text-black: #000;
+    -text-white: #fff;
+    -bg-primary: #17181b;
+    -bg-primary-subtle: #1a191c;
+    -bg-secondary: #212225;
+    -bg-danger: #f15153;
+    -bg-danger-subtle: #2c0b0e;
+    -bg-body-secondary: #3d414d;
+    -bg-body-tertiary: #30333c;
+    -bg-body: #17181b;
+    -bg-black: #000;
+    -bg-white: #fff;
+    -bg-transparent: transparent;
+}
+
+.text-primary {
+    -fx-text-fill: -text-primary !important;
+}
+
+.text-primary-emphasis {
+    -fx-text-fill: -text-primary-emphasis !important;
+}
+
+.text-secondary {
+    -fx-text-fill: -text-secondary !important;
+}
+
+.text-secondary-emphasis {
+    -fx-text-fill: -text-secondary-emphasis !important;
+}
+
+.text-success {
+    -fx-text-fill: -text-success !important;
+}
+
+.text-success-emphasis {
+    -fx-text-fill: -text-success-emphasis !important;
+}
+
+.text-danger {
+    -fx-text-fill: -text-danger !important;
+}
+
+.text-danger-emphasis {
+    -fx-text-fill: -text-danger-emphasis !important;
+}
+
+.text-warning {
+    -fx-text-fill: -text-warning !important;
+}
+
+.text-warning-subtle {
+    -fx-text-fill: -text-warning-subtle !important;
+}
+
+.text-black {
+    -fx-text-fill: -text-black !important;
+}
+
+.text-white {
+    -fx-text-fill: -text-white !important;
+}
+
+.bg-primary {
+    -fx-background-color: -bg-primary !important;
+}
+
+.bg-primary-subtle {
+    -fx-background-color: -bg-primary-subtle !important;
+}
+
+.bg-secondary {
+    -fx-background-color: -bg-secondary !important;
+}
+
+.bg-danger {
+    -fx-background-color: -bg-danger !important;
+}
+
+.bg-danger-subtle {
+    -fx-background-color: -bg-danger-subtle !important;
+}
+
+.bg-body-secondary {
+    -fx-background-color: -bg-body-secondary !important;
+}
+
+.bg-body-tertiary {
+    -fx-background-color: -bg-body-tertiary !important;
+}
+
+.bg-body {
+    -fx-background-color: -bg-body !important;
+}
+
+.bg-black {
+    -fx-background-color: -bg-black !important;
+}
+
+.bg-white {
+    -fx-background-color: -bg-white !important;
+}
+
+.bg-transparent {
+    -fx-background-color: -bg-transparent !important;
+}

@@ -1,8 +1,10 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
+import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
+import com.github.yoep.popcorn.backend.utils.Message;
 import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
 import com.github.yoep.popcorn.ui.messages.SettingsMessage;
 import javafx.beans.InvalidationListener;
@@ -46,8 +48,12 @@ public abstract class AbstractSettingsComponent {
         }
     }
 
-    protected void makeListViewHeightAdaptive(ListView<?> listView) {
-        listView.getItems().addListener((InvalidationListener) observable -> listView.setMaxHeight(LIST_VIEW_ITEM_HEIGHT * listView.getItems().size()));
+    /**
+     * Show the "error" notification to the user.
+     * @param message The message to show.
+     */
+    protected void showErrorNotification(Message message) {
+        eventPublisher.publish(new ErrorNotificationEvent(this, localeText.get(message)));
     }
 
     private boolean isNotificationAllowed() {

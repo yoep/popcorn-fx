@@ -113,7 +113,7 @@ async fn start(conn: TcpStream, args: PopcornFxArgs) -> io::Result<()> {
 
 /// Try to get the Popcorn FX application arguments.
 fn popcorn_fx_args() -> Result<PopcornFxArgs, Error> {
-    let args = env::args().skip(2).collect::<Vec<String>>();
+    let args = env::args().skip(1).collect::<Vec<String>>();
 
     PopcornFxArgs::from_arg_matches(
         &PopcornFxArgs::command()

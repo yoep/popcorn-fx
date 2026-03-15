@@ -74,7 +74,7 @@ impl MessageHandler for SettingsMessageHandler {
                 let mut request = UpdateServerSettingsRequest::parse_from_bytes(&message.payload)?;
                 let proto_settings = request.settings.take().ok_or(Error::MissingField)?;
 
-                let settings = ServerSettings::try_from(&proto_settings)?;
+                let settings = ServerSettings::try_from(proto_settings)?;
                 self.instance.settings().update_server(settings).await;
             }
             UpdateTorrentSettingsRequest::NAME => {
@@ -194,7 +194,9 @@ mod tests {
             .send(
                 UpdateServerSettingsRequest {
                     settings: MessageField::some(application_settings::ServerSettings {
-                        api_server: Some("https://api-v2.com".to_string()),
+                        movie_api_servers: vec!["https://api-v2.com".to_string()],
+                        serie_api_servers: vec![],
+                        update_api_servers_automatically: false,
                         special_fields: Default::default(),
                     }),
                     special_fields: Default::default(),

@@ -69,7 +69,7 @@ impl LoadingStrategy for AutoResumeLoadingStrategy {
                 filename = files
                     .into_iter()
                     .find(|e| Self::normalize(e.filename()) == Self::normalize(torrent_filename))
-                    .map(|e| e.filename());
+                    .map(|e| e.filename().to_string());
             } else {
                 // get the largest files from the torrent
                 filename = torrent

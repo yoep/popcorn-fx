@@ -1081,8 +1081,12 @@ pub mod application_settings {
     #[derive(PartialEq,Clone,Default,Debug)]
     pub struct ServerSettings {
         // message fields
-        // @@protoc_insertion_point(field:fx.ipc.proto.ApplicationSettings.ServerSettings.api_server)
-        pub api_server: ::std::option::Option<::std::string::String>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.ApplicationSettings.ServerSettings.movie_api_servers)
+        pub movie_api_servers: ::std::vec::Vec<::std::string::String>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.ApplicationSettings.ServerSettings.serie_api_servers)
+        pub serie_api_servers: ::std::vec::Vec<::std::string::String>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.ApplicationSettings.ServerSettings.update_api_servers_automatically)
+        pub update_api_servers_automatically: bool,
         // special fields
         // @@protoc_insertion_point(special_field:fx.ipc.proto.ApplicationSettings.ServerSettings.special_fields)
         pub special_fields: ::protobuf::SpecialFields,
@@ -1111,7 +1115,13 @@ pub mod application_settings {
             while let Some(tag) = is.read_raw_tag_or_eof()? {
                 match tag {
                     10 => {
-                        self.api_server = ::std::option::Option::Some(is.read_string()?);
+                        self.movie_api_servers.push(is.read_string()?);
+                    },
+                    18 => {
+                        self.serie_api_servers.push(is.read_string()?);
+                    },
+                    24 => {
+                        self.update_api_servers_automatically = is.read_bool()?;
                     },
                     tag => {
                         ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
@@ -1125,8 +1135,14 @@ pub mod application_settings {
         #[allow(unused_variables)]
         fn compute_size(&self) -> u64 {
             let mut my_size = 0;
-            if let Some(v) = self.api_server.as_ref() {
-                my_size += ::protobuf::rt::string_size(1, &v);
+            for value in &self.movie_api_servers {
+                my_size += ::protobuf::rt::string_size(1, &value);
+            };
+            for value in &self.serie_api_servers {
+                my_size += ::protobuf::rt::string_size(2, &value);
+            };
+            if self.update_api_servers_automatically != false {
+                my_size += 1 + 1;
             }
             my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
             self.special_fields.cached_size().set(my_size as u32);
@@ -1134,8 +1150,14 @@ pub mod application_settings {
         }
 
         fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-            if let Some(v) = self.api_server.as_ref() {
-                os.write_string(1, v)?;
+            for v in &self.movie_api_servers {
+                os.write_string(1, &v)?;
+            };
+            for v in &self.serie_api_servers {
+                os.write_string(2, &v)?;
+            };
+            if self.update_api_servers_automatically != false {
+                os.write_bool(3, self.update_api_servers_automatically)?;
             }
             os.write_unknown_fields(self.special_fields.unknown_fields())?;
             ::std::result::Result::Ok(())
@@ -1154,13 +1176,17 @@ pub mod application_settings {
         }
 
         fn clear(&mut self) {
-            self.api_server = ::std::option::Option::None;
+            self.movie_api_servers.clear();
+            self.serie_api_servers.clear();
+            self.update_api_servers_automatically = false;
             self.special_fields.clear();
         }
 
         fn default_instance() -> &'static ServerSettings {
             static instance: ServerSettings = ServerSettings {
-                api_server: ::std::option::Option::None,
+                movie_api_servers: ::std::vec::Vec::new(),
+                serie_api_servers: ::std::vec::Vec::new(),
+                update_api_servers_automatically: false,
                 special_fields: ::protobuf::SpecialFields::new(),
             };
             &instance

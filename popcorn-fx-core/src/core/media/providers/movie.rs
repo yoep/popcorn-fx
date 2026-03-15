@@ -52,7 +52,15 @@ impl MovieProvider {
         cache_manager: CacheManager,
         insecure: bool,
     ) -> Self {
-        let uris = available_uris(&settings, PROVIDER_NAME).await;
+        let api_servers = settings
+            .user_settings_ref(|e| e.server_settings.movie_api_servers.clone())
+            .await;
+        let uris = available_uris(
+            api_servers.as_slice(),
+            settings.properties_ref(),
+            PROVIDER_NAME,
+        )
+        .await;
 
         Self {
             base: Arc::new(Mutex::new(BaseProvider::new(uris, insecure))),

@@ -104,18 +104,22 @@ impl TryFrom<&application_settings::UISettings> for UiSettings {
 impl From<&ServerSettings> for application_settings::ServerSettings {
     fn from(value: &ServerSettings) -> Self {
         Self {
-            api_server: value.api_server.clone(),
+            movie_api_servers: value.movie_api_servers.clone(),
+            serie_api_servers: value.serie_api_servers.clone(),
+            update_api_servers_automatically: value.update_api_servers_automatically,
             special_fields: Default::default(),
         }
     }
 }
 
-impl TryFrom<&application_settings::ServerSettings> for ServerSettings {
+impl TryFrom<application_settings::ServerSettings> for ServerSettings {
     type Error = Error;
 
-    fn try_from(value: &application_settings::ServerSettings) -> Result<Self> {
+    fn try_from(value: application_settings::ServerSettings) -> Result<Self> {
         Ok(Self {
-            api_server: value.api_server.clone(),
+            movie_api_servers: value.movie_api_servers,
+            serie_api_servers: value.serie_api_servers,
+            update_api_servers_automatically: value.update_api_servers_automatically,
         })
     }
 }

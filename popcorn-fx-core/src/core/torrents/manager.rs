@@ -348,12 +348,11 @@ impl InnerTorrentManager {
             .await
             .into_iter()
             .map(|file| {
-                let priority =
-                    if Self::normalize(file.filename().as_str()) == Self::normalize(filename) {
-                        FilePriority::Normal
-                    } else {
-                        FilePriority::None
-                    };
+                let priority = if Self::normalize(file.filename()) == Self::normalize(filename) {
+                    FilePriority::Normal
+                } else {
+                    FilePriority::None
+                };
 
                 (file.index, priority)
             })
@@ -552,8 +551,8 @@ impl InnerTorrentManager {
     }
 
     /// Normalize the given value.
-    fn normalize(value: &str) -> String {
-        value.trim().to_lowercase()
+    fn normalize<S: AsRef<str>>(value: S) -> String {
+        value.as_ref().trim().to_lowercase()
     }
 }
 

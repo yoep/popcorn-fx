@@ -40,7 +40,7 @@
         <VBox alignment="CENTER"
               GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.columnSpan="3">
             <Label fx:id="titleText" styleClass="title-text" />
-            <Label fx:id="captionText" styleClass="caption, muted" />
+            <Label fx:id="captionText" styleClass="caption, text-secondary" />
         </VBox>
 
         <!-- Playback info -->

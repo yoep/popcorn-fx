@@ -937,7 +937,9 @@ mod test {
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = ServerSettings {
-            api_server: Some("http://localhost:8080".to_string()),
+            movie_api_servers: vec!["http://localhost:8080".to_string()],
+            serie_api_servers: vec![],
+            update_api_servers_automatically: false,
         };
         let application = ApplicationConfig::builder().storage(temp_path).build();
         let (tx, mut rx) = unbounded_channel();
@@ -975,7 +977,9 @@ mod test {
             auto_play_next_episode_enabled: true,
         };
         let server = ServerSettings {
-            api_server: Some("http://localhost:8080".to_string()),
+            movie_api_servers: vec!["http://localhost:8080".to_string()],
+            serie_api_servers: vec![],
+            update_api_servers_automatically: false,
         };
         let application = ApplicationConfig::builder()
             .storage(temp_path)

@@ -52,7 +52,7 @@
 .root .list-view,
 .root .player-external,
 .root .content-section {
-    -fx-background-color: #17181b;
+    -fx-background-color: -bg-primary;
 }
 
 .root .viewport,
@@ -64,14 +64,10 @@
     -fx-font-smoothing-type: gray;
 }
 
-.root .muted {
-    -fx-text-fill: #999999 !important;
-}
-
 .root .tooltip {
     -fx-background-color: rgba(23, 24, 27, 0.6);
     -fx-font-family: "Open Sans Semibold";
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
     -fx-font-size: 1em;
 }
 
@@ -85,7 +81,7 @@
 .root .list-view .list-cell,
 .root .table-view .table-cell {
     -fx-font-family: "Open Sans Semibold";
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
 }
 
 .root .scroll-bar {
@@ -99,7 +95,7 @@
 }
 
 .root .scroll-bar .track {
-    -fx-background-color: #30333c;
+    -fx-background-color: -bg-secondary;
     -fx-border-color: transparent;
     -fx-background-radius: 2em;
     -fx-border-radius: 0em;
@@ -128,12 +124,12 @@
 .root .button {
     -fx-font-family: "Open Sans Bold";
     -fx-background-color: #1f375f;
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
     -fx-cursor: hand;
 }
 
 .root .button .icon {
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
 }
 
 .root .split-menu-button .label,
@@ -157,7 +153,7 @@
 }
 
 .root .split-menu-button .arrow-button .arrow {
-    -fx-background-color: #fff;
+    -fx-background-color: -text-primary;
 }
 
 .root ProgressBar {
@@ -177,11 +173,11 @@
 }
 
 .root ProgressBar.error .bar {
-    -fx-background-color: #d53f3f;
+    -fx-background-color: -text-danger;
 }
 
 .root ComboBox {
-    -fx-background-color: transparent;
+    -fx-background-color: -bg-transparent;
 }
 
 .root .check-box .box {
@@ -199,20 +195,20 @@
 }
 
 .root .stars .empty {
-    -fx-text-fill: #a3a5a7;
+    -fx-text-fill: -text-secondary;
 }
 
 .root .stars .filled {
-    -fx-text-fill: #ffc900;
+    -fx-text-fill: -text-warning;
 }
 
 .root .close-button {
-    -fx-text-fill: #ccc;
+    -fx-text-fill: -text-secondary-emphasis;
     -fx-cursor: hand;
 }
 
 .root .close-button:hover {
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
 }
 
 .root .content-section .os-buttons {
@@ -236,7 +232,7 @@
 
 .root .filter-bar .label {
     -fx-font-family: "Open Sans Bold";
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
     -fx-cursor: hand;
     -fx-alignment: center-left;
     -fx-label-padding: 0 8 0 0;
@@ -268,11 +264,11 @@
 
 .root .filter-bar .filterGroup ComboBox .arrow {
     -fx-padding: 5 8 0 0;
-    -fx-background-color: #c3c5c7;
+    -fx-background-color: -text-primary-emphasis;
 }
 
 .root .filter-bar .filterGroup:hover ComboBox .arrow {
-    -fx-background-color: #fff;
+    -fx-background-color: -text-primary;
 }
 
 .root .filter-bar .filterGroup ComboBox .scroll-bar {
@@ -290,21 +286,21 @@
 
 .root .filter-bar .filterGroup ComboBox .list-view .list-cell {
     -fx-font-family: "Open Sans Semibold";
-    -fx-text-fill: #c3c5c7;
+    -fx-text-fill: -text-primary-emphasis;
     -fx-cursor: hand;
     -fx-border-color: transparent;
     -fx-border-width: 0 0 0 4;
 }
 
 .root .filter-bar .filterGroup ComboBox .list-view .list-cell:selected {
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
     -fx-background-color: #0b131f;
     -fx-border-color: #c3c5c7;
     -fx-border-style: solid;
 }
 
 .root .filter-bar .filterGroup ComboBox .list-view .list-cell:hover {
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
     -fx-background-color: #0b131f;
     -fx-border-color: #2d72d9;
     -fx-border-style: solid;
@@ -312,7 +308,7 @@
 
 .root .header .bar .filter-icon-bar .icon {
     -fx-font-size: 1.5em;
-    -fx-text-fill: #909498;
+    -fx-text-fill: -text-secondary;
     -fx-cursor: hand;
     -fx-padding: 0 0 10 8;
 }
@@ -326,11 +322,11 @@
 }
 
 .root .background-image {
-    -fx-background-color: #000;
+    -fx-background-color: -bg-primary-subtle;
 }
 
 .root .background-image .background-cover {
-    -fx-background-color: #000;
+    -fx-background-color: -bg-primary-subtle;
     -fx-opacity: 0.65;
 }
 
@@ -340,7 +336,7 @@
 
 .root .list-section .failed .icon {
     -fx-font-size: 4em;
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
 }
 
 .root .list-section .failed .button .icon {
@@ -350,7 +346,7 @@
 .root .list-section .failed Label {
     -fx-font-family: "Open Sans Bold";
     -fx-font-size: 2em;
-    -fx-text-fill: #d53f3f;
+    -fx-text-fill: -text-danger;
 }
 
 .root .list-section .poster-item {
@@ -393,7 +389,7 @@
 
 .root .list-section .poster-item .poster .overlay .view,
 .root .list-section .poster-item .poster .overlay .like {
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
     -fx-opacity: 0.3;
 }
 
@@ -405,33 +401,33 @@
 
 .root .list-section .poster-item .poster .overlay .like.liked,
 .root .show-details-section .show-details .bookmark .like.liked {
-    -fx-text-fill: #df2d37;
+    -fx-text-fill: -text-danger;
     -fx-opacity: 1.0;
 }
 
 .root .list-section .poster-item.watched .poster .overlay .view {
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
     -fx-opacity: 1.0;
 }
 
 .root .list-section .poster-item .poster .overlay Label {
     -fx-font-family: "Open Sans Bold";
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
     -fx-font-size: 1em;
 }
 
 .root .list-section .poster-item .title {
     -fx-font-family: "Open Sans Bold";
     -fx-font-size: 1em;
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
     -fx-padding: 4 0 2 0;
 }
 
 .root .list-section .poster-item .year,
 .root .list-section .poster-item .seasons {
     -fx-font-family: "Open Sans Bold";
-    -fx-text-fill: #808080;
-    -fx-fill: #808080;
+    -fx-text-fill: -text-secondary;
+    -fx-fill: -text-secondary;
     -fx-font-size: 0.85em;
 }
 
@@ -459,18 +455,18 @@
 .root .movie-details .poster .corner-button .icon,
 .root .show-details-section .poster .corner-button .icon {
     -fx-font-size: 2em;
-    -fx-text-fill: #ccc;
+    -fx-text-fill: -text-secondary-emphasis;
     -fx-padding: 8 8 0 8;
 }
 
 .root .movie-details .poster .corner-button .icon.seen,
 .root .show-details-section .poster .corner-button .icon.seen {
-    -fx-text-fill: #299000;
+    -fx-text-fill: -text-success;
 }
 
 .root .movie-details .poster .corner-button .icon.liked,
 .root .show-details-section .poster .corner-button .icon.liked {
-    -fx-text-fill: #df2d37;
+    -fx-text-fill: -text-danger;
 }
 
 .root .movie-details .poster .corner-button:hover .icon.seen,
@@ -484,7 +480,7 @@
 
 .root .movie-details .title {
     -fx-font-family: "Open Sans Semibold";
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
     -fx-font-size: 38px;
     -fx-padding: 0 0 0 0;
 }
@@ -492,13 +488,13 @@
 .root .movie-details .metadata Label,
 .root .show-details-section .metadata Label {
     -fx-font-family: "Open Sans Bold";
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
     -fx-font-size: 1em;
 }
 
 .root .movie-details .metadata .separator,
 .root .show-details-section .metadata .separator {
-    -fx-text-fill: #dbdbdd;
+    -fx-text-fill: -text-primary-emphasis;
     -fx-font-size: 5px;
     -fx-padding: 0 10 0 10;
 }
@@ -506,7 +502,7 @@
 .root .movie-details .overview,
 .root .show-details-section .overview {
     -fx-font-family: "Open Sans Semibold";
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
     -fx-font-size: 1em;
     -fx-padding: 10 0 0 0;
 }
@@ -517,14 +513,14 @@
 
 .root .movie-details .magnet-link,
 .root .show-details-section .magnet-link {
-    -fx-text-fill: #ddd;
+    -fx-text-fill: -text-primary-emphasis;
     -fx-cursor: hand;
     -fx-padding: 0 8 0 8;
 }
 
 .root .movie-details .magnet-link:hover,
 .root .show-details-section .magnet-link:hover {
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
 }
 
 .root .movie-details .health,
@@ -536,22 +532,22 @@
 
 .root .movie-details .health.bad,
 .root .show-details-section .health.bad {
-    -fx-text-fill: #d53f3f;
+    -fx-text-fill: -text-danger-emphasis;
 }
 
 .root .movie-details .health.medium,
 .root .show-details-section .health.medium {
-    -fx-text-fill: #ece523;
+    -fx-text-fill: -text-warning-subtle;
 }
 
 .root .movie-details .health.good,
 .root .show-details-section .health.good {
-    -fx-text-fill: #a3e147;
+    -fx-text-fill: -text-success-emphasis;
 }
 
 .root .movie-details .health.excellent,
 .root .show-details-section .health.excellent {
-    -fx-text-fill: #2ad942;
+    -fx-text-fill: -text-success;
 }
 
 .root .movie-details .watch-now .context-menu,
@@ -565,7 +561,7 @@
 .root .overlay .overlay-content .watch-now .menu-item,
 .root .torrent-details .watch-now .menu-item {
     -fx-background-color: rgb(23, 24, 27);
-    -fx-text-fill: #ccc;
+    -fx-text-fill: -text-primary-emphasis;
     -fx-padding: 0;
     -fx-cursor: hand;
 }
@@ -574,20 +570,20 @@
 .root .overlay .overlay-content .watch-now .menu-item.active,
 .root .torrent-details .watch-now .menu-item.active {
     -fx-background-color: #225694;
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
 }
 
 .root .movie-details .watch-now .menu-item:focused,
 .root .overlay .overlay-content .watch-now .menu-item:focused,
 .root .torrent-details .watch-now .menu-item:focused {
     -fx-background-color: #226e94;
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
 }
 
 .root .movie-details .watch-now .menu-item .label,
 .root .overlay .overlay-content .watch-now .menu-item .label,
 .root .torrent-details .watch-now .menu-item .label {
-    -fx-background-color: transparent;
+    -fx-background-color: -bg-transparent;
 }
 
 .root .movie-details .watch-now .menu-item .graphic-container,
@@ -598,7 +594,7 @@
 
 .root .movie-details .quality-selection .quality {
     -fx-font-family: "Open Sans Bold";
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
     -fx-cursor: hand;
     -fx-padding: 2 10 2 10;
     -fx-background-radius: 5em;
@@ -1223,7 +1219,7 @@
 .root .settings-section .sub-section .combo-box .list-view .list-cell {
     -fx-font-family: "Open Sans Semibold", "Open Sans", sans-serif;
     -fx-font-size: 1.2em;
-    -fx-text-fill: #c3c5c7;
+    -fx-text-fill: -text-primary-emphasis;
 }
 
 .root .settings-section .sub-section .button .icon,
@@ -1301,7 +1297,7 @@
 
 .root .settings-section .sub-section .combo-box .list-view .list-cell:hover {
     -fx-background-color: #0b131f;
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
 }
 
 .root .settings-section .sub-section .combo-box .box {
@@ -1317,8 +1313,8 @@
     -fx-min-width: 350;
     -fx-max-width: 350;
     -fx-background-color: #393b3d;
-    -fx-text-fill: #c3c5c7;
-    -fx-prompt-text-fill: #646566;
+    -fx-text-fill: -text-primary-emphasis;
+    -fx-prompt-text-fill: -text-secondary;
     -fx-border-width: 1;
     -fx-border-color: transparent;
 }
@@ -1360,18 +1356,18 @@
 
 .root .torrent-collection .torrent-list .placeholder {
     -fx-font-family: "Open Sans Bold";
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
     -fx-font-size: 1.3em;
 }
 
 .root .torrent-collection .torrent-list .icon-cell Icon {
     -fx-font-size: 1.5em;
-    -fx-text-fill: #eee;
+    -fx-text-fill: -text-primary-emphasis;
     -fx-opacity: 0.7;
 }
 
 .root .torrent-collection .torrent-list .icon-cell:hover Icon {
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
     -fx-opacity: 1;
 }
 
@@ -1384,7 +1380,7 @@
 .root .torrent-details .title {
     -fx-font-family: sans-serif;
     -fx-font-size: 24px;
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
 }
 
 .root .torrent-details .files .list-cell {
@@ -1395,7 +1391,7 @@
     -fx-padding: 5 15 5 15;
     -fx-cursor: hand;
     -fx-font-family: "Open Sans Semibold";
-    -fx-text-fill: #eee;
+    -fx-text-fill: -text-primary-emphasis;
     -fx-font-size: 1.2em;
 }
 
@@ -1410,13 +1406,13 @@
 
 .root .about-section .label {
     -fx-font-family: "Open Sans";
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
 }
 
 .root .about-section .title {
     -fx-font-family: "Open Sans Semibold";
     -fx-font-size: 4em;
-    -fx-text-fill: #fafafa;
+    -fx-text-fill: -text-primary;
 }
 
 .root .about-section .subsection-title {
@@ -1428,7 +1424,7 @@
 
 .root .about-section .category-title {
     -fx-font-family: "Open Sans Semibold", "Open Sans", sans-serif;
-    -fx-text-fill: #fafafa;
+    -fx-text-fill: -text-primary;
     -fx-font-size: 1.2em;
     -fx-padding: 15 0 0 0;
 }
@@ -1436,7 +1432,7 @@
 .root .about-section .version {
     -fx-font-family: "Open Sans Semibold";
     -fx-font-size: 2em;
-    -fx-text-fill: #bbb;
+    -fx-text-fill: -text-secondary;
 }
 
 .root .about-section .new-version {
@@ -1444,7 +1440,7 @@
     -fx-font-style: italic;
     -fx-font-weight: bold;
     -fx-font-size: 1.5em;
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
     -fx-padding: 0 0 0 0;
 }
 
@@ -1463,7 +1459,7 @@
     -fx-cursor: hand;
     -fx-font-family: "Open Sans Bold";
     -fx-font-size: 1.25em;
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
 }
 
 .root .about-section .about-details .details-card .state {
@@ -1489,7 +1485,7 @@
 
 .root .content-section .sidebar .search-field,
 .root .content-section .sidebar .label {
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
     -fx-cursor: hand;
 }
 
@@ -1537,7 +1533,7 @@
 
 .root .content-section .sidebar .search-field,
 .root .content-section .sidebar .search-field .text {
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
     -fx-background-color: transparent;
     -fx-cursor: text;
     -fx-padding: 0 0 0 0;
@@ -1579,17 +1575,17 @@
 .root .show-details-section .show-details .axis .button:hover,
 .root .show-details-section .show-details .axis .button.selected:focused,
 .root .show-details-section .show-details .axis .button.selected:hover {
-    -fx-border-color: #fff;
+    -fx-border-color: -text-primary;
 }
 
 .root .show-details-section .show-details .axis .button .icon {
     -fx-font-size: 1.2em;
-    -fx-text-fill: rgba(255, 255, 255, 0.2);
+    -fx-text-fill: text-secondary;
     -fx-padding: 10 5 10 5;
 }
 
 .root .show-details-section .show-details .axis .button .icon.watched {
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
 }
 
 /* endregion */
@@ -1607,7 +1603,7 @@
 
 .root .overlay .overlay-content .label {
     -fx-font-family: "Open Sans Semibold";
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
 }
 
 .root .overlay .overlay-content .title {
@@ -1616,7 +1612,7 @@
 }
 
 .root .overlay .overlay-content .metadata {
-    -fx-text-fill: #8d9296;
+    -fx-text-fill: -text-secondary;
 }
 
 .root .overlay .overlay-content .synopsis {
@@ -1637,7 +1633,7 @@
 .root .playlist .playlist-item .title {
     -fx-font-family: "Open Sans Semibold";
     -fx-font-size: 1.5em;
-    -fx-text-fill: #fafafa;
+    -fx-text-fill: -text-primary;
     -fx-padding: 0 5 0 0;
 }
 

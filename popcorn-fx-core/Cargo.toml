@@ -14,7 +14,7 @@ crate-type = ["rlib"]
 [dependencies]
 fx-callback.workspace = true
 fx-handle.workspace = true
-fx-torrent.workspace = true
+fx-torrent = { workspace = true, features = ["ed25519-dalek"] }
 
 async-trait.workspace = true
 axum.workspace = true

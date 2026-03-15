@@ -33,6 +33,10 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import lombok.Builder;
@@ -51,6 +55,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class ListSectionController extends AbstractListSectionController implements Initializable {
     static final double LEFT_SPACING_DESKTOP = 64.0;
     static final double LEFT_SPACING_TV = 128.0;
+    static final String FILTER_COMPONENT = "components/filter.component.fxml";
 
     private final FavoriteService favoriteService;
     private final WatchedService watchedService;
@@ -64,6 +69,8 @@ public class ListSectionController extends AbstractListSectionController impleme
     AnchorPane listSection;
     @FXML
     BackgroundImageCover backgroundImage;
+    @FXML
+    Button retryBtn;
 
     //region Constructors
 
@@ -125,7 +132,7 @@ public class ListSectionController extends AbstractListSectionController impleme
     }
 
     private void initializeFilter() {
-        var filter = viewLoader.load("components/filter.component.fxml");
+        var filter = viewLoader.load(FILTER_COMPONENT);
 
         if (applicationConfig.isTvMode()) {
             AnchorPane.setTopAnchor(filter, 0d);
@@ -239,7 +246,7 @@ public class ListSectionController extends AbstractListSectionController impleme
     private Media[] onMediaRequestFailed(Throwable throwable) {
         releaseCurrentLoadRequest();
 
-        // check if the media request was cancelled
+        // check if the media request was canceled
         // if so, ignore this failure
         if (throwable instanceof CancellationException || throwable.getCause() instanceof CancellationException) {
             log.trace("Media request has been cancelled by the user");
@@ -270,9 +277,10 @@ public class ListSectionController extends AbstractListSectionController impleme
         }
 
         Platform.runLater(() -> {
+            updateErrorState(true);
             failedText.setText(message.get());
-            failedPane.setVisible(true);
             hideOverlay();
+            retryBtn.requestFocus();
         });
 
         this.eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(ListMessage.RETRIEVAL_FAILED)));
@@ -337,7 +345,7 @@ public class ListSectionController extends AbstractListSectionController impleme
 
     private CompletableFuture<Media[]> loadItems(final int page) {
         // hide the failed pane in case it might be visible from the last failure
-        Platform.runLater(() -> failedPane.setVisible(false));
+        updateErrorState(false);
 
         // cancel the current load request if one is present
         // and has not yet been completed
@@ -354,8 +362,35 @@ public class ListSectionController extends AbstractListSectionController impleme
                 });
     }
 
+    private void updateErrorState(boolean isError) {
+        Runnable action = () -> {
+            failedPane.setVisible(isError);
+            scrollPane.setVisible(!isError);
+        };
+
+        if (Platform.isFxApplicationThread()) {
+            action.run();
+        } else {
+            Platform.runLater(action);
+        }
+    }
+
     @FXML
-    void onRetryListLoading(MouseEvent event) {
+    void onRetryBtnClicked(MouseEvent event) {
+        if (event.getButton() != MouseButton.PRIMARY) {
+            return;
+        }
+
+        event.consume();
+        onRetryMediaLoading();
+    }
+
+    @FXML
+    void onRetryBtnPressed(KeyEvent event) {
+        if (event.getCode() != KeyCode.ENTER) {
+            return;
+        }
+
         event.consume();
         onRetryMediaLoading();
     }

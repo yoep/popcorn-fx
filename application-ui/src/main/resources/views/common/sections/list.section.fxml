@@ -21,7 +21,8 @@
             <Icon fx:constant="MEH_O_UNICODE"/>
         </Icon>
         <Label fx:id="failedText" text="%list_failed_generic"/>
-        <Button text="%list_failed_retry" onMouseClicked="#onRetryListLoading">
+        <Button fx:id="retryBtn" text="%list_failed_retry"
+                onMouseClicked="#onRetryBtnClicked" onKeyPressed="#onRetryBtnPressed">
             <graphic>
                 <Icon>
                     <Icon fx:constant="REFRESH_UNICODE"/>

@@ -1,4 +1,3 @@
-use derive_more::Display;
 use log::{debug, trace, warn};
 use serde::{Deserialize, Serialize};
 
@@ -7,37 +6,21 @@ use crate::core::config::{
     UiSettings,
 };
 
-const DEFAULT_SUBTITLES: fn() -> SubtitleSettings = SubtitleSettings::default;
-const DEFAULT_UI: fn() -> UiSettings = UiSettings::default;
-const DEFAULT_SERVER: fn() -> ServerSettings = ServerSettings::default;
-const DEFAULT_TORRENT: fn() -> TorrentSettings = TorrentSettings::default;
-const DEFAULT_PLAYBACK: fn() -> PlaybackSettings = PlaybackSettings::default;
-const DEFAULT_TRACKING: fn() -> TrackingSettings = TrackingSettings::default;
-
 /// The Popcorn FX user settings.
 /// These contain the preferences of the user for the application.
-#[derive(Debug, Display, Default, Clone, Serialize, Deserialize, PartialEq)]
-#[display(
-    "subtitle_settings: {}, ui_settings: {}, server_settings: {}, torrent_settings: {}, playback_settings: {}, tracking_settings: {}",
-    subtitle_settings,
-    ui_settings,
-    server_settings,
-    torrent_settings,
-    playback_settings,
-    tracking_settings
-)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PopcornSettings {
-    #[serde(default = "DEFAULT_SUBTITLES")]
+    #[serde(default)]
     pub subtitle_settings: SubtitleSettings,
-    #[serde(default = "DEFAULT_UI")]
+    #[serde(default)]
     pub ui_settings: UiSettings,
-    #[serde(default = "DEFAULT_SERVER")]
+    #[serde(default)]
     pub server_settings: ServerSettings,
-    #[serde(default = "DEFAULT_TORRENT")]
+    #[serde(default)]
     pub torrent_settings: TorrentSettings,
-    #[serde(default = "DEFAULT_PLAYBACK")]
+    #[serde(default)]
     pub playback_settings: PlaybackSettings,
-    #[serde(default = "DEFAULT_TRACKING")]
+    #[serde(default)]
     pub tracking_settings: TrackingSettings,
 }
 

@@ -1,7 +1,7 @@
 use crate::core::stream::media_type::{MediaType, MediaTypeFactory};
 use crate::core::stream::range::Range;
 use crate::core::stream::{Error, Result, StreamEvent, StreamState, StreamingResource};
-use crate::core::utils::network::ip_addr;
+use crate::core::utils::network::local_ip_addr;
 use axum::body::Body;
 use axum::extract::{Path, State};
 use axum::http::header::{
@@ -84,7 +84,7 @@ impl StreamServer {
     /// If the port is already in use, an error will be returned.
     pub async fn with_port(port: u16) -> Result<Self> {
         let listener = TcpListener::bind((Ipv4Addr::UNSPECIFIED, port)).await?;
-        let addr = (ip_addr(), listener.local_addr()?.port()).into();
+        let addr = (local_ip_addr(), listener.local_addr()?.port()).into();
         let inner = Arc::new(InnerStreamServer {
             addr,
             streams: Default::default(),

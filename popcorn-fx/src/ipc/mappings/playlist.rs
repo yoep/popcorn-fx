@@ -284,34 +284,6 @@ mod tests {
 
         #[test]
         fn test_proto_try_from_play_next_changed() {
-            let url = "http://localhost:8080/my-video.mp4";
-            let title = "FooBar";
-            let caption = "MyCaption";
-            let item = PlaylistItem {
-                url: Some(url.to_string()),
-                title: title.to_string(),
-                caption: Some(caption.to_string()),
-                thumb: None,
-                media: Default::default(),
-                quality: None,
-                auto_resume_timestamp: None,
-                subtitle: Default::default(),
-                torrent: Default::default(),
-            };
-            let expected_item = playlist::playlist::Item {
-                url: url.to_string(),
-                title: title.to_string(),
-                caption: Some(caption.to_string()),
-                thumb: None,
-                quality: None,
-                parent_media: Default::default(),
-                media: Default::default(),
-                auto_resume_timestamp: None,
-                subtitles_enabled: false,
-                torrent_filename: None,
-                special_fields: Default::default(),
-            };
-
             let result = playlist::PlaylistEvent::try_from(&PlaylistManagerEvent::PlayNextChanged(
                 PlayNext::End,
             ))

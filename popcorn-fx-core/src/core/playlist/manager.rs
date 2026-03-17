@@ -266,11 +266,16 @@ impl InnerPlaylistManager {
                     event.duration.as_ref(),
                 ) {
                     true => {
-                        let _ = self.play_next().await;
+                        if self.play_next().await.is_some() {
+                            self.event_publisher.publish(Event::LoadingStarted);
+                        }
                     }
                     false => {
-                        debug!("Playlist manager is closing player, end of playlist playback has been reached");
-                        self.event_publisher.publish(Event::ClosePlayer);
+                        let is_playback_known = !event.url.is_empty() || event.media.is_some();
+                        if event.duration.is_some() && is_playback_known {
+                            debug!("Playlist manager is closing player, end of playlist playback has been reached");
+                            self.event_publisher.publish(Event::ClosePlayer);
+                        }
                     }
                 }
             }

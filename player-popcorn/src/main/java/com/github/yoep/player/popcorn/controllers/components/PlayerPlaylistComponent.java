@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.ResourceBundle;
 
+import static java.util.Arrays.asList;
+
 @Slf4j
 @RequiredArgsConstructor
 public class PlayerPlaylistComponent implements Initializable {
@@ -75,7 +77,8 @@ public class PlayerPlaylistComponent implements Initializable {
     private void onPlaylistChanged() {
         playlistManager.playlist().whenComplete((playlist, throwable) -> {
             if (throwable == null) {
-                onPlayListItemsChanged(playlist.getItemsList());
+                onPlayListItemsChanged(asList(playlist.getItemsList()
+                        .toArray(new Playlist.Item[0])));
             } else {
                 log.error("Failed to retrieve playlist", throwable);
             }
@@ -90,7 +93,13 @@ public class PlayerPlaylistComponent implements Initializable {
     private void onCurrentItemChanged(Playlist.Item item) {
         var oldItem = this.currentItem;
         Platform.runLater(() -> {
-            playlistControl.getItems().remove(oldItem);
+            if (oldItem != null) {
+                playlistControl.setItems(playlistControl.getItems()
+                        .stream()
+                        .filter(e -> e != oldItem)
+                        .toList());
+            }
+
             playlistControl.setSelectedItem(item);
         });
     }

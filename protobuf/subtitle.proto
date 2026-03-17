@@ -169,7 +169,7 @@ message SubtitleEvent {
   optional PreferenceChanged preference_changed = 2;
 
   message PreferenceChanged {
-      SubtitlePreference preference = 1;
+    SubtitlePreference preference = 1;
   }
 
   enum Event {

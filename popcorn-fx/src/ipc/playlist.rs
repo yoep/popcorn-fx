@@ -24,7 +24,7 @@ impl PlaylistMessageHandler {
         let mut receiver = instance.playlist_manager().subscribe();
         tokio::spawn(async move {
             while let Some(event) = receiver.recv().await {
-                match playlist::PlaylistEvent::try_from(&*event) {
+                match PlaylistEvent::try_from(&*event) {
                     Ok(proto_event) => {
                         if let Err(e) = channel.send(proto_event, PlaylistEvent::NAME).await {
                             error!("Failed to send playlist event to channel, {}", e);

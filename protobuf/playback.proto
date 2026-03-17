@@ -8,7 +8,7 @@ package fx.ipc.proto;
 
 message ControlEvent {
   Event event = 1;
-  
+
   enum Event {
     TOGGLE_PLAYBACK_STATE = 0;
     FORWARD = 1;

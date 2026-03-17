@@ -9,6 +9,7 @@ package fx.ipc.proto;
 import "player.proto";
 import "torrent.proto";
 
+// The application events.
 message Event {
   EventType type = 1;
   optional PlaybackStateChanged playback_state_changed = 3;

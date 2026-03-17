@@ -62,6 +62,10 @@ public class PlaylistControl extends Icon {
         popup.playlistView.setItems(items.toArray(new Playlist.Item[0]));
     }
 
+    public void setSelectedItem(Playlist.Item item) {
+        popup.playlistView.setSelectedItem(item);
+    }
+
     private void initializeLanguageSelection() {
         getStyleClass().add(STYLE_CLASS);
         initializeControl();

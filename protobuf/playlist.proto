@@ -56,14 +56,32 @@ message GetActivePlaylistResponse {
   Playlist playlist = 1;
 }
 
+message PlayNext {
+  Type type = 1;
+  optional Next next = 2;
+
+  message Next {
+    Playlist.Item item = 1;
+  }
+
+  enum Type {
+    NEXT = 0; // The next item in the playlist will start playing.
+    END = 1;  // The playlist has reached the end and no more items can be played.
+  }
+}
+
 message PlaylistEvent {
   Event event = 1;
-  optional PlayingNext playing_next = 2;
-  optional StateChanged state_changed = 3;
+  optional PlayNextChanged play_next_changed = 2;
+  optional PlayingNextIn playing_next_in = 3;
+  optional StateChanged state_changed = 4;
 
-  message PlayingNext {
-    optional uint64 playing_in = 1;
-    Playlist.Item item = 2;
+  message PlayNextChanged {
+    PlayNext next = 1;
+  }
+
+  message PlayingNextIn {
+    uint32 playing_in_seconds = 1;
   }
 
   message StateChanged {
@@ -71,8 +89,10 @@ message PlaylistEvent {
   }
 
   enum Event {
-    PLAYLIST_CHANGED = 0;
-    PLAYING_NEXT = 1;
-    STATE_CHANGED = 2;
+    PLAYLIST_CHANGED = 0;         // Invoked when a new playlist has been set.
+    PLAY_NEXT_CHANGED = 1;        // Invoked when the next item in the playlist has been changed.
+    PLAYING_NEXT_IN = 2;          // Invoked when the next item in the playlist will start playing in X seconds.
+    PLAYING_NEXT_IN_ABORTED = 3;  // Invoked when the player time has been rewind and the playing next in does no longer count.
+    STATE_CHANGED = 4;            // Invoked when the state of the playlist has changed.
   }
 }

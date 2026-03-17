@@ -4,8 +4,8 @@ use crate::ipc::proto::playlist::playlist_event;
 use crate::ipc::{Error, Result};
 use popcorn_fx_core::core::media::MediaIdentifier;
 use popcorn_fx_core::core::playlist::{
-    Playlist, PlaylistItem, PlaylistManagerEvent, PlaylistMedia, PlaylistState, PlaylistSubtitle,
-    PlaylistTorrent,
+    PlayNext, Playlist, PlaylistItem, PlaylistManagerEvent, PlaylistMedia, PlaylistState,
+    PlaylistSubtitle, PlaylistTorrent,
 };
 use protobuf::MessageField;
 
@@ -122,35 +122,232 @@ impl From<&PlaylistState> for playlist::playlist::State {
     }
 }
 
+impl TryFrom<&PlayNext> for playlist::PlayNext {
+    type Error = Error;
+
+    fn try_from(value: &PlayNext) -> Result<Self> {
+        match value {
+            PlayNext::Next(item) => Ok(playlist::PlayNext {
+                type_: playlist::play_next::Type::NEXT.into(),
+                next: MessageField::some(playlist::play_next::Next {
+                    item: MessageField::some(playlist::playlist::Item::try_from(item)?),
+                    special_fields: Default::default(),
+                }),
+                special_fields: Default::default(),
+            }),
+            PlayNext::End => Ok(playlist::PlayNext {
+                type_: playlist::play_next::Type::END.into(),
+                next: Default::default(),
+                special_fields: Default::default(),
+            }),
+        }
+    }
+}
+
 impl TryFrom<&PlaylistManagerEvent> for playlist::PlaylistEvent {
     type Error = Error;
 
     fn try_from(value: &PlaylistManagerEvent) -> Result<Self> {
-        let mut event = Self::new();
-
         match value {
-            PlaylistManagerEvent::PlaylistChanged => {
-                event.event = playlist_event::Event::PLAYLIST_CHANGED.into()
-            }
-            PlaylistManagerEvent::PlayingNext(playing_next) => {
-                event.event = playlist_event::Event::PLAYING_NEXT.into();
-                event.playing_next = MessageField::some(playlist_event::PlayingNext {
-                    playing_in: playing_next.playing_in.clone(),
-                    item: MessageField::some(playlist::playlist::Item::try_from(
-                        &playing_next.item,
-                    )?),
+            PlaylistManagerEvent::PlaylistChanged => Ok(Self {
+                event: playlist_event::Event::PLAYLIST_CHANGED.into(),
+                play_next_changed: Default::default(),
+                playing_next_in: Default::default(),
+                state_changed: Default::default(),
+                special_fields: Default::default(),
+            }),
+            PlaylistManagerEvent::PlayNextChanged(next) => Ok(Self {
+                event: playlist_event::Event::PLAY_NEXT_CHANGED.into(),
+                play_next_changed: MessageField::some(playlist_event::PlayNextChanged {
+                    next: MessageField::some(playlist::PlayNext::try_from(next)?),
                     special_fields: Default::default(),
-                });
-            }
-            PlaylistManagerEvent::StateChanged(state) => {
-                event.event = playlist_event::Event::STATE_CHANGED.into();
-                event.state_changed = MessageField::some(playlist_event::StateChanged {
+                }),
+                playing_next_in: Default::default(),
+                state_changed: Default::default(),
+                special_fields: Default::default(),
+            }),
+            PlaylistManagerEvent::PlayingNextIn(playing_in_seconds) => Ok(Self {
+                event: playlist_event::Event::PLAYING_NEXT_IN.into(),
+                play_next_changed: Default::default(),
+                playing_next_in: MessageField::some(playlist_event::PlayingNextIn {
+                    playing_in_seconds: *playing_in_seconds,
+                    special_fields: Default::default(),
+                }),
+                state_changed: Default::default(),
+                special_fields: Default::default(),
+            }),
+            PlaylistManagerEvent::PlayingNextInAborted => Ok(Self {
+                event: playlist_event::Event::PLAYING_NEXT_IN_ABORTED.into(),
+                play_next_changed: Default::default(),
+                playing_next_in: Default::default(),
+                state_changed: Default::default(),
+                special_fields: Default::default(),
+            }),
+            PlaylistManagerEvent::StateChanged(state) => Ok(Self {
+                event: playlist_event::Event::STATE_CHANGED.into(),
+                play_next_changed: Default::default(),
+                playing_next_in: Default::default(),
+                state_changed: MessageField::some(playlist_event::StateChanged {
                     state: playlist::playlist::State::from(state).into(),
                     special_fields: Default::default(),
-                });
-            }
+                }),
+                special_fields: Default::default(),
+            }),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod play_next {
+        use super::*;
+
+        #[test]
+        fn test_proto_try_from() {
+            let result = playlist::PlayNext::try_from(&PlayNext::Next(PlaylistItem {
+                url: Some("http://localhost:8080/my-video.mp4".to_string()),
+                title: "FooBar".to_string(),
+                caption: Some("MyCaption".to_string()),
+                thumb: None,
+                media: Default::default(),
+                quality: None,
+                auto_resume_timestamp: None,
+                subtitle: Default::default(),
+                torrent: Default::default(),
+            }))
+            .unwrap();
+            assert_eq!(
+                result,
+                playlist::PlayNext {
+                    type_: playlist::play_next::Type::NEXT.into(),
+                    next: MessageField::some(playlist::play_next::Next {
+                        item: MessageField::some(playlist::playlist::Item {
+                            url: "http://localhost:8080/my-video.mp4".to_string(),
+                            title: "FooBar".to_string(),
+                            caption: Some("MyCaption".to_string()),
+                            thumb: None,
+                            quality: None,
+                            parent_media: Default::default(),
+                            media: Default::default(),
+                            auto_resume_timestamp: None,
+                            subtitles_enabled: false,
+                            torrent_filename: None,
+                            special_fields: Default::default(),
+                        }),
+                        special_fields: Default::default(),
+                    }),
+                    special_fields: Default::default(),
+                }
+            );
+        }
+    }
+
+    mod playlist_event {
+        use super::*;
+
+        #[test]
+        fn test_proto_try_from() {
+            let result =
+                playlist::PlaylistEvent::try_from(&PlaylistManagerEvent::PlaylistChanged).unwrap();
+            assert_eq!(
+                result,
+                create_playlist_event(playlist::playlist_event::Event::PLAYLIST_CHANGED)
+            );
+
+            let result =
+                playlist::PlaylistEvent::try_from(&PlaylistManagerEvent::PlayingNextIn(40))
+                    .unwrap();
+            assert_eq!(
+                result,
+                playlist::PlaylistEvent {
+                    event: playlist::playlist_event::Event::PLAYING_NEXT_IN.into(),
+                    play_next_changed: Default::default(),
+                    playing_next_in: MessageField::some(playlist::playlist_event::PlayingNextIn {
+                        playing_in_seconds: 40,
+                        special_fields: Default::default(),
+                    }),
+                    state_changed: Default::default(),
+                    special_fields: Default::default(),
+                }
+            );
+
+            let result =
+                playlist::PlaylistEvent::try_from(&PlaylistManagerEvent::PlayingNextInAborted)
+                    .unwrap();
+            assert_eq!(
+                result,
+                create_playlist_event(playlist::playlist_event::Event::PLAYING_NEXT_IN_ABORTED)
+            );
         }
 
-        Ok(event)
+        #[test]
+        fn test_proto_try_from_play_next_changed() {
+            let url = "http://localhost:8080/my-video.mp4";
+            let title = "FooBar";
+            let caption = "MyCaption";
+            let item = PlaylistItem {
+                url: Some(url.to_string()),
+                title: title.to_string(),
+                caption: Some(caption.to_string()),
+                thumb: None,
+                media: Default::default(),
+                quality: None,
+                auto_resume_timestamp: None,
+                subtitle: Default::default(),
+                torrent: Default::default(),
+            };
+            let expected_item = playlist::playlist::Item {
+                url: url.to_string(),
+                title: title.to_string(),
+                caption: Some(caption.to_string()),
+                thumb: None,
+                quality: None,
+                parent_media: Default::default(),
+                media: Default::default(),
+                auto_resume_timestamp: None,
+                subtitles_enabled: false,
+                torrent_filename: None,
+                special_fields: Default::default(),
+            };
+
+            let result = playlist::PlaylistEvent::try_from(&PlaylistManagerEvent::PlayNextChanged(
+                PlayNext::End,
+            ))
+            .unwrap();
+
+            assert_eq!(
+                result,
+                playlist::PlaylistEvent {
+                    event: playlist::playlist_event::Event::PLAY_NEXT_CHANGED.into(),
+                    play_next_changed: MessageField::some(
+                        playlist::playlist_event::PlayNextChanged {
+                            next: MessageField::some(playlist::PlayNext {
+                                type_: playlist::play_next::Type::END.into(),
+                                next: Default::default(),
+                                special_fields: Default::default(),
+                            }),
+                            special_fields: Default::default(),
+                        }
+                    ),
+                    playing_next_in: Default::default(),
+                    state_changed: Default::default(),
+                    special_fields: Default::default(),
+                }
+            );
+        }
+
+        fn create_playlist_event(
+            event: playlist::playlist_event::Event,
+        ) -> playlist::PlaylistEvent {
+            playlist::PlaylistEvent {
+                event: event.into(),
+                play_next_changed: Default::default(),
+                playing_next_in: Default::default(),
+                state_changed: Default::default(),
+                special_fields: Default::default(),
+            }
+        }
     }
 }

@@ -13,6 +13,7 @@ use popcorn_fx_core::core::config::{
     UiScale, UiSettings,
 };
 use popcorn_fx_core::core::media::Category;
+use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use protobuf::MessageField;
 use std::path::PathBuf;
 
@@ -49,11 +50,39 @@ impl From<&SubtitleSettings> for application_settings::SubtitleSettings {
             auto_cleaning_enabled: value.auto_cleaning_enabled,
             default_subtitle: Language::from(&value.default_subtitle).into(),
             font_family: subtitle_settings::Family::from(&value.font_family).into(),
-            font_size: value.font_size as i32,
+            font_size: value.font_size,
             decoration: subtitle_settings::DecorationType::from(&value.decoration).into(),
             bold: value.bold,
             special_fields: Default::default(),
         }
+    }
+}
+
+impl TryFrom<application_settings::SubtitleSettings> for SubtitleSettings {
+    type Error = Error;
+
+    fn try_from(value: application_settings::SubtitleSettings) -> Result<Self> {
+        Ok(SubtitleSettings {
+            directory: value.directory,
+            auto_cleaning_enabled: value.auto_cleaning_enabled,
+            default_subtitle: value
+                .default_subtitle
+                .enum_value()
+                .map_err(|_| Error::UnsupportedEnum)
+                .map(|e| SubtitleLanguage::from(e))?,
+            font_family: value
+                .font_family
+                .enum_value()
+                .map_err(|_| Error::UnsupportedEnum)
+                .map(SubtitleFamily::from)?,
+            font_size: value.font_size,
+            decoration: value
+                .decoration
+                .enum_value()
+                .map_err(|_| Error::UnsupportedEnum)
+                .map(DecorationType::from)?,
+            bold: value.bold,
+        })
     }
 }
 
@@ -221,6 +250,19 @@ impl From<&SubtitleFamily> for subtitle_settings::Family {
     }
 }
 
+impl From<subtitle_settings::Family> for SubtitleFamily {
+    fn from(value: subtitle_settings::Family) -> Self {
+        match value {
+            subtitle_settings::Family::ARIAL => SubtitleFamily::Arial,
+            subtitle_settings::Family::COMIC_SANS => SubtitleFamily::ComicSans,
+            subtitle_settings::Family::GEORGIA => SubtitleFamily::Georgia,
+            subtitle_settings::Family::TAHOMA => SubtitleFamily::Tahoma,
+            subtitle_settings::Family::TREBUCHET_MS => SubtitleFamily::TrebuchetMs,
+            subtitle_settings::Family::VERDANA => SubtitleFamily::Verdana,
+        }
+    }
+}
+
 impl From<&DecorationType> for subtitle_settings::DecorationType {
     fn from(value: &DecorationType) -> Self {
         match value {
@@ -231,6 +273,21 @@ impl From<&DecorationType> for subtitle_settings::DecorationType {
             }
             DecorationType::SeeThroughBackground => {
                 subtitle_settings::DecorationType::SEE_THROUGH_BACKGROUND
+            }
+        }
+    }
+}
+
+impl From<subtitle_settings::DecorationType> for DecorationType {
+    fn from(value: subtitle_settings::DecorationType) -> Self {
+        match value {
+            subtitle_settings::DecorationType::NONE => DecorationType::None,
+            subtitle_settings::DecorationType::OUTLINE => DecorationType::Outline,
+            subtitle_settings::DecorationType::OPAQUE_BACKGROUND => {
+                DecorationType::OpaqueBackground
+            }
+            subtitle_settings::DecorationType::SEE_THROUGH_BACKGROUND => {
+                DecorationType::SeeThroughBackground
             }
         }
     }

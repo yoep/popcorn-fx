@@ -6,18 +6,15 @@ import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import javafx.application.Platform;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Consumer;
 
 import static java.util.Arrays.asList;
 
@@ -26,9 +23,8 @@ public class ApplicationConfig extends AbstractListenerService<ApplicationSettin
     private final FxChannel fxChannel;
     private final LocaleText localeText;
 
-    @Setter
-    private Consumer<Float> onUiScaleChanged;
-    private ApplicationArgs applicationArgs;
+    ApplicationArgs applicationArgs;
+    int uiScaleIndex;
 
     public ApplicationConfig(FxChannel fxChannel, LocaleText localeText) {
         Objects.requireNonNull(fxChannel, "fxChannel cannot be null");
@@ -86,21 +82,23 @@ public class ApplicationConfig extends AbstractListenerService<ApplicationSettin
      * Increases the current UI scale.
      */
     public void increaseUIScale() {
-        changeScale(1);
+        updateUIScaleIndex(1);
     }
 
     /**
      * Decrease the current UI scale.
      */
     public void decreaseUIScale() {
-        changeScale(-1);
+        updateUIScaleIndex(-1);
     }
 
     /**
      * Reset the UI scale to the default value.
      */
     public void resetUIScale() {
-        onUiScaleChanged(ApplicationSettings.UISettings.Scale.newBuilder().setFactor(1.0f).build());
+        updateUIScale(ApplicationSettings.UISettings.Scale.newBuilder()
+                .setFactor(1.0f)
+                .build());
     }
 
     /**
@@ -193,22 +191,23 @@ public class ApplicationConfig extends AbstractListenerService<ApplicationSettin
     }
 
     private void initializeSettings() {
-        getSettings().whenComplete((settings, throwable) -> {
-            if (throwable == null) {
-                var uiSettings = settings.getUiSettings();
-                var locale = supportedLanguages().stream()
-                        .filter(e -> e.getDisplayLanguage().equalsIgnoreCase(uiSettings.getDefaultLanguage()))
-                        .findFirst()
-                        .orElse(Locale.ENGLISH);
+        getSettings()
+                .thenApply(ApplicationSettings::getUiSettings)
+                .whenComplete((settings, throwable) -> {
+                    if (throwable == null) {
+                        var locale = supportedLanguages().stream()
+                                .filter(e -> e.getDisplayLanguage().equalsIgnoreCase(settings.getDefaultLanguage()))
+                                .findFirst()
+                                .orElse(Locale.ENGLISH);
+                        this.uiScaleIndex = currentUIScaleIndex(settings);
 
-                Platform.runLater(() -> {
-                    onUiScaleChanged(uiSettings.getScale(), settings);
-                    localeText.updateLocale(locale);
+                        Platform.runLater(() -> {
+                            localeText.updateLocale(locale);
+                        });
+                    } else {
+                        log.error("Failed to retrieve settings", throwable);
+                    }
                 });
-            } else {
-                log.error("Failed to retrieve settings", throwable);
-            }
-        });
     }
 
     private void initializeListener() {
@@ -231,6 +230,8 @@ public class ApplicationConfig extends AbstractListenerService<ApplicationSettin
 
     private void onApplicationEvent(ApplicationSettingsEvent event) {
         switch (event.getEvent()) {
+            case ApplicationSettingsEvent.Event.UI_SETTINGS_CHANGED ->
+                    invokeListeners(listener -> listener.onUiSettingsChanged(event.getUiSettings()));
             case ApplicationSettingsEvent.Event.SUBTITLE_SETTINGS_CHANGED ->
                     invokeListeners(listener -> listener.onSubtitleSettingsChanged(event.getSubtitleSettings()));
             case ApplicationSettingsEvent.Event.TRACKING_SETTINGS_CHANGED ->
@@ -242,40 +243,29 @@ public class ApplicationConfig extends AbstractListenerService<ApplicationSettin
 
     //region Functions
 
-    private void changeScale(int indexChange) {
+    private void updateUIScaleIndex(int indexChange) {
         var supportedUIScales = supportedUIScales();
-        getSettings().whenComplete((settings, throwable) -> {
-            if (throwable == null) {
-                var currentIndex = currentUIScaleIndex(settings.getUiSettings());
-                var newIndex = currentIndex + indexChange;
+        var newIndex = this.uiScaleIndex + indexChange;
 
-                // verify that the current UI scale is within the supported scales
-                if (newIndex == supportedUIScales.size() - 1 || newIndex < 0)
-                    return;
+        // verify that the current UI scale is within the supported scales
+        if (newIndex == supportedUIScales.size() - 1 || newIndex < 0)
+            return;
 
-                onUiScaleChanged(supportedUIScales.get(newIndex), settings);
-            } else {
-                log.error("Failed to retrieve settings", throwable);
-            }
-        });
+        updateUIScale(supportedUIScales.get(newIndex));
     }
 
-    private void onUiScaleChanged(ApplicationSettings.UISettings.Scale scale) {
-        getSettings().whenComplete((settings, throwable) -> {
-            if (throwable == null) {
-                onUiScaleChanged(scale, settings);
-            } else {
-                log.error("Failed to retrieve settings", throwable);
-            }
-        });
-    }
-
-    private void onUiScaleChanged(ApplicationSettings.UISettings.Scale scale, ApplicationSettings settings) {
-        update(ApplicationSettings.UISettings.newBuilder(settings.getUiSettings())
-                .setScale(scale)
-                .build());
-        Platform.runLater(() -> Optional.ofNullable(onUiScaleChanged)
-                .ifPresent(e -> e.accept(scale.getFactor())));
+    private void updateUIScale(ApplicationSettings.UISettings.Scale scale) {
+        getSettings()
+                .thenApply(ApplicationSettings::getUiSettings)
+                .whenComplete((settings, throwable) -> {
+                    if (throwable == null) {
+                        update(ApplicationSettings.UISettings.newBuilder(settings)
+                                .setScale(scale)
+                                .build());
+                    } else {
+                        log.error("Failed to retrieve settings", throwable);
+                    }
+                });
     }
 
     private Integer currentUIScaleIndex(ApplicationSettings.UISettings settings) {

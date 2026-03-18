@@ -77,7 +77,10 @@ async fn start(conn: TcpStream, args: PopcornFxArgs) -> io::Result<()> {
             popcorn_fx.clone(),
             channel.clone(),
         )),
-        Box::new(SettingsMessageHandler::new(popcorn_fx.clone())),
+        Box::new(SettingsMessageHandler::new(
+            popcorn_fx.clone(),
+            channel.clone(),
+        )),
         Box::new(StreamMessageHandler::new(
             popcorn_fx.clone(),
             channel.clone(),

@@ -6,13 +6,6 @@ import javafx.stage.Stage;
 
 public interface ViewLoader {
     /**
-     * Set the UI scale of the views.
-     *
-     * @param scale The scale value of the ui.
-     */
-    void setScale(float scale);
-
-    /**
      * Load and show the given view.
      *
      * @param view       Set the view to load and show.

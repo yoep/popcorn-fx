@@ -1,5 +1,7 @@
 package com.github.yoep.popcorn.ui.view;
 
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
+import com.github.yoep.popcorn.backend.settings.AbstractApplicationSettingsEventListener;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.IoC;
@@ -35,7 +37,7 @@ public class PopcornViewLoader implements ViewLoader {
     private final ViewManager viewManager;
     private final LocaleText localeText;
 
-    protected float scale = 1f;
+    float scale = 1f;
 
     public PopcornViewLoader(IoC applicationInstance,
                              ApplicationConfig applicationConfig,
@@ -48,20 +50,7 @@ public class PopcornViewLoader implements ViewLoader {
         init();
     }
 
-    float getScale() {
-        return scale;
-    }
-
     //region ViewLoader
-
-    @Override
-    public void setScale(float scale) {
-        if (this.scale == scale)
-            return;
-
-        this.scale = scale;
-        onScaleChanged(scale);
-    }
 
     @Override
     public void show(String view, ViewProperties properties) {
@@ -284,10 +273,12 @@ public class PopcornViewLoader implements ViewLoader {
         window.setOnCloseRequest(event -> controller.onClosed(window));
     }
 
-    private void onScaleChanged(final float newValue) {
+    private void onScaleChanged(ApplicationSettings.UISettings.Scale scale) {
+        var factor = scale.getFactor();
+        this.scale = factor;
         for (var scaleAware : applicationInstance.getInstances(ScaleAware.class)) {
             try {
-                scaleAware.onScaleChanged(newValue);
+                scaleAware.onScaleChanged(factor);
             } catch (Exception ex) {
                 log.error("Failed to invoke scale awareness with error {}", ex.getMessage(), ex);
             }
@@ -323,7 +314,19 @@ public class PopcornViewLoader implements ViewLoader {
     //region Functions
 
     private void init() {
-        applicationConfig.setOnUiScaleChanged(this::setScale);
+        applicationConfig.addListener(new AbstractApplicationSettingsEventListener() {
+            @Override
+            public void onUiSettingsChanged(ApplicationSettings.UISettings settings) {
+                onScaleChanged(settings.getScale());
+            }
+        });
+        applicationConfig.getSettings().thenApply(ApplicationSettings::getUiSettings).whenComplete((settings, throwable) -> {
+            if (throwable == null) {
+                onScaleChanged(settings.getScale());
+            } else {
+                log.error("Failed to retrieve UI settings", throwable);
+            }
+        });
     }
 
     private boolean isLocatedInCommonDirectory(String view) {

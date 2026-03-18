@@ -67,9 +67,9 @@
             <plugin>
                 <groupId>io.github.ascopes</groupId>
                 <artifactId>protobuf-maven-plugin</artifactId>
-                <version>4.0.2</version>
+                <version>5.0.1</version>
                 <configuration>
-                    <protocVersion>${protobuf.version}</protocVersion>
+                    <protoc>${protobuf.version}</protoc>
                     <liteOnly>true</liteOnly>
                     <sourceDirectories>${project.parent.basedir}/protobuf/</sourceDirectories>
                 </configuration>

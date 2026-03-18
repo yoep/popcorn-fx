@@ -23,21 +23,34 @@ class ApplicationConfigTest {
     private LocaleText localeText;
     @Mock
     private FxChannel fxChannel;
-    private ApplicationConfig config;
 
     private final AtomicReference<FxCallback<ApplicationSettingsEvent>> subscriptionHolder = new AtomicReference<>();
 
     @BeforeEach
     void setUp() {
-        doAnswer(invocations -> {
+        lenient().doAnswer(invocations -> {
             subscriptionHolder.set((FxCallback<ApplicationSettingsEvent>) invocations.getArgument(2, FxCallback.class));
             return null;
         }).when(fxChannel).subscribe(eq(FxChannel.typeFrom(ApplicationSettingsEvent.class)), isA(Parser.class), isA(FxCallback.class));
-        when(fxChannel.send(isA(ApplicationSettingsRequest.class), isA(Parser.class))).thenAnswer(invocations -> CompletableFuture.completedFuture(ApplicationSettingsResponse.newBuilder()
-                .setSettings(ApplicationSettings.newBuilder().build())
-                .build()));
+    }
 
-        config = new ApplicationConfig(fxChannel, localeText);
+    @Test
+    void testInit_shouldSetUiScaleIndex() {
+        var index = 5;
+        var scale = ApplicationConfig.supportedUIScales().get(index);
+        when(fxChannel.send(isA(ApplicationSettingsRequest.class), isA(Parser.class)))
+                .thenReturn(CompletableFuture.completedFuture(ApplicationSettingsResponse.newBuilder()
+                        .setSettings(ApplicationSettings.newBuilder()
+                                .setUiSettings(ApplicationSettings.UISettings.newBuilder()
+                                        .setScale(scale)
+                                        .build())
+                                .build())
+                        .build()));
+        var config = new ApplicationConfig(fxChannel, localeText);
+
+        var result = config.uiScaleIndex;
+
+        assertEquals(index, result, "expected the ui scale index to have been set");
     }
 
     @Test
@@ -49,6 +62,7 @@ class ApplicationConfigTest {
                     .setSettings(ApplicationSettings.newBuilder().build())
                     .build());
         });
+        var config = new ApplicationConfig(fxChannel, localeText);
 
         var result = config.getSettings().resultNow();
 
@@ -68,6 +82,8 @@ class ApplicationConfigTest {
                             .build())
                     .build());
         });
+        mockDefaultApplicationSettings();
+        var config = new ApplicationConfig(fxChannel, localeText);
 
         var result = config.isTvMode();
 
@@ -87,6 +103,8 @@ class ApplicationConfigTest {
                             .build())
                     .build());
         });
+        mockDefaultApplicationSettings();
+        var config = new ApplicationConfig(fxChannel, localeText);
 
         var result = config.isMaximized();
 
@@ -106,6 +124,8 @@ class ApplicationConfigTest {
                             .build())
                     .build());
         });
+        mockDefaultApplicationSettings();
+        var config = new ApplicationConfig(fxChannel, localeText);
 
         var result = config.isKioskMode();
 
@@ -125,6 +145,8 @@ class ApplicationConfigTest {
                             .build())
                     .build());
         });
+        mockDefaultApplicationSettings();
+        var config = new ApplicationConfig(fxChannel, localeText);
 
         var result = config.isMouseDisabled();
 
@@ -143,6 +165,8 @@ class ApplicationConfigTest {
             request.set(invocations.getArgument(0, UpdateSubtitleSettingsRequest.class));
             return null;
         }).when(fxChannel).send(isA(UpdateSubtitleSettingsRequest.class));
+        mockDefaultApplicationSettings();
+        var config = new ApplicationConfig(fxChannel, localeText);
 
         config.update(settings);
 
@@ -160,6 +184,8 @@ class ApplicationConfigTest {
             request.set(invocations.getArgument(0, UpdateTorrentSettingsRequest.class));
             return null;
         }).when(fxChannel).send(isA(UpdateTorrentSettingsRequest.class));
+        mockDefaultApplicationSettings();
+        var config = new ApplicationConfig(fxChannel, localeText);
 
         config.update(settings);
 
@@ -177,6 +203,8 @@ class ApplicationConfigTest {
             request.set(invocations.getArgument(0, UpdateUISettingsRequest.class));
             return null;
         }).when(fxChannel).send(isA(UpdateUISettingsRequest.class));
+        mockDefaultApplicationSettings();
+        var config = new ApplicationConfig(fxChannel, localeText);
 
         config.update(settings);
 
@@ -194,6 +222,8 @@ class ApplicationConfigTest {
             request.set(invocations.getArgument(0, UpdateServerSettingsRequest.class));
             return null;
         }).when(fxChannel).send(isA(UpdateServerSettingsRequest.class));
+        mockDefaultApplicationSettings();
+        var config = new ApplicationConfig(fxChannel, localeText);
 
         config.update(settings);
 
@@ -211,6 +241,8 @@ class ApplicationConfigTest {
             request.set(invocations.getArgument(0, UpdatePlaybackSettingsRequest.class));
             return null;
         }).when(fxChannel).send(isA(UpdatePlaybackSettingsRequest.class));
+        mockDefaultApplicationSettings();
+        var config = new ApplicationConfig(fxChannel, localeText);
 
         config.update(settings);
 
@@ -237,8 +269,10 @@ class ApplicationConfigTest {
                 .setEvent(ApplicationSettingsEvent.Event.SUBTITLE_SETTINGS_CHANGED)
                 .setSubtitleSettings(newSettings)
                 .build();
-        config.addListener(listener);
+        mockDefaultApplicationSettings();
+        var config = new ApplicationConfig(fxChannel, localeText);
 
+        config.addListener(listener);
         subscriptionHolder.get().callback(event);
 
         verify(listener).onSubtitleSettingsChanged(newSettings);
@@ -254,10 +288,18 @@ class ApplicationConfigTest {
                 .setEvent(ApplicationSettingsEvent.Event.TRACKING_SETTINGS_CHANGED)
                 .setTrackingSettings(newSettings)
                 .build();
-        config.addListener(listener);
+        mockDefaultApplicationSettings();
+        var config = new ApplicationConfig(fxChannel, localeText);
 
+        config.addListener(listener);
         subscriptionHolder.get().callback(event);
 
         verify(listener).onTrackingSettingsChanged(newSettings);
+    }
+
+    private void mockDefaultApplicationSettings() {
+        when(fxChannel.send(isA(ApplicationSettingsRequest.class), isA(Parser.class))).thenReturn(CompletableFuture.completedFuture(ApplicationSettingsResponse.newBuilder()
+                .setSettings(ApplicationSettings.newBuilder().build())
+                .build()));
     }
 }

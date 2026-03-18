@@ -2,7 +2,9 @@ package com.github.yoep.popcorn.ui.view;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.InfoNotificationEvent;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import com.github.yoep.popcorn.backend.settings.ApplicationSettingsEventListener;
 import com.github.yoep.popcorn.backend.updater.UpdateService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.IoC;
@@ -18,7 +20,6 @@ import org.testfx.framework.junit5.ApplicationExtension;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -39,19 +40,40 @@ class PopcornViewLoaderTest {
     private ApplicationConfig applicationConfig;
 
     @Test
+    void testInit_shouldLoadUiScale() {
+        var scaleFactor = 1.75f;
+        when(applicationConfig.getSettings()).thenReturn(CompletableFuture.completedFuture(ApplicationSettings.newBuilder()
+                .setUiSettings(ApplicationSettings.UISettings.newBuilder()
+                        .setScale(ApplicationSettings.UISettings.Scale.newBuilder()
+                                .setFactor(scaleFactor)
+                                .build())
+                        .build())
+                .build()));
+
+        var loader = new PopcornViewLoader(instance, applicationConfig, viewManager, localeText);
+
+        assertEquals(scaleFactor, loader.scale);
+    }
+
+    @Test
     void testOnUiScaleChanged() {
         var newScale = 2.0f;
-        var holder = new AtomicReference<Consumer<Float>>();
+        var holder = new AtomicReference<ApplicationSettingsEventListener>();
         doAnswer(invocation -> {
             holder.set(invocation.getArgument(0));
             return null;
-        }).when(applicationConfig).setOnUiScaleChanged(isA(Consumer.class));
+        }).when(applicationConfig).addListener(isA(ApplicationSettingsEventListener.class));
+        when(applicationConfig.getSettings()).thenReturn(new CompletableFuture<>());
         var loader = new PopcornViewLoader(instance, applicationConfig, viewManager, localeText);
 
-        var consumer = holder.get();
-        consumer.accept(newScale);
+        var listener = holder.get();
+        listener.onUiSettingsChanged(ApplicationSettings.UISettings.newBuilder()
+                .setScale(ApplicationSettings.UISettings.Scale.newBuilder()
+                        .setFactor(newScale)
+                        .build())
+                .build());
 
-        assertEquals(newScale, loader.getScale());
+        assertEquals(newScale, loader.scale);
     }
 
     @Test
@@ -62,6 +84,7 @@ class PopcornViewLoaderTest {
         when(imageService.loadResource(isA(String.class))).thenReturn(new CompletableFuture<>());
         when(updateService.getState()).thenReturn(new CompletableFuture<>());
         when(instance.getInstance(UpdateSectionController.class)).thenReturn(controller);
+        when(applicationConfig.getSettings()).thenReturn(new CompletableFuture<>());
         var loader = new PopcornViewLoader(instance, applicationConfig, viewManager, localeText);
 
         var result = loader.load("common/sections/update.section.fxml");
@@ -71,6 +94,7 @@ class PopcornViewLoaderTest {
 
     @Test
     void testLoadController() {
+        when(applicationConfig.getSettings()).thenReturn(new CompletableFuture<>());
         var controller = new NotificationComponent(new InfoNotificationEvent(this, "lorem ipsum dolor"));
         var loader = new PopcornViewLoader(instance, applicationConfig, viewManager, localeText);
 

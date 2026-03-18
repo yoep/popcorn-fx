@@ -4,6 +4,13 @@ import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
 
 public interface ApplicationSettingsEventListener {
     /**
+     * Invoked when the UI settings of the application have been changed.
+     *
+     * @param settings The new UI settings.
+     */
+    void onUiSettingsChanged(ApplicationSettings.UISettings settings);
+
+    /**
      * Invoked when the subtitle settings of the application have been changed,
      *
      * @param settings The new subtitle settings.

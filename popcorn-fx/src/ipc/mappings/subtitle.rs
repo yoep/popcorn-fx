@@ -27,15 +27,15 @@ impl From<&SubtitleInfo> for subtitle::Info {
     }
 }
 
-impl TryFrom<&subtitle::Info> for SubtitleInfo {
+impl TryFrom<subtitle::Info> for SubtitleInfo {
     type Error = Error;
 
-    fn try_from(value: &subtitle::Info) -> Result<Self> {
+    fn try_from(value: subtitle::Info) -> Result<Self> {
         let mut builder = Self::builder();
         let language = value
             .language
             .enum_value()
-            .map(|e| SubtitleLanguage::from(&e))
+            .map(|e| SubtitleLanguage::from(e))
             .map_err(|_| Error::UnsupportedEnum)?;
 
         if let Some(imdb_id) = value.imdb_id.as_ref() {
@@ -164,7 +164,7 @@ impl TryFrom<&proto::subtitle::SubtitlePreference> for SubtitlePreference {
             .language
             .as_ref()
             .map(|e| e.enum_value_or(subtitle::Language::NONE))
-            .map(|e| SubtitleLanguage::from(&e));
+            .map(|e| SubtitleLanguage::from(e));
 
         match preference {
             Preference::LANGUAGE => Ok(Self::Language(language.ok_or(Error::MissingField)?)),
@@ -216,8 +216,8 @@ impl From<&SubtitleLanguage> for subtitle::Language {
     }
 }
 
-impl From<&subtitle::Language> for SubtitleLanguage {
-    fn from(value: &subtitle::Language) -> Self {
+impl From<subtitle::Language> for SubtitleLanguage {
+    fn from(value: subtitle::Language) -> Self {
         match value {
             subtitle::Language::NONE => Self::None,
             subtitle::Language::CUSTOM => Self::Custom,
@@ -493,147 +493,147 @@ mod tests {
     fn test_subtitle_language_from() {
         assert_eq!(
             SubtitleLanguage::None,
-            SubtitleLanguage::from(&subtitle::Language::NONE)
+            SubtitleLanguage::from(subtitle::Language::NONE)
         );
         assert_eq!(
             SubtitleLanguage::Custom,
-            SubtitleLanguage::from(&subtitle::Language::CUSTOM)
+            SubtitleLanguage::from(subtitle::Language::CUSTOM)
         );
         assert_eq!(
             SubtitleLanguage::Arabic,
-            SubtitleLanguage::from(&subtitle::Language::ARABIC)
+            SubtitleLanguage::from(subtitle::Language::ARABIC)
         );
         assert_eq!(
             SubtitleLanguage::Bulgarian,
-            SubtitleLanguage::from(&subtitle::Language::BULGARIAN)
+            SubtitleLanguage::from(subtitle::Language::BULGARIAN)
         );
         assert_eq!(
             SubtitleLanguage::Bosnian,
-            SubtitleLanguage::from(&subtitle::Language::BOSNIAN)
+            SubtitleLanguage::from(subtitle::Language::BOSNIAN)
         );
         assert_eq!(
             SubtitleLanguage::Czech,
-            SubtitleLanguage::from(&subtitle::Language::CZECH)
+            SubtitleLanguage::from(subtitle::Language::CZECH)
         );
         assert_eq!(
             SubtitleLanguage::Danish,
-            SubtitleLanguage::from(&subtitle::Language::DANISH)
+            SubtitleLanguage::from(subtitle::Language::DANISH)
         );
         assert_eq!(
             SubtitleLanguage::German,
-            SubtitleLanguage::from(&subtitle::Language::GERMAN)
+            SubtitleLanguage::from(subtitle::Language::GERMAN)
         );
         assert_eq!(
             SubtitleLanguage::ModernGreek,
-            SubtitleLanguage::from(&subtitle::Language::MODERN_GREEK)
+            SubtitleLanguage::from(subtitle::Language::MODERN_GREEK)
         );
         assert_eq!(
             SubtitleLanguage::English,
-            SubtitleLanguage::from(&subtitle::Language::ENGLISH)
+            SubtitleLanguage::from(subtitle::Language::ENGLISH)
         );
         assert_eq!(
             SubtitleLanguage::Spanish,
-            SubtitleLanguage::from(&subtitle::Language::SPANISH)
+            SubtitleLanguage::from(subtitle::Language::SPANISH)
         );
         assert_eq!(
             SubtitleLanguage::Estonian,
-            SubtitleLanguage::from(&subtitle::Language::ESTONIAN)
+            SubtitleLanguage::from(subtitle::Language::ESTONIAN)
         );
         assert_eq!(
             SubtitleLanguage::Basque,
-            SubtitleLanguage::from(&subtitle::Language::BASQUE)
+            SubtitleLanguage::from(subtitle::Language::BASQUE)
         );
         assert_eq!(
             SubtitleLanguage::Persian,
-            SubtitleLanguage::from(&subtitle::Language::PERSIAN)
+            SubtitleLanguage::from(subtitle::Language::PERSIAN)
         );
         assert_eq!(
             SubtitleLanguage::Finnish,
-            SubtitleLanguage::from(&subtitle::Language::FINNISH)
+            SubtitleLanguage::from(subtitle::Language::FINNISH)
         );
         assert_eq!(
             SubtitleLanguage::French,
-            SubtitleLanguage::from(&subtitle::Language::FRENCH)
+            SubtitleLanguage::from(subtitle::Language::FRENCH)
         );
         assert_eq!(
             SubtitleLanguage::Hebrew,
-            SubtitleLanguage::from(&subtitle::Language::HEBREW)
+            SubtitleLanguage::from(subtitle::Language::HEBREW)
         );
         assert_eq!(
             SubtitleLanguage::Croatian,
-            SubtitleLanguage::from(&subtitle::Language::CROATIAN)
+            SubtitleLanguage::from(subtitle::Language::CROATIAN)
         );
         assert_eq!(
             SubtitleLanguage::Hungarian,
-            SubtitleLanguage::from(&subtitle::Language::HUNGARIAN)
+            SubtitleLanguage::from(subtitle::Language::HUNGARIAN)
         );
         assert_eq!(
             SubtitleLanguage::Indonesian,
-            SubtitleLanguage::from(&subtitle::Language::INDONESIAN)
+            SubtitleLanguage::from(subtitle::Language::INDONESIAN)
         );
         assert_eq!(
             SubtitleLanguage::Italian,
-            SubtitleLanguage::from(&subtitle::Language::ITALIAN)
+            SubtitleLanguage::from(subtitle::Language::ITALIAN)
         );
         assert_eq!(
             SubtitleLanguage::Lithuanian,
-            SubtitleLanguage::from(&subtitle::Language::LITHUANIAN)
+            SubtitleLanguage::from(subtitle::Language::LITHUANIAN)
         );
         assert_eq!(
             SubtitleLanguage::Dutch,
-            SubtitleLanguage::from(&subtitle::Language::DUTCH)
+            SubtitleLanguage::from(subtitle::Language::DUTCH)
         );
         assert_eq!(
             SubtitleLanguage::Norwegian,
-            SubtitleLanguage::from(&subtitle::Language::NORWEGIAN)
+            SubtitleLanguage::from(subtitle::Language::NORWEGIAN)
         );
         assert_eq!(
             SubtitleLanguage::Polish,
-            SubtitleLanguage::from(&subtitle::Language::POLISH)
+            SubtitleLanguage::from(subtitle::Language::POLISH)
         );
         assert_eq!(
             SubtitleLanguage::Portuguese,
-            SubtitleLanguage::from(&subtitle::Language::PORTUGUESE)
+            SubtitleLanguage::from(subtitle::Language::PORTUGUESE)
         );
         assert_eq!(
             SubtitleLanguage::PortugueseBrazil,
-            SubtitleLanguage::from(&subtitle::Language::PORTUGUESE_BRAZIL)
+            SubtitleLanguage::from(subtitle::Language::PORTUGUESE_BRAZIL)
         );
         assert_eq!(
             SubtitleLanguage::Romanian,
-            SubtitleLanguage::from(&subtitle::Language::ROMANIAN)
+            SubtitleLanguage::from(subtitle::Language::ROMANIAN)
         );
         assert_eq!(
             SubtitleLanguage::Russian,
-            SubtitleLanguage::from(&subtitle::Language::RUSSIAN)
+            SubtitleLanguage::from(subtitle::Language::RUSSIAN)
         );
         assert_eq!(
             SubtitleLanguage::Slovene,
-            SubtitleLanguage::from(&subtitle::Language::SLOVENE)
+            SubtitleLanguage::from(subtitle::Language::SLOVENE)
         );
         assert_eq!(
             SubtitleLanguage::Serbian,
-            SubtitleLanguage::from(&subtitle::Language::SERBIAN)
+            SubtitleLanguage::from(subtitle::Language::SERBIAN)
         );
         assert_eq!(
             SubtitleLanguage::Swedish,
-            SubtitleLanguage::from(&subtitle::Language::SWEDISH)
+            SubtitleLanguage::from(subtitle::Language::SWEDISH)
         );
         assert_eq!(
             SubtitleLanguage::Thai,
-            SubtitleLanguage::from(&subtitle::Language::THAI)
+            SubtitleLanguage::from(subtitle::Language::THAI)
         );
         assert_eq!(
             SubtitleLanguage::Turkish,
-            SubtitleLanguage::from(&subtitle::Language::TURKISH)
+            SubtitleLanguage::from(subtitle::Language::TURKISH)
         );
         assert_eq!(
             SubtitleLanguage::Ukrainian,
-            SubtitleLanguage::from(&subtitle::Language::UKRAINIAN)
+            SubtitleLanguage::from(subtitle::Language::UKRAINIAN)
         );
         assert_eq!(
             SubtitleLanguage::Vietnamese,
-            SubtitleLanguage::from(&subtitle::Language::VIETNAMESE)
+            SubtitleLanguage::from(subtitle::Language::VIETNAMESE)
         );
     }
 

@@ -206,7 +206,7 @@ impl MessageHandler for SubtitleMessageHandler {
                 let request = GetPreferredSubtitleRequest::parse_from_bytes(&message.payload)?;
                 let subtitles: Vec<SubtitleInfo> = request
                     .subtitles
-                    .iter()
+                    .into_iter()
                     .map(SubtitleInfo::try_from)
                     .try_collect()?;
 
@@ -228,13 +228,13 @@ impl MessageHandler for SubtitleMessageHandler {
                     .await?;
             }
             DownloadAndParseSubtitleRequest::NAME => {
-                let request = DownloadAndParseSubtitleRequest::parse_from_bytes(&message.payload)?;
+                let mut request =
+                    DownloadAndParseSubtitleRequest::parse_from_bytes(&message.payload)?;
                 let info = request
                     .info
-                    .as_ref()
-                    .map(SubtitleInfo::try_from)
-                    .transpose()?
-                    .ok_or(Error::MissingField)?;
+                    .take()
+                    .ok_or(Error::MissingField)
+                    .and_then(SubtitleInfo::try_from)?;
                 let matcher = request
                     .matcher
                     .as_ref()

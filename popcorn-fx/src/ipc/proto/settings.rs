@@ -368,7 +368,7 @@ pub mod application_settings {
         // @@protoc_insertion_point(field:fx.ipc.proto.ApplicationSettings.SubtitleSettings.font_family)
         pub font_family: ::protobuf::EnumOrUnknown<subtitle_settings::Family>,
         // @@protoc_insertion_point(field:fx.ipc.proto.ApplicationSettings.SubtitleSettings.font_size)
-        pub font_size: i32,
+        pub font_size: u32,
         // @@protoc_insertion_point(field:fx.ipc.proto.ApplicationSettings.SubtitleSettings.decoration)
         pub decoration: ::protobuf::EnumOrUnknown<subtitle_settings::DecorationType>,
         // @@protoc_insertion_point(field:fx.ipc.proto.ApplicationSettings.SubtitleSettings.bold)
@@ -413,7 +413,7 @@ pub mod application_settings {
                         self.font_family = is.read_enum_or_unknown()?;
                     },
                     40 => {
-                        self.font_size = is.read_int32()?;
+                        self.font_size = is.read_uint32()?;
                     },
                     48 => {
                         self.decoration = is.read_enum_or_unknown()?;
@@ -446,7 +446,7 @@ pub mod application_settings {
                 my_size += ::protobuf::rt::int32_size(4, self.font_family.value());
             }
             if self.font_size != 0 {
-                my_size += ::protobuf::rt::int32_size(5, self.font_size);
+                my_size += ::protobuf::rt::uint32_size(5, self.font_size);
             }
             if self.decoration != ::protobuf::EnumOrUnknown::new(subtitle_settings::DecorationType::NONE) {
                 my_size += ::protobuf::rt::int32_size(6, self.decoration.value());
@@ -473,7 +473,7 @@ pub mod application_settings {
                 os.write_enum(4, ::protobuf::EnumOrUnknown::value(&self.font_family))?;
             }
             if self.font_size != 0 {
-                os.write_int32(5, self.font_size)?;
+                os.write_uint32(5, self.font_size)?;
             }
             if self.decoration != ::protobuf::EnumOrUnknown::new(subtitle_settings::DecorationType::NONE) {
                 os.write_enum(6, ::protobuf::EnumOrUnknown::value(&self.decoration))?;

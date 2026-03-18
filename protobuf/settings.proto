@@ -28,7 +28,7 @@ message ApplicationSettings {
     bool auto_cleaning_enabled = 2;
     Subtitle.Language default_subtitle = 3;
     Family font_family = 4;
-    int32 font_size = 5;
+    uint32 font_size = 5;
     DecorationType decoration = 6;
     bool bold = 7;
 

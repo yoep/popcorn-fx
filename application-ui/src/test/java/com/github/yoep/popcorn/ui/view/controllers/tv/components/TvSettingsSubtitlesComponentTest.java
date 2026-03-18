@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
@@ -26,6 +28,8 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
 class TvSettingsSubtitlesComponentTest {
+    @Spy
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
     private ApplicationConfig applicationConfig;
     @Mock
@@ -44,7 +48,7 @@ class TvSettingsSubtitlesComponentTest {
                         .build())
                 .build()));
 
-        component = new TvSettingsSubtitlesComponent(applicationConfig, localeText);
+        component = new TvSettingsSubtitlesComponent(eventPublisher, localeText, applicationConfig);
 
         component.defaultSubtitle = new Button();
         component.subtitles = new AxisItemSelection<>();
@@ -73,7 +77,7 @@ class TvSettingsSubtitlesComponentTest {
         component.subtitles.setSelectedItem(Subtitle.Language.BULGARIAN);
         WaitForAsyncUtils.waitForFxEvents();
 
-        verify(component.defaultSubtitleOverlay).hide();
+        verify(component.defaultSubtitleOverlay, atLeastOnce()).hide();
         verify(applicationConfig).update(isA(ApplicationSettings.SubtitleSettings.class));
         assertEquals(Subtitle.Language.BULGARIAN, settings.get().getDefaultSubtitle());
         assertEquals(SubtitleHelper.getNativeName(Subtitle.Language.BULGARIAN), component.defaultSubtitle.getText());
@@ -92,7 +96,7 @@ class TvSettingsSubtitlesComponentTest {
         component.fontSizes.setSelectedItem(32);
         WaitForAsyncUtils.waitForFxEvents();
 
-        verify(component.fontSizeOverlay).hide();
+        verify(component.fontSizeOverlay, atLeastOnce()).hide();
         verify(applicationConfig).update(isA(ApplicationSettings.SubtitleSettings.class));
         assertEquals(32, settings.get().getFontSize());
         assertEquals("32", component.fontSize.getText());
@@ -114,7 +118,7 @@ class TvSettingsSubtitlesComponentTest {
         component.decorations.setSelectedItem(ApplicationSettings.SubtitleSettings.DecorationType.OUTLINE);
         WaitForAsyncUtils.waitForFxEvents();
 
-        verify(component.decorationOverlay).hide();
+        verify(component.decorationOverlay, atLeastOnce()).hide();
         verify(applicationConfig).update(isA(ApplicationSettings.SubtitleSettings.class));
         assertEquals(ApplicationSettings.SubtitleSettings.DecorationType.OUTLINE, settings.get().getDecoration());
         assertEquals(expectedText, component.decoration.getText());

@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Playlist;
+import com.github.yoep.popcorn.backend.playlists.PlayNext;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManagerListener;
 import com.github.yoep.popcorn.ui.view.controls.SizedImageView;
@@ -17,7 +18,6 @@ import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
@@ -27,8 +27,7 @@ public class PlayingNextInComponent implements Initializable {
     private final ImageService imageService;
     private final PlaylistManager playlistManager;
 
-    private Long lastKnownPlayingIn;
-    private Playlist.Item lastKnownItem;
+    private Image posterPlaceholder = null;
 
     @FXML
     Pane playNextPane;
@@ -46,6 +45,7 @@ public class PlayingNextInComponent implements Initializable {
     public PlayingNextInComponent(ImageService imageService, PlaylistManager playlistManager) {
         this.imageService = imageService;
         this.playlistManager = playlistManager;
+        init();
     }
 
     //region Initializable
@@ -56,6 +56,16 @@ public class PlayingNextInComponent implements Initializable {
         reset();
     }
 
+    private void init() {
+        imageService.getPosterPlaceholder().whenComplete((poster, throwable) -> {
+            if (throwable == null) {
+                posterPlaceholder = poster;
+            } else {
+                log.error("Failed to load poster placeholder, {}", throwable.getMessage(), throwable);
+            }
+        });
+    }
+
     private void initializeListeners() {
         playlistManager.addListener(new PlaylistManagerListener() {
             @Override
@@ -64,8 +74,21 @@ public class PlayingNextInComponent implements Initializable {
             }
 
             @Override
-            public void onPlayingIn(Long playingIn, Playlist.Item item) {
-                PlayingNextInComponent.this.onPlayingIn(playingIn, item);
+            public void onPlayNextChanged(PlayNext next) {
+                switch (next) {
+                    case PlayNext.Next(var item) -> onItemChanged(item);
+                    case PlayNext.End() -> onItemChanged(null);
+                }
+            }
+
+            @Override
+            public void onPlayNextIn(int seconds) {
+                onPlayingIn(seconds);
+            }
+
+            @Override
+            public void onPlayNextInAborted() {
+                Platform.runLater(() -> playNextPane.setVisible(false));
             }
 
             @Override
@@ -79,19 +102,12 @@ public class PlayingNextInComponent implements Initializable {
 
     //region Functions
 
-    private void onPlayingIn(Long playingIn, Playlist.Item item) {
-        if (!Objects.equals(lastKnownItem, item)) {
-            onItemChanged(item);
-        }
-
+    private void onPlayingIn(int playingIn) {
         onPlayingInChanged(playingIn);
-        this.lastKnownPlayingIn = playingIn;
-        this.lastKnownItem = item;
     }
 
     private void onItemChanged(Playlist.Item nextItem) {
         reset();
-
         if (nextItem == null) {
             return;
         }
@@ -99,44 +115,42 @@ public class PlayingNextInComponent implements Initializable {
         Platform.runLater(() -> {
             showName.setText(nextItem.getTitle());
             episodeTitle.setText(nextItem.getCaption());
-            // TODO
-            //episodeNumber.setText(String.valueOf(nextItem.getEpisode().getEpisode()));
+            episodeNumber.setText(Optional.ofNullable(nextItem.getMedia())
+                    .filter(e -> nextItem.hasMedia())
+                    .map(e -> {
+                        if (e.hasEpisode()) {
+                            return String.valueOf(e.getEpisode().getEpisode());
+                        } else {
+                            return null;
+                        }
+                    })
+                    .orElse(null));
         });
 
         Optional.ofNullable(nextItem.getThumb()).ifPresentOrElse(
                 e -> imageService.load(e).whenComplete((image, throwable) -> {
                     if (throwable == null) {
-                        playNextPoster.setImage(image);
+                        updatePoster(image);
                     } else {
-                        updatePoster(imageService.getPosterPlaceholder());
+                        updatePoster(posterPlaceholder);
                         log.error("Failed to load poster of next episode, {}", throwable.getMessage(), throwable);
                     }
                 }),
-                () -> updatePoster(imageService.getPosterPlaceholder())
+                () -> onPosterLoaded(imageService.getPosterPlaceholder())
         );
     }
 
-    private void onPlayingInChanged(Long remainingTime) {
+    private void onPlayingInChanged(int remainingTime) {
         Platform.runLater(() -> {
-            playNextPane.setVisible(remainingTime != null);
-            playingInCountdown.setText(Optional.ofNullable(remainingTime)
-                    .map(String::valueOf)
-                    .orElse(null));
-            focusPlayingNextIfNeeded(remainingTime);
+            playNextPane.setVisible(true);
+            playingInCountdown.setText(String.valueOf(remainingTime));
+            playNextPane.requestFocus();
         });
     }
 
-    private void focusPlayingNextIfNeeded(Long remainingTime) {
-        if (lastKnownPlayingIn == null && remainingTime != null) {
-            playNextPane.requestFocus();
-        }
-    }
-
     private void reset() {
-        this.lastKnownPlayingIn = null;
-        updatePoster(imageService.getPosterPlaceholder());
-
         Platform.runLater(() -> {
+            playNextPoster.setImage(posterPlaceholder);
             playNextPane.setVisible(false);
             showName.setText(null);
             episodeTitle.setText(null);
@@ -154,14 +168,18 @@ public class PlayingNextInComponent implements Initializable {
         reset();
     }
 
-    private void updatePoster(CompletableFuture<Image> imageFuture) {
+    private void onPosterLoaded(CompletableFuture<Image> imageFuture) {
         imageFuture.whenComplete((image, throwable) -> {
             if (throwable == null) {
-                Platform.runLater(() -> playNextPoster.setImage(image));
+                updatePoster(image);
             } else {
                 log.error("Failed to load poster of next episode, {}", throwable.getMessage(), throwable);
             }
         });
+    }
+
+    private synchronized void updatePoster(Image image) {
+        Platform.runLater(() -> playNextPoster.setImage(image));
     }
 
     @FXML

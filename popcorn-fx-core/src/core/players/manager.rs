@@ -377,9 +377,6 @@ impl InnerPlayerManager {
                             player
                         );
                     }
-
-                    trace!("Player stopped event resulted in Event::ClosePlayer");
-                    self.event_publisher.publish(Event::ClosePlayer);
                 } else {
                     trace!(
                         "Skipping player stopped event, last known duration is {}",
@@ -932,8 +929,8 @@ mod tests {
             .unwrap();
         tokio::spawn(async move {
             while let Some(mut event_handler) = receiver.recv().await {
-                if let Some(Event::ClosePlayer) = event_handler.event_ref() {
-                    tx_events.send(()).unwrap();
+                if let Some(Event::PlayerStopped(event)) = event_handler.event_ref() {
+                    let _ = tx_events.send(event.clone());
                     event_handler.next();
                     break;
                 }
@@ -966,7 +963,7 @@ mod tests {
         let _ = recv_timeout!(
             &mut rx_events,
             Duration::from_millis(500),
-            "expected to have received a close player event"
+            "expected a player stopped event"
         );
 
         // verify if the torrent was removed from the torrent manager

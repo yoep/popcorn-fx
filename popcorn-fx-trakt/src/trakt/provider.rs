@@ -20,7 +20,7 @@ use popcorn_fx_core::core::media::tracking::{
     AuthorizationError, TrackingError, TrackingEvent, TrackingProvider,
 };
 use popcorn_fx_core::core::media::MediaIdentifier;
-use popcorn_fx_core::core::utils::network::ip_addr;
+use popcorn_fx_core::core::utils::network::local_ip_addr;
 use reqwest::header::HeaderMap;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -106,7 +106,7 @@ impl TraktProvider {
 
             return Err(TraktError::NoAvailablePorts);
         };
-        let addr = (ip_addr(), listener.local_addr()?.port()).into();
+        let addr = (local_ip_addr(), listener.local_addr()?.port()).into();
 
         let state = self.inner.clone();
         tokio::spawn(async move {

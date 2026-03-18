@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.backend.player;
 
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.lib.FxChannel;
@@ -20,36 +21,31 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 
 /**
- * Implementation of the {@link PlayerManagerService} which serves the individual players with a central point of management.
+ * Implementation of the {@link PlayerManagerService} which serves the individual
+ * players with a central point of management.
  * This service manages each available {@link Player} of the application.
  */
 @Slf4j
-public class PlayerManagerServiceImpl
-        extends AbstractListenerService<PlayerManagerListener>
-        implements PlayerManagerService {
+public class PlayerManagerServiceImpl extends AbstractListenerService<PlayerManagerListener> implements PlayerManagerService {
+
     private final FxChannel fxChannel;
     private final EventPublisher eventPublisher;
-
     final Queue<Player> playerWrappers = new ConcurrentLinkedQueue<>();
 
     public PlayerManagerServiceImpl(FxChannel fxChannel, EventPublisher eventPublisher) {
-        Objects.requireNonNull(fxChannel, "fxChannel cannot be null");
-        Objects.requireNonNull(eventPublisher, "eventPublisher cannot be null");
-        this.fxChannel = fxChannel;
-        this.eventPublisher = eventPublisher;
+        this.fxChannel = Objects.requireNonNull(fxChannel, "fxChannel cannot be null");
+        this.eventPublisher = Objects.requireNonNull(eventPublisher, "eventPublisher cannot be null");
         init();
     }
 
-    //region Properties
+    // region Properties
 
     @Override
     public CompletableFuture<Collection<Player>> getPlayers() {
         return fxChannel.send(GetPlayersRequest.getDefaultInstance(), GetPlayersResponse.parser())
-                .thenApply(response ->
-                        response.getPlayersList().stream()
-                                .map(this::toProtoWrapper)
-                                .collect(Collectors.toList())
-                );
+                .thenApply(response -> response.getPlayersList().stream()
+                        .map(this::toProtoWrapper)
+                        .collect(Collectors.toList()));
     }
 
     @Override
@@ -67,33 +63,36 @@ public class PlayerManagerServiceImpl
     public void setActivePlayer(Player activePlayer) {
         Objects.requireNonNull(activePlayer, "activePlayer is required");
         log.trace("Activating player {} for playbacks", activePlayer);
-        fxChannel.send(UpdateActivePlayerRequest.newBuilder()
+
+        var request = UpdateActivePlayerRequest.newBuilder()
                 .setPlayer(toProto(activePlayer))
-                .build());
+                .build();
+        fxChannel.send(request);
     }
 
+    // endregion
 
-    //endregion
-
-    //region Methods
+    // region Methods
 
     @Override
     public CompletableFuture<Boolean> register(Player player) {
         Objects.requireNonNull(player, "player cannot be null");
         log.trace("Registering new player {}", player);
+
         if (player instanceof PlayerProtoWrapper) {
             log.error("PlayerProtoWrapper are not allowed to be registered as new players");
             return CompletableFuture.completedFuture(false);
         }
 
         var proto = toProto(player);
+        var request = RegisterPlayerRequest.newBuilder().setPlayer(proto).build();
 
-        return fxChannel.send(RegisterPlayerRequest.newBuilder()
-                        .setPlayer(proto)
-                        .build(), RegisterPlayerResponse.parser())
+        return fxChannel.send(request, RegisterPlayerResponse.parser())
                 .thenApply(response -> {
                     if (response.getResult() == Response.Result.OK) {
-                        playerWrappers.add(new PlayerFxWrapper(player, proto));
+                        var playerWrapper = new PlayerFxWrapper(player, proto);
+                        playerWrappers.add(playerWrapper);
+                        registerPlayerEvents(playerWrapper);
                         return true;
                     } else {
                         log.error("Failed to register new player, {}", response.getError());
@@ -114,13 +113,10 @@ public class PlayerManagerServiceImpl
 
     private void removePlayer(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player player) {
         playerWrappers.removeIf(e -> Objects.equals(e.getId(), player.getId()));
-        fxChannel.send(RemovePlayerRequest.newBuilder()
-                .setPlayer(player)
-                .build());
+        fxChannel.send(RemovePlayerRequest.newBuilder().setPlayer(player).build());
     }
 
-
-    //endregion
+    // endregion
 
     void onDestroy() {
         log.debug("Disposing all player resources");
@@ -142,15 +138,76 @@ public class PlayerManagerServiceImpl
         fxChannel.subscribe(FxChannel.typeFrom(PlayerStopRequest.class), PlayerStopRequest.parser(), this::onPlayerStopRequest);
     }
 
+    private void registerPlayerEvents(PlayerFxWrapper player) {
+        player.addListener(new PlayerListener() {
+            @Override
+            public void onDurationChanged(long newDuration) {
+                fxChannel.send(InvokePlayerEvent.newBuilder()
+                        .setId(player.getId())
+                        .setEvent(PlayerEvent.newBuilder()
+                                .setEvent(PlayerEvent.Event.DURATION_CHANGED)
+                                .setDurationChanged(PlayerEvent.DurationChanged.newBuilder()
+                                        .setDuration(newDuration)
+                                        .build())
+                                .build())
+                        .build());
+            }
+
+            @Override
+            public void onTimeChanged(long newTime) {
+                fxChannel.send(InvokePlayerEvent.newBuilder()
+                        .setId(player.getId())
+                        .setEvent(PlayerEvent.newBuilder()
+                                .setEvent(PlayerEvent.Event.TIME_CHANGED)
+                                .setTimeChanged(PlayerEvent.TimeChanged.newBuilder()
+                                        .setTime(newTime)
+                                        .build())
+                                .build())
+                        .build());
+            }
+
+            @Override
+            public void onStateChanged(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player.State newState) {
+                fxChannel.send(InvokePlayerEvent.newBuilder()
+                        .setId(player.getId())
+                        .setEvent(PlayerEvent.newBuilder()
+                                .setEvent(PlayerEvent.Event.STATE_CHANGED)
+                                .setStateChanged(PlayerEvent.StateChanged.newBuilder()
+                                        .setState(newState)
+                                        .build()))
+                        .build());
+            }
+
+            @Override
+            public void onVolumeChanged(int volume) {
+                fxChannel.send(InvokePlayerEvent.newBuilder()
+                        .setId(player.getId())
+                        .setEvent(PlayerEvent.newBuilder()
+                                .setEvent(PlayerEvent.Event.VOLUME_CHANGED)
+                                .setVolumeChanged(PlayerEvent.VolumeChanged.newBuilder()
+                                        .setVolume(volume)
+                                        .build())
+                                .build())
+                        .build());
+            }
+        });
+    }
+
     private void onPlayerManagerEvent(PlayerManagerEvent message) {
         switch (message.getEvent()) {
-            case ACTIVE_PLAYER_CHANGED -> invokeListeners(listener -> listener.activePlayerChanged(message.getActivePlayerChanged()));
+            case ACTIVE_PLAYER_CHANGED ->
+                    invokeListeners(listener -> listener.activePlayerChanged(message.getActivePlayerChanged()));
             case PLAYERS_CHANGED -> invokeListeners(PlayerManagerListener::playersChanged);
-            case PLAYER_PLAYBACK_CHANGED -> invokeListeners(listener -> listener.onPlayerPlaybackChanged(message.getPlayerPlaybackChanged().getRequest()));
-            case PLAYER_DURATION_CHANGED -> invokeListeners(listener -> listener.onPlayerDurationChanged(message.getPlayerDurationChanged().getDuration()));
-            case PLAYER_TIMED_CHANGED -> invokeListeners(listener -> listener.onPlayerTimeChanged(message.getPlayerTimeChanged().getTime()));
-            case PLAYER_STATE_CHANGED -> invokeListeners(listener -> listener.onPlayerStateChanged(message.getPlayerStateChanged().getState()));
-            case UNRECOGNIZED -> log.error("Failed to process player manager event, invalid event {}", message.getEvent());
+            case PLAYER_PLAYBACK_CHANGED ->
+                    invokeListeners(l -> l.onPlayerPlaybackChanged(message.getPlayerPlaybackChanged().getRequest()));
+            case PLAYER_DURATION_CHANGED ->
+                    invokeListeners(l -> l.onPlayerDurationChanged(message.getPlayerDurationChanged().getDuration()));
+            case PLAYER_TIMED_CHANGED ->
+                    invokeListeners(l -> l.onPlayerTimeChanged(message.getPlayerTimeChanged().getTime()));
+            case PLAYER_STATE_CHANGED ->
+                    invokeListeners(l -> l.onPlayerStateChanged(message.getPlayerStateChanged().getState()));
+            case UNRECOGNIZED ->
+                    log.error("Failed to process player manager event, invalid event {}", message.getEvent());
         }
     }
 
@@ -160,9 +217,7 @@ public class PlayerManagerServiceImpl
                 .findFirst()
                 .ifPresent(e -> {
                     var state = e.getState();
-                    fxChannel.send(GetPlayerStateResponse.newBuilder()
-                            .setState(state)
-                            .build(), sequenceId);
+                    fxChannel.send(GetPlayerStateResponse.newBuilder().setState(state).build(), sequenceId);
                 });
     }
 
@@ -212,7 +267,6 @@ public class PlayerManagerServiceImpl
                     }
                 });
             }
-
             return closePlayerEvent;
         }, EventPublisher.HIGHEST_ORDER);
     }
@@ -223,7 +277,6 @@ public class PlayerManagerServiceImpl
         } else if (wrapper instanceof PlayerFxWrapper fxWrapper) {
             return fxWrapper.proto();
         }
-
         log.warn("Unable to convert player to proto from {}", wrapper);
         return null;
     }
@@ -237,16 +290,14 @@ public class PlayerManagerServiceImpl
                 .setId(player.getId())
                 .setName(player.getName())
                 .setDescription(player.getDescription())
-                .setGraphicResource(player.getGraphicResource()
-                        .map(stream -> {
-                            try {
-                                return ByteString.readFrom(stream);
-                            } catch (IOException e) {
-                                log.error("Failed to read image stream", e);
-                                return ByteString.empty();
-                            }
-                        })
-                        .orElse(ByteString.empty()))
+                .setGraphicResource(player.getGraphicResource().map(stream -> {
+                    try {
+                        return ByteString.readFrom(stream);
+                    } catch (IOException e) {
+                        log.error("Failed to read image stream", e);
+                        return ByteString.empty();
+                    }
+                }).orElse(ByteString.empty()))
                 .setState(player.getState())
                 .build();
     }

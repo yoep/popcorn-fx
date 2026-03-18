@@ -132,7 +132,13 @@ public class DefaultPlaylistManager extends AbstractListenerService<PlaylistMana
     private void onPlaylistEvent(PlaylistEvent event) {
         switch (event.getEvent()) {
             case PLAYLIST_CHANGED -> invokeListeners(PlaylistManagerListener::onPlaylistChanged);
-            case PLAYING_NEXT -> invokeListeners(e -> e.onPlayingIn(event.getPlayingNext().getPlayingIn(), event.getPlayingNext().getItem()));
+            case PLAY_NEXT_CHANGED -> invokeListeners(listener -> {
+                var next = PlayNext.from(event.getPlayNextChanged().getNext());
+                listener.onPlayNextChanged(next);
+            });
+            case PLAYING_NEXT_IN ->
+                    invokeListeners(listener -> listener.onPlayNextIn(event.getPlayingNextIn().getPlayingInSeconds()));
+            case PLAYING_NEXT_IN_ABORTED -> invokeListeners(PlaylistManagerListener::onPlayNextInAborted);
             case STATE_CHANGED -> invokeListeners(e -> e.onStateChanged(event.getStateChanged().getState()));
         }
     }

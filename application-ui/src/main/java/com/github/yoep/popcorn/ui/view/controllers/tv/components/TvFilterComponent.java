@@ -49,7 +49,6 @@ public class TvFilterComponent implements Initializable {
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializeSlideAnimation();
-        initializeEvents();
 
         searchTimeout.setOnFinished(e -> onSearch());
         filter.focusWithinProperty().addListener((observable, oldValue, newValue) -> onFocusChanged(newValue));
@@ -61,6 +60,7 @@ public class TvFilterComponent implements Initializable {
 
         initializeGenres();
         onFocusChanged(false);
+        initializeEvents();
     }
 
     private void initializeGenres() {
@@ -126,7 +126,10 @@ public class TvFilterComponent implements Initializable {
                         .build(), GetCategoryGenresResponse.parser())
                 .thenAccept(response -> {
                     if (response.getResult() == Response.Result.OK) {
-                        Platform.runLater(() -> this.genres.setItems(response.getGenresList().toArray(new Media.Genre[0])));
+                        Platform.runLater(() -> {
+                            this.genres.setItems(response.getGenresList().toArray(new Media.Genre[0]));
+                            this.genres.setSelectedItem(response.getGenresList().getFirst());
+                        });
                     } else {
                         log.error("Failed to retrieve genres for category {}, {}", category, response.getError());
                     }

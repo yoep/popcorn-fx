@@ -5,10 +5,13 @@ use crate::ipc::message::MessageHandler;
 use crate::ipc::proto::message::FxMessage;
 use crate::ipc::proto::settings::{
     ApplicationSettings, ApplicationSettingsRequest, ApplicationSettingsResponse,
-    UpdateServerSettingsRequest, UpdateTorrentSettingsRequest, UpdateUISettingsRequest,
+    UpdatePlaybackSettingsRequest, UpdateServerSettingsRequest, UpdateTorrentSettingsRequest,
+    UpdateUISettingsRequest,
 };
 use async_trait::async_trait;
-use popcorn_fx_core::core::config::{ServerSettings, TorrentSettings, UiSettings};
+use popcorn_fx_core::core::config::{
+    PlaybackSettings, ServerSettings, TorrentSettings, UiSettings,
+};
 use protobuf::{Message, MessageField};
 use std::sync::Arc;
 
@@ -36,6 +39,7 @@ impl MessageHandler for SettingsMessageHandler {
                 | UpdateUISettingsRequest::NAME
                 | UpdateServerSettingsRequest::NAME
                 | UpdateTorrentSettingsRequest::NAME
+                | UpdatePlaybackSettingsRequest::NAME
         )
     }
 
@@ -74,7 +78,7 @@ impl MessageHandler for SettingsMessageHandler {
                 let mut request = UpdateServerSettingsRequest::parse_from_bytes(&message.payload)?;
                 let proto_settings = request.settings.take().ok_or(Error::MissingField)?;
 
-                let settings = ServerSettings::try_from(&proto_settings)?;
+                let settings = ServerSettings::try_from(proto_settings)?;
                 self.instance.settings().update_server(settings).await;
             }
             UpdateTorrentSettingsRequest::NAME => {
@@ -83,6 +87,14 @@ impl MessageHandler for SettingsMessageHandler {
 
                 let settings = TorrentSettings::try_from(&proto_settings)?;
                 self.instance.settings().update_torrent(settings).await;
+            }
+            UpdatePlaybackSettingsRequest::NAME => {
+                let mut request =
+                    UpdatePlaybackSettingsRequest::parse_from_bytes(&message.payload)?;
+                let proto_settings = request.settings.take().ok_or(Error::MissingField)?;
+
+                let settings = PlaybackSettings::try_from(proto_settings)?;
+                self.instance.settings().update_playback(settings).await;
             }
             _ => {
                 return Err(Error::UnsupportedMessage(
@@ -194,7 +206,9 @@ mod tests {
             .send(
                 UpdateServerSettingsRequest {
                     settings: MessageField::some(application_settings::ServerSettings {
-                        api_server: Some("https://api-v2.com".to_string()),
+                        movie_api_servers: vec!["https://api-v2.com".to_string()],
+                        serie_api_servers: vec![],
+                        update_api_servers_automatically: false,
                         special_fields: Default::default(),
                     }),
                     special_fields: Default::default(),
@@ -237,6 +251,43 @@ mod tests {
                     special_fields: Default::default(),
                 },
                 UpdateTorrentSettingsRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_update_playback_settings() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = SettingsMessageHandler::new(instance);
+
+        incoming
+            .send(
+                UpdatePlaybackSettingsRequest {
+                    settings: MessageField::some(application_settings::PlaybackSettings {
+                        quality: Some(
+                            application_settings::playback_settings::Quality::P2160.into(),
+                        ),
+                        fullscreen: false,
+                        auto_play_next_episode_enabled: true,
+                        special_fields: Default::default(),
+                    }),
+                    special_fields: Default::default(),
+                },
+                UpdatePlaybackSettingsRequest::NAME,
             )
             .await
             .unwrap();

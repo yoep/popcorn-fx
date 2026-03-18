@@ -17,23 +17,38 @@
         <RowConstraints/>
         <RowConstraints/>
         <RowConstraints/>
+        <RowConstraints/>
     </rowConstraints>
 
     <!-- User interface title -->
-    <Label styleClass="subsection-title" text="%settings_server"
+    <Label styleClass="subsection-title" text="%settings_servers"
            GridPane.valignment="TOP" GridPane.rowSpan="4" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
 
-    <!-- API Server -->
-    <Label styleClass="subsection-label" text="%settings_server_api"
+    <!-- Movies Server -->
+    <Label styleClass="subsection-label" text="%settings_servers_movies"
            GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-    <Button fx:id="apiServerBtn" styleClass="long"
+    <Button fx:id="movieServersBtn" styleClass="long"
             GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+
+    <!-- Series Server -->
+    <Label styleClass="subsection-label" text="%settings_servers_series"
+           GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+    <Button fx:id="seriesServersBtn" styleClass="long"
+            GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+
+    <!-- Info -->
+    <Label text="%settings_servers_description" styleClass="text-secondary"
+           GridPane.columnIndex="1" GridPane.columnSpan="2" GridPane.rowIndex="2" />
+
+    <!-- Auto update servers -->
+    <CheckBox fx:id="updateServersAutomatically" text="%settings_auto_update_api_servers"
+              GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
 
     <!-- Separator -->
     <Separator
-            GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+            GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
 
-    <Overlay fx:id="apiServerOverlay" for="$apiServerBtn" attachTo="settings">
+    <Overlay fx:id="movieServersOverlay" for="$movieServersBtn" attachTo="settings">
         <GridPane>
             <columnConstraints>
                 <ColumnConstraints minWidth="100" percentWidth="10"/>
@@ -47,10 +62,31 @@
                 <RowConstraints/>
             </rowConstraints>
 
-            <Label fx:id="apiServerTxt" text="%settings_subtitles_default" styleClass="virtual-keyboard-value"
+            <Label fx:id="movieServersTxt" text="%settings_subtitles_default" styleClass="virtual-keyboard-value"
                    GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-            <VirtualKeyboard fx:id="apiServerVirtualKeyboard" minWidth="0"
-                             enableSpecialKeys="true" enableCloseKey="true" onClose="#onCloseApiOverlay"
+            <VirtualKeyboard fx:id="movieServersInput" minWidth="0"
+                             enableSpecialKeys="true" enableCloseKey="true" onClose="#onCloseInputOverlay"
+                             GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+        </GridPane>
+    </Overlay>
+    <Overlay fx:id="serieServersOverlay" for="$seriesServersBtn" attachTo="settings">
+        <GridPane>
+            <columnConstraints>
+                <ColumnConstraints minWidth="100" percentWidth="10"/>
+                <ColumnConstraints maxWidth="700"/>
+                <ColumnConstraints minWidth="100" percentWidth="10"/>
+            </columnConstraints>
+            <rowConstraints>
+                <RowConstraints/>
+                <RowConstraints/>
+                <RowConstraints/>
+                <RowConstraints/>
+            </rowConstraints>
+
+            <Label fx:id="serieServersTxt" text="%settings_subtitles_default" styleClass="virtual-keyboard-value"
+                   GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+            <VirtualKeyboard fx:id="serieServersInput" minWidth="0"
+                             enableSpecialKeys="true" enableCloseKey="true" onClose="#onCloseInputOverlay"
                              GridPane.columnIndex="1" GridPane.rowIndex="2"/>
         </GridPane>
     </Overlay>

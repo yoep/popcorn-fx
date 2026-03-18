@@ -16,7 +16,9 @@ public class AboutDetails extends VBox {
     //region Properties
 
     public void setItems(List<ComponentInfo> items) {
-        renderItems(items);
+        synchronized (lock) {
+            renderItems(items);
+        }
     }
 
     //endregion
@@ -32,7 +34,6 @@ public class AboutDetails extends VBox {
     private void renderItems(List<ComponentInfo> items) {
         synchronized (lock) {
             this.getChildren().clear();
-
             items.forEach(e -> {
                 var card = new AboutCard(e);
                 this.getChildren().add(card);

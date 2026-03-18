@@ -1,6 +1,3 @@
-use std::fmt::{Debug, Formatter};
-use std::sync::Arc;
-
 use crate::core::loader::task::LoadingTaskContext;
 use crate::core::loader::{
     CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingResult, LoadingState,
@@ -10,12 +7,14 @@ use crate::core::media::{
     Episode, MediaIdentifier, MediaType, MovieDetails, DEFAULT_AUDIO_LANGUAGE,
 };
 use crate::core::torrents::{
-    Torrent, TorrentEvent, TorrentHandle, TorrentInfo, TorrentManager, TorrentState,
+    TorrentEvent, TorrentHandle, TorrentInfo, TorrentManager, TorrentState,
 };
 use async_trait::async_trait;
 use derive_more::Display;
 use fx_torrent;
 use log::{debug, error, trace};
+use std::fmt::{Debug, Formatter};
+use std::sync::Arc;
 use tokio::select;
 
 const MAGNET_PREFIX: &str = "magnet:?";
@@ -33,25 +32,29 @@ impl TorrentInfoLoadingStrategy {
         Self { torrent_manager }
     }
 
-    async fn resolve_torrent_info(
+    async fn resolve_torrent_info<U: AsRef<str>>(
         &self,
-        url: &str,
+        url: U,
+        data: &mut LoadingData,
         context: &LoadingTaskContext,
-    ) -> Result<(Box<dyn Torrent>, TorrentInfo)> {
+    ) -> Result<TorrentInfo> {
         context.send_event(LoadingEvent::StateChanged(LoadingState::Starting));
         // create the torrent
-        match self.torrent_manager.create(url).await {
+        match self.torrent_manager.create(url.as_ref()).await {
             Ok(torrent) => {
-                let mut receiver = torrent.subscribe();
                 let handle = torrent.handle();
-                let mut info_future = self.torrent_manager.info(&handle);
+                let mut receiver = torrent.subscribe();
 
+                // set the torrent data as soon as possible
+                // in case the task gets canceled before we get the chance to resolve the info
+                data.torrent = Some(torrent);
+
+                let mut info_future = self.torrent_manager.info(&handle);
                 loop {
                     select! {
                         _ = context.cancelled() => return Err(LoadingError::Cancelled),
                         Some(event) = receiver.recv() => Self::handle_torrent_event(&*event, context),
                         info = &mut info_future => return info
-                            .map(|e| (torrent, e))
                             .map_err(|e| LoadingError::TorrentError(e)),
                     }
                 }
@@ -67,13 +70,13 @@ impl TorrentInfoLoadingStrategy {
         &self,
         info: &TorrentInfo,
         media: &Box<dyn MediaIdentifier>,
-        quality: &str,
+        quality: &String,
     ) -> Result<fx_torrent::File> {
         match media.media_type() {
             MediaType::Movie => media
                 .downcast_ref::<MovieDetails>()
                 .and_then(|movie| movie.torrents().get(&DEFAULT_AUDIO_LANGUAGE.to_string()))
-                .and_then(|media_torrents| media_torrents.get(&quality.to_string()))
+                .and_then(|media_torrents| media_torrents.get(quality))
                 .and_then(|media_torrent| {
                     media_torrent
                         .file()
@@ -159,55 +162,51 @@ impl Debug for TorrentInfoLoadingStrategy {
 #[async_trait]
 impl LoadingStrategy for TorrentInfoLoadingStrategy {
     async fn process(&self, data: &mut LoadingData, context: &LoadingTaskContext) -> LoadingResult {
-        let mut url: Option<String> = None;
-
         // check if the url is either a torrent Magnet or torrent file
-        if let Some(item_url) = data
+        // otherwise, continue with the loading process
+        let url = match data
             .url
             .as_ref()
             .filter(|url| url.starts_with(MAGNET_PREFIX) || url.ends_with(TORRENT_EXTENSION))
             .cloned()
         {
-            url = Some(item_url);
-        } else {
-            debug!(
-                "Playlist item url {:?} is not a magnet, torrent loading is skipped",
-                data.url
-            );
-        }
+            Some(url) => url,
+            None => {
+                debug!(
+                    "Playlist item url {:?} is not a torrent, torrent loading is skipped",
+                    data.url
+                );
+                return LoadingResult::Ok;
+            }
+        };
 
-        if let Some(url) = url {
-            debug!("Loading torrent information of {}", url);
-            let torrent_info = self.resolve_torrent_info(url.as_str(), context).await;
-
-            match torrent_info {
-                Ok((torrent, info)) => {
-                    if let Some(media) = data.media.as_ref() {
-                        if let Some(quality) = data.quality.as_ref() {
-                            trace!(
-                                "Updating torrent file info for media {} with quality {}",
-                                media,
-                                quality
-                            );
-                            match self
-                                .resolve_torrent_file_from_media(&info, media, quality.as_str())
-                                .await
-                            {
-                                Ok(torrent_file) => {
-                                    debug!("Updating torrent file info to {:?}", torrent_file);
-                                    data.filename = Some(torrent_file.filename());
-                                }
-                                Err(e) => return LoadingResult::Err(e),
+        debug!("Loading torrent information for {}", url);
+        match self.resolve_torrent_info(url, data, context).await {
+            Ok(info) => {
+                if let Some(media) = data.media.as_ref() {
+                    if let Some(quality) = data.quality.as_ref() {
+                        trace!(
+                            "Updating torrent file info for media {} with quality {}",
+                            media,
+                            quality
+                        );
+                        match self
+                            .resolve_torrent_file_from_media(&info, media, quality)
+                            .await
+                        {
+                            Ok(torrent_file) => {
+                                debug!("Updating torrent file info to {:?}", torrent_file);
+                                data.filename = Some(torrent_file.filename().to_string());
                             }
+                            Err(e) => return LoadingResult::Err(e),
                         }
                     }
-
-                    debug!("Updating torrent info to {:?}", info);
-                    data.url = None; // remove the original url as the item has been enhanced with the data of it
-                    data.torrent = Some(torrent);
                 }
-                Err(e) => return LoadingResult::Err(e),
+
+                debug!("Updating torrent info to {:?}", info);
+                data.url = None; // remove the original url as the item has been enhanced with the data of it
             }
+            Err(e) => return LoadingResult::Err(e),
         }
 
         LoadingResult::Ok

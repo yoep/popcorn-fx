@@ -1,14 +1,17 @@
-use std::net::{IpAddr, SocketAddr, TcpListener};
-
 use local_ip_address::local_ip;
+use log::warn;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener};
 
-/// Retrieves a non-localhost (127.0.0.1) IP address from one of the machine's network interfaces.
+/// Returns a local ip address of the system.
 ///
-/// # Returns
+/// ## Fallback
 ///
-/// The local IP address found on one of the network interfaces.
-pub fn ip_addr() -> IpAddr {
-    local_ip().expect("expected an ip address from a network interface")
+/// Returns a loopback address if no network interface is available.
+pub fn local_ip_addr() -> IpAddr {
+    local_ip().unwrap_or_else(|_| {
+        warn!("Failed to determine external address, using loopback address instead");
+        IpAddr::V4(Ipv4Addr::LOCALHOST)
+    })
 }
 
 /// Retrieves an available socket address on the local machine.
@@ -24,7 +27,7 @@ pub fn available_socket() -> SocketAddr {
     let listener = TcpListener::bind("0.0.0.0:0").expect("expected a TCP address to be bound");
     let socket_addr = listener.local_addr().expect("expected a valid socket");
 
-    SocketAddr::new(ip_addr(), socket_addr.port())
+    SocketAddr::new(local_ip_addr(), socket_addr.port())
 }
 
 /// Retrieves an available port on the local machine.
@@ -86,10 +89,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_ip_addr() {
+    fn test_local_ip_addr() {
         let localhost: IpAddr = "172.0.0.1".parse().unwrap();
 
-        let result = ip_addr();
+        let result = local_ip_addr();
 
         assert_ne!(localhost, result, "expected no localhost ip address");
     }

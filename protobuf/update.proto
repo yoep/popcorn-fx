@@ -37,7 +37,7 @@ message Update {
     INSTALLATION_FINISHED = 6;
     ERROR = 7;
   }
-  
+
   message Error {
     Type type = 1;
     optional InvalidUpdateChannel invalid_update_channel = 2;
@@ -46,16 +46,16 @@ message Update {
     optional InvalidResponse invalid_response = 5;
     optional InvalidDownloadUrl invalid_download_url = 6;
     optional UpdateNotAvailable update_not_available = 7;
-    
+
     message InvalidUpdateChannel {
       string channel = 1;
     }
-    
+
     message InvalidApplicationVersion {
       string version_value = 1;
       string reason = 2;
     }
-    
+
     message InvalidRuntimeVersion {
       string version_value = 1;
       string reason = 2;
@@ -72,7 +72,7 @@ message Update {
     message UpdateNotAvailable {
       Update.State state = 1;
     }
-    
+
     enum Type {
       INVALID_UPDATE_CHANNEL = 0;
       INVALID_APPLICATION_VERSION = 1;
@@ -130,7 +130,7 @@ message UpdateEvent {
   }
 
   message DownloadProgress {
-      Update.DownloadProgress progress = 1;
+    Update.DownloadProgress progress = 1;
   }
 
   enum Event {

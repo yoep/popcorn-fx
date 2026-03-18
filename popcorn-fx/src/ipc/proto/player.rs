@@ -3307,3 +3307,671 @@ pub mod player_manager_event {
     }
 
 }
+
+// @@protoc_insertion_point(message:fx.ipc.proto.PlayerEvent)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct PlayerEvent {
+    // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.PlayerEvent.event)
+    pub event: ::protobuf::EnumOrUnknown<player_event::Event>,
+    // @@protoc_insertion_point(field:fx.ipc.proto.PlayerEvent.duration_changed)
+    pub duration_changed: ::protobuf::MessageField<player_event::DurationChanged>,
+    // @@protoc_insertion_point(field:fx.ipc.proto.PlayerEvent.time_changed)
+    pub time_changed: ::protobuf::MessageField<player_event::TimeChanged>,
+    // @@protoc_insertion_point(field:fx.ipc.proto.PlayerEvent.state_changed)
+    pub state_changed: ::protobuf::MessageField<player_event::StateChanged>,
+    // @@protoc_insertion_point(field:fx.ipc.proto.PlayerEvent.volume_changed)
+    pub volume_changed: ::protobuf::MessageField<player_event::VolumeChanged>,
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.PlayerEvent.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a PlayerEvent {
+    fn default() -> &'a PlayerEvent {
+        <PlayerEvent as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl PlayerEvent {
+    pub fn new() -> PlayerEvent {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for PlayerEvent {
+    const NAME: &'static str = "PlayerEvent";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                8 => {
+                    self.event = is.read_enum_or_unknown()?;
+                },
+                18 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.duration_changed)?;
+                },
+                26 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.time_changed)?;
+                },
+                34 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.state_changed)?;
+                },
+                42 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.volume_changed)?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if self.event != ::protobuf::EnumOrUnknown::new(player_event::Event::DURATION_CHANGED) {
+            my_size += ::protobuf::rt::int32_size(1, self.event.value());
+        }
+        if let Some(v) = self.duration_changed.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        if let Some(v) = self.time_changed.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        if let Some(v) = self.state_changed.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        if let Some(v) = self.volume_changed.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if self.event != ::protobuf::EnumOrUnknown::new(player_event::Event::DURATION_CHANGED) {
+            os.write_enum(1, ::protobuf::EnumOrUnknown::value(&self.event))?;
+        }
+        if let Some(v) = self.duration_changed.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
+        }
+        if let Some(v) = self.time_changed.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
+        }
+        if let Some(v) = self.state_changed.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(4, v, os)?;
+        }
+        if let Some(v) = self.volume_changed.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(5, v, os)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> PlayerEvent {
+        PlayerEvent::new()
+    }
+
+    fn clear(&mut self) {
+        self.event = ::protobuf::EnumOrUnknown::new(player_event::Event::DURATION_CHANGED);
+        self.duration_changed.clear();
+        self.time_changed.clear();
+        self.state_changed.clear();
+        self.volume_changed.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static PlayerEvent {
+        static instance: PlayerEvent = PlayerEvent {
+            event: ::protobuf::EnumOrUnknown::from_i32(0),
+            duration_changed: ::protobuf::MessageField::none(),
+            time_changed: ::protobuf::MessageField::none(),
+            state_changed: ::protobuf::MessageField::none(),
+            volume_changed: ::protobuf::MessageField::none(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+/// Nested message and enums of message `PlayerEvent`
+pub mod player_event {
+    // @@protoc_insertion_point(message:fx.ipc.proto.PlayerEvent.DurationChanged)
+    #[derive(PartialEq,Clone,Default,Debug)]
+    pub struct DurationChanged {
+        // message fields
+        // @@protoc_insertion_point(field:fx.ipc.proto.PlayerEvent.DurationChanged.duration)
+        pub duration: u64,
+        // special fields
+        // @@protoc_insertion_point(special_field:fx.ipc.proto.PlayerEvent.DurationChanged.special_fields)
+        pub special_fields: ::protobuf::SpecialFields,
+    }
+
+    impl<'a> ::std::default::Default for &'a DurationChanged {
+        fn default() -> &'a DurationChanged {
+            <DurationChanged as ::protobuf::Message>::default_instance()
+        }
+    }
+
+    impl DurationChanged {
+        pub fn new() -> DurationChanged {
+            ::std::default::Default::default()
+        }
+    }
+
+    impl ::protobuf::Message for DurationChanged {
+        const NAME: &'static str = "DurationChanged";
+
+        fn is_initialized(&self) -> bool {
+            true
+        }
+
+        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+            while let Some(tag) = is.read_raw_tag_or_eof()? {
+                match tag {
+                    8 => {
+                        self.duration = is.read_uint64()?;
+                    },
+                    tag => {
+                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                    },
+                };
+            }
+            ::std::result::Result::Ok(())
+        }
+
+        // Compute sizes of nested messages
+        #[allow(unused_variables)]
+        fn compute_size(&self) -> u64 {
+            let mut my_size = 0;
+            if self.duration != 0 {
+                my_size += ::protobuf::rt::uint64_size(1, self.duration);
+            }
+            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+            self.special_fields.cached_size().set(my_size as u32);
+            my_size
+        }
+
+        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+            if self.duration != 0 {
+                os.write_uint64(1, self.duration)?;
+            }
+            os.write_unknown_fields(self.special_fields.unknown_fields())?;
+            ::std::result::Result::Ok(())
+        }
+
+        fn special_fields(&self) -> &::protobuf::SpecialFields {
+            &self.special_fields
+        }
+
+        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+            &mut self.special_fields
+        }
+
+        fn new() -> DurationChanged {
+            DurationChanged::new()
+        }
+
+        fn clear(&mut self) {
+            self.duration = 0;
+            self.special_fields.clear();
+        }
+
+        fn default_instance() -> &'static DurationChanged {
+            static instance: DurationChanged = DurationChanged {
+                duration: 0,
+                special_fields: ::protobuf::SpecialFields::new(),
+            };
+            &instance
+        }
+    }
+
+    // @@protoc_insertion_point(message:fx.ipc.proto.PlayerEvent.TimeChanged)
+    #[derive(PartialEq,Clone,Default,Debug)]
+    pub struct TimeChanged {
+        // message fields
+        // @@protoc_insertion_point(field:fx.ipc.proto.PlayerEvent.TimeChanged.time)
+        pub time: u64,
+        // special fields
+        // @@protoc_insertion_point(special_field:fx.ipc.proto.PlayerEvent.TimeChanged.special_fields)
+        pub special_fields: ::protobuf::SpecialFields,
+    }
+
+    impl<'a> ::std::default::Default for &'a TimeChanged {
+        fn default() -> &'a TimeChanged {
+            <TimeChanged as ::protobuf::Message>::default_instance()
+        }
+    }
+
+    impl TimeChanged {
+        pub fn new() -> TimeChanged {
+            ::std::default::Default::default()
+        }
+    }
+
+    impl ::protobuf::Message for TimeChanged {
+        const NAME: &'static str = "TimeChanged";
+
+        fn is_initialized(&self) -> bool {
+            true
+        }
+
+        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+            while let Some(tag) = is.read_raw_tag_or_eof()? {
+                match tag {
+                    8 => {
+                        self.time = is.read_uint64()?;
+                    },
+                    tag => {
+                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                    },
+                };
+            }
+            ::std::result::Result::Ok(())
+        }
+
+        // Compute sizes of nested messages
+        #[allow(unused_variables)]
+        fn compute_size(&self) -> u64 {
+            let mut my_size = 0;
+            if self.time != 0 {
+                my_size += ::protobuf::rt::uint64_size(1, self.time);
+            }
+            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+            self.special_fields.cached_size().set(my_size as u32);
+            my_size
+        }
+
+        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+            if self.time != 0 {
+                os.write_uint64(1, self.time)?;
+            }
+            os.write_unknown_fields(self.special_fields.unknown_fields())?;
+            ::std::result::Result::Ok(())
+        }
+
+        fn special_fields(&self) -> &::protobuf::SpecialFields {
+            &self.special_fields
+        }
+
+        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+            &mut self.special_fields
+        }
+
+        fn new() -> TimeChanged {
+            TimeChanged::new()
+        }
+
+        fn clear(&mut self) {
+            self.time = 0;
+            self.special_fields.clear();
+        }
+
+        fn default_instance() -> &'static TimeChanged {
+            static instance: TimeChanged = TimeChanged {
+                time: 0,
+                special_fields: ::protobuf::SpecialFields::new(),
+            };
+            &instance
+        }
+    }
+
+    // @@protoc_insertion_point(message:fx.ipc.proto.PlayerEvent.StateChanged)
+    #[derive(PartialEq,Clone,Default,Debug)]
+    pub struct StateChanged {
+        // message fields
+        // @@protoc_insertion_point(field:fx.ipc.proto.PlayerEvent.StateChanged.state)
+        pub state: ::protobuf::EnumOrUnknown<super::player::State>,
+        // special fields
+        // @@protoc_insertion_point(special_field:fx.ipc.proto.PlayerEvent.StateChanged.special_fields)
+        pub special_fields: ::protobuf::SpecialFields,
+    }
+
+    impl<'a> ::std::default::Default for &'a StateChanged {
+        fn default() -> &'a StateChanged {
+            <StateChanged as ::protobuf::Message>::default_instance()
+        }
+    }
+
+    impl StateChanged {
+        pub fn new() -> StateChanged {
+            ::std::default::Default::default()
+        }
+    }
+
+    impl ::protobuf::Message for StateChanged {
+        const NAME: &'static str = "StateChanged";
+
+        fn is_initialized(&self) -> bool {
+            true
+        }
+
+        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+            while let Some(tag) = is.read_raw_tag_or_eof()? {
+                match tag {
+                    8 => {
+                        self.state = is.read_enum_or_unknown()?;
+                    },
+                    tag => {
+                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                    },
+                };
+            }
+            ::std::result::Result::Ok(())
+        }
+
+        // Compute sizes of nested messages
+        #[allow(unused_variables)]
+        fn compute_size(&self) -> u64 {
+            let mut my_size = 0;
+            if self.state != ::protobuf::EnumOrUnknown::new(super::player::State::READY) {
+                my_size += ::protobuf::rt::int32_size(1, self.state.value());
+            }
+            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+            self.special_fields.cached_size().set(my_size as u32);
+            my_size
+        }
+
+        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+            if self.state != ::protobuf::EnumOrUnknown::new(super::player::State::READY) {
+                os.write_enum(1, ::protobuf::EnumOrUnknown::value(&self.state))?;
+            }
+            os.write_unknown_fields(self.special_fields.unknown_fields())?;
+            ::std::result::Result::Ok(())
+        }
+
+        fn special_fields(&self) -> &::protobuf::SpecialFields {
+            &self.special_fields
+        }
+
+        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+            &mut self.special_fields
+        }
+
+        fn new() -> StateChanged {
+            StateChanged::new()
+        }
+
+        fn clear(&mut self) {
+            self.state = ::protobuf::EnumOrUnknown::new(super::player::State::READY);
+            self.special_fields.clear();
+        }
+
+        fn default_instance() -> &'static StateChanged {
+            static instance: StateChanged = StateChanged {
+                state: ::protobuf::EnumOrUnknown::from_i32(0),
+                special_fields: ::protobuf::SpecialFields::new(),
+            };
+            &instance
+        }
+    }
+
+    // @@protoc_insertion_point(message:fx.ipc.proto.PlayerEvent.VolumeChanged)
+    #[derive(PartialEq,Clone,Default,Debug)]
+    pub struct VolumeChanged {
+        // message fields
+        // @@protoc_insertion_point(field:fx.ipc.proto.PlayerEvent.VolumeChanged.volume)
+        pub volume: u32,
+        // special fields
+        // @@protoc_insertion_point(special_field:fx.ipc.proto.PlayerEvent.VolumeChanged.special_fields)
+        pub special_fields: ::protobuf::SpecialFields,
+    }
+
+    impl<'a> ::std::default::Default for &'a VolumeChanged {
+        fn default() -> &'a VolumeChanged {
+            <VolumeChanged as ::protobuf::Message>::default_instance()
+        }
+    }
+
+    impl VolumeChanged {
+        pub fn new() -> VolumeChanged {
+            ::std::default::Default::default()
+        }
+    }
+
+    impl ::protobuf::Message for VolumeChanged {
+        const NAME: &'static str = "VolumeChanged";
+
+        fn is_initialized(&self) -> bool {
+            true
+        }
+
+        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+            while let Some(tag) = is.read_raw_tag_or_eof()? {
+                match tag {
+                    8 => {
+                        self.volume = is.read_uint32()?;
+                    },
+                    tag => {
+                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                    },
+                };
+            }
+            ::std::result::Result::Ok(())
+        }
+
+        // Compute sizes of nested messages
+        #[allow(unused_variables)]
+        fn compute_size(&self) -> u64 {
+            let mut my_size = 0;
+            if self.volume != 0 {
+                my_size += ::protobuf::rt::uint32_size(1, self.volume);
+            }
+            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+            self.special_fields.cached_size().set(my_size as u32);
+            my_size
+        }
+
+        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+            if self.volume != 0 {
+                os.write_uint32(1, self.volume)?;
+            }
+            os.write_unknown_fields(self.special_fields.unknown_fields())?;
+            ::std::result::Result::Ok(())
+        }
+
+        fn special_fields(&self) -> &::protobuf::SpecialFields {
+            &self.special_fields
+        }
+
+        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+            &mut self.special_fields
+        }
+
+        fn new() -> VolumeChanged {
+            VolumeChanged::new()
+        }
+
+        fn clear(&mut self) {
+            self.volume = 0;
+            self.special_fields.clear();
+        }
+
+        fn default_instance() -> &'static VolumeChanged {
+            static instance: VolumeChanged = VolumeChanged {
+                volume: 0,
+                special_fields: ::protobuf::SpecialFields::new(),
+            };
+            &instance
+        }
+    }
+
+    #[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
+    // @@protoc_insertion_point(enum:fx.ipc.proto.PlayerEvent.Event)
+    pub enum Event {
+        // @@protoc_insertion_point(enum_value:fx.ipc.proto.PlayerEvent.Event.DURATION_CHANGED)
+        DURATION_CHANGED = 0,
+        // @@protoc_insertion_point(enum_value:fx.ipc.proto.PlayerEvent.Event.TIME_CHANGED)
+        TIME_CHANGED = 1,
+        // @@protoc_insertion_point(enum_value:fx.ipc.proto.PlayerEvent.Event.STATE_CHANGED)
+        STATE_CHANGED = 2,
+        // @@protoc_insertion_point(enum_value:fx.ipc.proto.PlayerEvent.Event.VOLUME_CHANGED)
+        VOLUME_CHANGED = 3,
+    }
+
+    impl ::protobuf::Enum for Event {
+        const NAME: &'static str = "Event";
+
+        fn value(&self) -> i32 {
+            *self as i32
+        }
+
+        fn from_i32(value: i32) -> ::std::option::Option<Event> {
+            match value {
+                0 => ::std::option::Option::Some(Event::DURATION_CHANGED),
+                1 => ::std::option::Option::Some(Event::TIME_CHANGED),
+                2 => ::std::option::Option::Some(Event::STATE_CHANGED),
+                3 => ::std::option::Option::Some(Event::VOLUME_CHANGED),
+                _ => ::std::option::Option::None
+            }
+        }
+
+        fn from_str(str: &str) -> ::std::option::Option<Event> {
+            match str {
+                "DURATION_CHANGED" => ::std::option::Option::Some(Event::DURATION_CHANGED),
+                "TIME_CHANGED" => ::std::option::Option::Some(Event::TIME_CHANGED),
+                "STATE_CHANGED" => ::std::option::Option::Some(Event::STATE_CHANGED),
+                "VOLUME_CHANGED" => ::std::option::Option::Some(Event::VOLUME_CHANGED),
+                _ => ::std::option::Option::None
+            }
+        }
+
+        const VALUES: &'static [Event] = &[
+            Event::DURATION_CHANGED,
+            Event::TIME_CHANGED,
+            Event::STATE_CHANGED,
+            Event::VOLUME_CHANGED,
+        ];
+    }
+
+    impl ::std::default::Default for Event {
+        fn default() -> Self {
+            Event::DURATION_CHANGED
+        }
+    }
+
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.InvokePlayerEvent)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct InvokePlayerEvent {
+    // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.InvokePlayerEvent.id)
+    pub id: ::std::string::String,
+    // @@protoc_insertion_point(field:fx.ipc.proto.InvokePlayerEvent.event)
+    pub event: ::protobuf::MessageField<PlayerEvent>,
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.InvokePlayerEvent.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a InvokePlayerEvent {
+    fn default() -> &'a InvokePlayerEvent {
+        <InvokePlayerEvent as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl InvokePlayerEvent {
+    pub fn new() -> InvokePlayerEvent {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for InvokePlayerEvent {
+    const NAME: &'static str = "InvokePlayerEvent";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    self.id = is.read_string()?;
+                },
+                18 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.event)?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if !self.id.is_empty() {
+            my_size += ::protobuf::rt::string_size(1, &self.id);
+        }
+        if let Some(v) = self.event.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if !self.id.is_empty() {
+            os.write_string(1, &self.id)?;
+        }
+        if let Some(v) = self.event.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> InvokePlayerEvent {
+        InvokePlayerEvent::new()
+    }
+
+    fn clear(&mut self) {
+        self.id.clear();
+        self.event.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static InvokePlayerEvent {
+        static instance: InvokePlayerEvent = InvokePlayerEvent {
+            id: ::std::string::String::new(),
+            event: ::protobuf::MessageField::none(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}

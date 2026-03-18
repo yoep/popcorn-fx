@@ -125,7 +125,7 @@ public class FxChannel implements Closeable {
                     var message = fxLib.receive();
                     log.trace("IPC channel received {}", message.getType());
                     executor.execute(() -> processMessage(message));
-                } catch (FxChannelException ex) {
+                } catch (FxLibException ex) {
                     System.err.println("IPC channel receiver encountered an error: " + ex.getMessage());
                     ex.printStackTrace(System.err);
                     running.set(false);

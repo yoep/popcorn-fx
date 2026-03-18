@@ -11,6 +11,7 @@ module player.popcorn {
     requires org.slf4j;
 
     requires static lombok;
+    requires java.sql;
 
     exports com.github.yoep.player.popcorn.controllers.components;
     exports com.github.yoep.player.popcorn.controllers.sections;

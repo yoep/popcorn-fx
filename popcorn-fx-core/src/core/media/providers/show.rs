@@ -1,12 +1,3 @@
-use std::borrow::BorrowMut;
-use std::fmt::{Display, Formatter};
-use std::sync::Arc;
-
-use async_trait::async_trait;
-use itertools::*;
-use log::{debug, info, warn};
-use tokio::sync::Mutex;
-
 use crate::core::cache::{CacheExecutionError, CacheManager};
 use crate::core::config::ApplicationConfig;
 use crate::core::media::providers::utils::available_uris;
@@ -15,6 +6,13 @@ use crate::core::media::{
     Category, Genre, MediaDetails, MediaError, MediaOverview, MediaType, ShowDetails, ShowOverview,
     SortBy,
 };
+use async_trait::async_trait;
+use itertools::*;
+use log::{debug, info, warn};
+use std::borrow::BorrowMut;
+use std::fmt::{Display, Formatter};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 const PROVIDER_NAME: &str = "series";
 const SEARCH_RESOURCE_NAME: &str = "shows";
@@ -53,7 +51,15 @@ impl ShowProvider {
         cache_manager: CacheManager,
         insecure: bool,
     ) -> Self {
-        let uris = available_uris(&settings, PROVIDER_NAME).await;
+        let api_servers = settings
+            .user_settings_ref(|e| e.server_settings.serie_api_servers.clone())
+            .await;
+        let uris = available_uris(
+            api_servers.as_slice(),
+            settings.properties_ref(),
+            PROVIDER_NAME,
+        )
+        .await;
 
         Self {
             base: Arc::new(Mutex::new(BaseProvider::new(uris, insecure))),

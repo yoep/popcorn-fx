@@ -104,18 +104,22 @@ impl TryFrom<&application_settings::UISettings> for UiSettings {
 impl From<&ServerSettings> for application_settings::ServerSettings {
     fn from(value: &ServerSettings) -> Self {
         Self {
-            api_server: value.api_server.clone(),
+            movie_api_servers: value.movie_api_servers.clone(),
+            serie_api_servers: value.serie_api_servers.clone(),
+            update_api_servers_automatically: value.update_api_servers_automatically,
             special_fields: Default::default(),
         }
     }
 }
 
-impl TryFrom<&application_settings::ServerSettings> for ServerSettings {
+impl TryFrom<application_settings::ServerSettings> for ServerSettings {
     type Error = Error;
 
-    fn try_from(value: &application_settings::ServerSettings) -> Result<Self> {
+    fn try_from(value: application_settings::ServerSettings) -> Result<Self> {
         Ok(Self {
-            api_server: value.api_server.clone(),
+            movie_api_servers: value.movie_api_servers,
+            serie_api_servers: value.serie_api_servers,
+            update_api_servers_automatically: value.update_api_servers_automatically,
         })
     }
 }
@@ -180,6 +184,21 @@ impl From<&PlaybackSettings> for application_settings::PlaybackSettings {
     }
 }
 
+impl TryFrom<application_settings::PlaybackSettings> for PlaybackSettings {
+    type Error = Error;
+
+    fn try_from(value: application_settings::PlaybackSettings) -> Result<Self> {
+        Ok(Self {
+            quality: value
+                .quality
+                .and_then(|e| e.enum_value().ok())
+                .map(|q| Quality::from(q)),
+            fullscreen: value.fullscreen,
+            auto_play_next_episode_enabled: value.auto_play_next_episode_enabled,
+        })
+    }
+}
+
 impl From<&MediaTrackingSyncState> for last_sync::State {
     fn from(value: &MediaTrackingSyncState) -> Self {
         match value {
@@ -228,8 +247,8 @@ impl From<&Quality> for playback_settings::Quality {
     }
 }
 
-impl From<&playback_settings::Quality> for Quality {
-    fn from(value: &playback_settings::Quality) -> Self {
+impl From<playback_settings::Quality> for Quality {
+    fn from(value: playback_settings::Quality) -> Self {
         match value {
             playback_settings::Quality::P0 | playback_settings::Quality::P480 => Self::P480,
             playback_settings::Quality::P720 => Self::P720,
@@ -259,6 +278,31 @@ impl From<&CleaningMode> for application_settings::torrent_settings::CleaningMod
                 application_settings::torrent_settings::CleaningMode::ON_SHUTDOWN
             }
             CleaningMode::Watched => application_settings::torrent_settings::CleaningMode::WATCHED,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod playback_settings {
+        use super::*;
+
+        #[test]
+        fn test_settings_try_from_proto() {
+            let proto_settings = application_settings::PlaybackSettings {
+                quality: Some(application_settings::playback_settings::Quality::P720.into()),
+                fullscreen: true,
+                auto_play_next_episode_enabled: false,
+                special_fields: Default::default(),
+            };
+
+            let settings = PlaybackSettings::try_from(proto_settings).unwrap();
+
+            assert_eq!(settings.quality, Some(Quality::P720));
+            assert_eq!(settings.fullscreen, true);
+            assert_eq!(settings.auto_play_next_episode_enabled, false);
         }
     }
 }

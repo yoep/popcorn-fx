@@ -45,7 +45,7 @@
         <hamcrest.version>2.2</hamcrest.version>
         <jacoco.version>0.8.14</jacoco.version>
         <javafx.version>22.0.1</javafx.version>
-        <junit-jupiter.version>6.0.1</junit-jupiter.version>
+        <junit-jupiter.version>6.0.3</junit-jupiter.version>
         <log4j-to-slf4j.version>2.25.3</log4j-to-slf4j.version>
         <logback-classic.version>1.5.5</logback-classic.version>
         <lombok.version>1.18.30</lombok.version>
@@ -284,10 +284,22 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>properties</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <argLine>
                         @{argLine}
+                        -javaagent:${org.mockito:mockito-core:jar}
                         --add-opens javafx.graphics/com.sun.javafx.application=ALL-UNNAMED
                         --add-opens javafx.base/com.sun.javafx.beans=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.adapters.player.listeners=ALL-UNNAMED

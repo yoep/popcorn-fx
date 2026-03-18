@@ -75,8 +75,8 @@ impl From<&fx_torrent::File> for torrent::info::File {
     fn from(value: &fx_torrent::File) -> Self {
         Self {
             index: value.index as u32,
-            filename: value.filename(),
-            torrent_path: value.torrent_path.as_os_str().to_string_lossy().to_string(),
+            filename: value.filename().to_string(),
+            torrent_path: value.torrent_path.to_string_lossy().into_owned(),
             offset: value.torrent_offset as u64,
             length: value.len() as u64,
             md5sum: value.info.md5sum.clone(),

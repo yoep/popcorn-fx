@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Playlist;
+import com.github.yoep.popcorn.backend.playlists.PlayNext;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManagerListener;
 import com.github.yoep.popcorn.ui.view.controls.SizedImageView;
@@ -39,12 +40,12 @@ class PlayingNextInComponentTest {
     private URL url;
     @Mock
     private ResourceBundle resourceBundle;
-    @InjectMocks
     private PlayingNextInComponent component;
 
     @BeforeEach
     void setUp() {
         when(imageService.getPosterPlaceholder()).thenReturn(new CompletableFuture<>());
+        component = new PlayingNextInComponent(imageService, playlistManager);
 
         component.playNextPane = new Pane();
         component.playNextPoster = new SizedImageView();
@@ -73,7 +74,7 @@ class PlayingNextInComponentTest {
         component.initialize(url, resourceBundle);
 
         var listener = listenerHolder.get();
-        listener.onPlayingIn(null, item);
+        listener.onPlayNextChanged(new PlayNext.Next(item));
 
         WaitForAsyncUtils.waitFor(100, TimeUnit.MILLISECONDS, () -> Objects.equals(component.showName.getText(), title));
         WaitForAsyncUtils.waitFor(100, TimeUnit.MILLISECONDS, () -> component.episodeTitle.getText().equals(caption));

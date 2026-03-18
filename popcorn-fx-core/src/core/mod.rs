@@ -1,3 +1,6 @@
+#[macro_use]
+pub mod channel;
+
 pub mod cache;
 pub mod config;
 pub mod event;

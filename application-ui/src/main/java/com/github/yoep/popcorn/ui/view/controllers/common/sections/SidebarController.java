@@ -176,6 +176,7 @@ public class SidebarController implements Initializable {
             if (newState == Update.State.UPDATE_AVAILABLE) {
                 updateTransition.playFromStart();
                 infoTooltip.setText(localeText.get(UpdateMessage.UPDATE_AVAILABLE));
+                eventPublisher.publish(new ShowUpdateEvent(this));
             } else {
                 updateTransition.stop();
                 infoTooltip.setText(localeText.get("header_about"));

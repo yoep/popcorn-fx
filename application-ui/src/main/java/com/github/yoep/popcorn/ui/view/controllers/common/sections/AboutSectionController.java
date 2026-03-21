@@ -166,7 +166,7 @@ public class AboutSectionController implements Initializable {
         Platform.runLater(() -> playersPane.setItems(players));
     }
 
-    private void onUpdate() {
+    private void onUpdateAction() {
         updateService.getState().whenComplete((state, throwable) -> {
             if (throwable == null) {
                 if (state == Update.State.UPDATE_AVAILABLE) {
@@ -191,14 +191,14 @@ public class AboutSectionController implements Initializable {
     @FXML
     void onUpdateClicked(MouseEvent event) {
         event.consume();
-        onUpdate();
+        onUpdateAction();
     }
 
     @FXML
     void onUpdatePressed(KeyEvent event) {
         if (event.getCode() == KeyCode.ENTER) {
             event.consume();
-            onUpdate();
+            onUpdateAction();
         }
     }
 }

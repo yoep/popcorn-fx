@@ -855,7 +855,7 @@ mod test {
         let temp_dir = settings
             .user_settings_ref(|e| e.subtitle().directory.clone())
             .await;
-        let service = OpensubtitlesProvider::builder().settings(settings).build();
+        let provider = OpensubtitlesProvider::builder().settings(settings).build();
         let filename = "test-subtitle-file.srt".to_string();
         let subtitle_info = SubtitleInfo::builder()
             .imdb_id("tt7405458")
@@ -886,11 +886,13 @@ mod test {
                 .header("content-type", "text")
                 .body(read_test_file_to_string("subtitle_example.srt"));
         });
-        let expected_file: PathBuf = [temp_dir, filename].iter().collect();
+        let expected_file: PathBuf = [temp_dir, "test-subtitle-file.de.srt".to_string()]
+            .iter()
+            .collect();
         let expected_result = read_test_file_to_string("subtitle_example.srt");
 
         // download the subtitle
-        let path = service.download(&subtitle_info, &matcher).await.unwrap();
+        let path = provider.download(&subtitle_info, &matcher).await.unwrap();
         assert_eq!(expected_file, path);
 
         // read the stored file
@@ -909,7 +911,7 @@ mod test {
         let temp_dir = settings
             .user_settings_ref(|e| e.subtitle().directory.clone())
             .await;
-        let service = OpensubtitlesProvider::builder().settings(settings).build();
+        let provider = OpensubtitlesProvider::builder().settings(settings).build();
         let filename = "test-subtitle-file.srt".to_string();
         let subtitle_info = SubtitleInfo::builder()
             .imdb_id("tt7405458")
@@ -941,7 +943,7 @@ mod test {
                 .body(read_test_file_to_string("subtitle_example.srt"));
         });
 
-        let _ = service
+        let path = provider
             .download(&subtitle_info, &matcher)
             .await
             .expect("expected the download to succeed");
@@ -952,8 +954,9 @@ mod test {
             "expected the subtitle directory to have been created"
         );
         assert!(
-            PathBuf::from(temp_dir.as_str()).join(filename).exists(),
-            "expected the subtitle to have been created"
+            path.exists(),
+            "expected the subtitle path {:?} to have been stored",
+            path
         );
     }
 
@@ -961,18 +964,19 @@ mod test {
     async fn test_download_when_subtitle_file_exists_should_return_existing_file() {
         init_logger!();
         let test_file = "subtitle_existing.srt";
+        let language = SubtitleLanguage::German;
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let destination = copy_test_file(temp_path, test_file, None);
-        let service = OpensubtitlesProvider::builder()
+        let destination = copy_test_file(temp_path, test_file, Some("subtitle_existing.de.srt"));
+        let provider = OpensubtitlesProvider::builder()
             .settings(settings!(temp_path))
             .build();
         let subtitle_info = SubtitleInfo::builder()
             .imdb_id("tt00001")
-            .language(SubtitleLanguage::German)
+            .language(language)
             .files(vec![SubtitleFile::builder()
                 .file_id(10001111)
-                .name("subtitle_existing.srt")
+                .name(test_file)
                 .url("")
                 .score(0.0)
                 .downloads(0)
@@ -982,7 +986,7 @@ mod test {
         let expected_result = read_test_file_to_string(test_file);
 
         // download the subtitle
-        let path = service.download(&subtitle_info, &matcher).await.unwrap();
+        let path = provider.download(&subtitle_info, &matcher).await.unwrap();
         assert_eq!(destination, path);
 
         // read the stored file

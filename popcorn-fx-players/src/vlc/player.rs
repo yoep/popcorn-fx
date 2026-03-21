@@ -709,14 +709,9 @@ mod tests {
             .title("MyVideo")
             .subtitles_enabled(false)
             .build();
-        let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
-            .subtitle_manager(Arc::new(
-                SubtitleManager::builder()
-                    .settings(settings!(temp_path))
-                    .provider(provider)
-                    .build(),
-            ))
+            .subtitle_manager(Arc::new(subtitle_manager!(settings!(temp_path))))
+            .address(server.address().clone())
             .build();
 
         player.play(request).await;

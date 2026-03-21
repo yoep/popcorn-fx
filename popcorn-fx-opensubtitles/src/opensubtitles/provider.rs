@@ -406,15 +406,27 @@ impl OpensubtitlesProvider {
         }
     }
 
-    /// Retrieve the storage [Path] for the given subtitle file.
-    async fn storage_file(&self, file: &SubtitleFile) -> PathBuf {
-        let file_name = file.name();
-        let settings = self
+    /// Returns the [Path] to where the subtitle should be stored.
+    async fn storage_file(&self, file: &SubtitleFile, language: &SubtitleLanguage) -> PathBuf {
+        let path = Path::new(file.name());
+        let base_path = self
             .settings
             .user_settings_ref(|e| e.subtitle().clone())
-            .await;
+            .await
+            .directory();
 
-        settings.directory().join(file_name)
+        match (path.file_stem(), path.extension()) {
+            (Some(name), Some(extension)) => base_path.join(format!(
+                "{}.{}.{}",
+                name.to_string_lossy(),
+                language.code(),
+                extension.to_string_lossy()
+            )),
+            _ => {
+                warn!("Subtitle file {:?} has no valid name or extension", path);
+                base_path.join(file.name())
+            }
+        }
     }
 
     /// Retrieve the subtitle filename from the given file or attributes.
@@ -501,7 +513,8 @@ impl SubtitleProvider for OpensubtitlesProvider {
     ) -> Result<PathBuf> {
         trace!("Starting subtitle download for {}", subtitle_info);
         let subtitle_file = subtitle_info.best_matching_file(matcher)?;
-        let file_location = self.storage_file(&subtitle_file).await;
+        let language = subtitle_info.language();
+        let file_location = self.storage_file(&subtitle_file, language).await;
         let file_id = subtitle_file.file_id();
         let path = file_location.as_path();
 
@@ -617,7 +630,6 @@ mod test {
     use httpmock::Method::{GET, POST};
     use httpmock::MockServer;
     use popcorn_fx_core::core::config::*;
-    use popcorn_fx_core::core::subtitles::language::SubtitleLanguage::English;
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::{copy_test_file, read_test_file_to_string};
     use tokio::fs::read;
@@ -656,7 +668,7 @@ mod test {
                         .unwrap()
                         .to_string(),
                     auto_cleaning_enabled: false,
-                    default_subtitle: English,
+                    default_subtitle: SubtitleLanguage::English,
                     font_family: SubtitleFamily::Arial,
                     font_size: 28,
                     decoration: DecorationType::None,
@@ -784,7 +796,7 @@ mod test {
         });
         let expected_result = SubtitleInfo::builder()
             .imdb_id("tt2861424")
-            .language(English)
+            .language(SubtitleLanguage::English)
             .build();
 
         let result = service.episode_subtitles(&show, &episode).await;
@@ -951,34 +963,10 @@ mod test {
         let test_file = "subtitle_existing.srt";
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let popcorn_settings = PopcornSettings {
-            subtitle_settings: SubtitleSettings {
-                directory: temp_path.to_string(),
-                auto_cleaning_enabled: false,
-                default_subtitle: English,
-                font_family: SubtitleFamily::Arial,
-                font_size: 28,
-                decoration: DecorationType::None,
-                bold: false,
-            },
-            ui_settings: UiSettings {
-                default_language: "en".to_string(),
-                ui_scale: UiScale::new(1f32).expect("Expected ui scale to be valid"),
-                start_screen: Category::Movies,
-                maximized: false,
-                native_window_enabled: false,
-            },
-            server_settings: ServerSettings::default(),
-            torrent_settings: TorrentSettings::default(),
-            playback_settings: Default::default(),
-            tracking_settings: Default::default(),
-        };
-        let settings = ApplicationConfig::builder()
-            .storage(temp_path)
-            .settings(popcorn_settings)
-            .build();
         let destination = copy_test_file(temp_path, test_file, None);
-        let service = OpensubtitlesProvider::builder().settings(settings).build();
+        let service = OpensubtitlesProvider::builder()
+            .settings(settings!(temp_path))
+            .build();
         let subtitle_info = SubtitleInfo::builder()
             .imdb_id("tt00001")
             .language(SubtitleLanguage::German)
@@ -1076,5 +1064,61 @@ mod test {
             "lorem.2009.Bluray.1080p.DTSMA5.1.x264.dxva-FraMeSToR.ENG.srt".to_string(),
             filename2
         );
+    }
+
+    mod storage_file {
+        use super::*;
+
+        #[tokio::test]
+        async fn test_filename() {
+            init_logger!();
+            let temp_dir = tempfile::tempdir().unwrap();
+            let temp_path = temp_dir.path().to_str().unwrap();
+            let file = SubtitleFile::builder()
+                .file_id(123)
+                .name("lorem.srt")
+                .url("http://example.com/lorem.srt")
+                .score(0.0)
+                .downloads(0)
+                .build();
+            let provider = OpensubtitlesProvider::builder()
+                .settings(settings!(temp_path))
+                .build();
+
+            let path = provider
+                .storage_file(&file, &SubtitleLanguage::English)
+                .await;
+            let result = path.file_name().unwrap().to_string_lossy();
+            assert_eq!("lorem.en.srt", result);
+
+            let path = provider
+                .storage_file(&file, &SubtitleLanguage::German)
+                .await;
+            let result = path.file_name().unwrap().to_string_lossy();
+            assert_eq!("lorem.de.srt", result);
+        }
+
+        #[tokio::test]
+        async fn test_invalid_filename() {
+            init_logger!();
+            let temp_dir = tempfile::tempdir().unwrap();
+            let temp_path = temp_dir.path().to_str().unwrap();
+            let file = SubtitleFile::builder()
+                .file_id(123)
+                .name("")
+                .url("http://example.com/FooBar.srt")
+                .score(0.0)
+                .downloads(0)
+                .build();
+            let provider = OpensubtitlesProvider::builder()
+                .settings(settings!(temp_path))
+                .build();
+
+            let path = provider
+                .storage_file(&file, &SubtitleLanguage::English)
+                .await;
+            let result = path.file_name().unwrap().to_string_lossy();
+            assert_ne!("", result);
+        }
     }
 }

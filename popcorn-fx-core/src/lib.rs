@@ -1,5 +1,5 @@
 /// The current application version of Popcorn FX.
-pub const VERSION: &str = "0.9.3";
+pub const VERSION: &str = "0.9.4";
 
 pub mod core;
 

@@ -205,23 +205,46 @@ impl<T, E> Debug for InnerResponse<T, E> {
 /// Reply to a channel request with a value.
 #[derive(Debug)]
 pub struct Reply<T> {
-    inner: oneshot::Sender<T>,
+    inner: InnerReply<T>,
 }
 
 impl<T> Reply<T> {
     fn new(inner: oneshot::Sender<T>) -> Self {
-        Self { inner }
+        Self {
+            inner: InnerReply::Sender(inner),
+        }
+    }
+
+    /// Create an empty reply channel.
+    pub fn empty() -> Self {
+        Self {
+            inner: InnerReply::Empty,
+        }
     }
 
     /// Send the given value as a response to the channel request.
     pub fn send(self, value: T) {
-        let _ = self.inner.send(value);
+        match self.inner {
+            InnerReply::Sender(inner) => {
+                let _ = inner.send(value);
+            }
+            InnerReply::Empty => {}
+        }
     }
 
     /// Take the inner resolution sender.
     pub(crate) fn take(self) -> oneshot::Sender<T> {
-        self.inner
+        match self.inner {
+            InnerReply::Sender(e) => e,
+            InnerReply::Empty => oneshot::channel().0,
+        }
     }
+}
+
+#[derive(Debug)]
+enum InnerReply<T> {
+    Sender(oneshot::Sender<T>),
+    Empty,
 }
 
 #[derive(Debug)]
@@ -350,6 +373,39 @@ mod tests {
                 _ = time::sleep(Duration::from_millis(100)) => assert!(false, "expected the second message to be processed"),
                 _ = &mut future => {},
             }
+        }
+    }
+
+    mod reply {
+        use super::*;
+        use crate::timeout;
+
+        #[tokio::test]
+        async fn test_send_sender() {
+            let expected_result = 42;
+            let (tx, mut rx) = oneshot::channel();
+            let reply = Reply::new(tx);
+
+            reply.send(expected_result);
+
+            let result = timeout!(&mut rx, Duration::from_millis(100)).expect("expected a reply");
+            assert_eq!(expected_result, result);
+        }
+
+        #[tokio::test]
+        async fn test_send_empty() {
+            let reply = Reply::empty();
+
+            reply.send(66);
+
+            // no-op
+        }
+
+        #[tokio::test]
+        async fn test_take_empty() {
+            let reply = Reply::<u32>::empty();
+
+            assert_eq!(true, reply.take().is_closed());
         }
     }
 

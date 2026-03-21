@@ -21,11 +21,6 @@ pub struct SrtParser {
 }
 
 impl SrtParser {
-    /// Create a new srt parser instance.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     async fn parse<R: AsyncRead + Unpin>(
         &self,
         reader: &mut BufReader<R>,
@@ -218,7 +213,7 @@ mod test {
 
     #[test]
     fn test_srt_parser_read_identifier() {
-        let parser = SrtParser::new();
+        let parser = SrtParser::default();
         let identifier = "my-identifier".to_string();
         let mut expected_result = SubtitleCueBuilder::new();
         expected_result.id(identifier.clone());
@@ -237,7 +232,7 @@ mod test {
 <i>Drink up, me hearties, yo ho</i>"#
                 .as_bytes(),
         );
-        let parser = SrtParser::new();
+        let parser = SrtParser::default();
         let expected_result: SubtitleCue = SubtitleCue::new(
             "1".to_string(),
             30296,
@@ -272,7 +267,7 @@ you've chosen, is it?
 The <i>Black Pearl</i> is yours."#
                 .as_bytes(),
         );
-        let parser = SrtParser::new();
+        let parser = SrtParser::default();
         let expected_result: Vec<SubtitleCue> = vec![
             SubtitleCue::new(
                 "1526".to_string(),
@@ -354,7 +349,7 @@ The <i>Black Pearl</i> is yours."#
                 false,
             )])],
         )];
-        let parser = SrtParser::new();
+        let parser = SrtParser::default();
         let expected_result = r#"1
 00:00:30,000 --> 00:00:48,100
 <i>lorem</i>

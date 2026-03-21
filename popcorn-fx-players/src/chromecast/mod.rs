@@ -12,19 +12,22 @@ pub mod transcode;
 
 #[cfg(test)]
 mod tests {
+    use crate::chromecast::device::{MockFxCastDevice, DEFAULT_RECEIVER};
+    use crate::chromecast::transcode::{MockTranscoder, Transcoder};
+    use log::{debug, error, warn};
+    use mdns_sd::{ServiceDaemon, ServiceInfo};
+    use popcorn_fx_core::core::subtitles::SubtitleServer;
+    use popcorn_fx_core::core::utils::network::{available_socket, local_ip_addr};
+    use protobuf::{EnumOrUnknown, Message};
+    use rust_cast::cast::cast_channel;
+    use rust_cast::cast::cast_channel::cast_message::{PayloadType, ProtocolVersion};
+    use rustls::crypto;
     use std::collections::HashMap;
     use std::fmt::Debug;
     use std::io::Cursor;
     use std::net::SocketAddr;
     use std::sync::{Arc, Once};
-
-    use log::{debug, error, warn};
-    use mdns_sd::{ServiceDaemon, ServiceInfo};
-    use protobuf::{EnumOrUnknown, Message};
-    use rust_cast::cast::cast_channel;
-    use rust_cast::cast::cast_channel::cast_message::{PayloadType, ProtocolVersion};
-    use rustls::crypto;
-    use rustls::crypto::CryptoProvider;
+    use tempfile::{tempdir, TempDir};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::tcp::WriteHalf;
     use tokio::net::{TcpListener, TcpStream};
@@ -32,14 +35,6 @@ mod tests {
     use tokio_rustls::rustls::pki_types::PrivateKeyDer;
     use tokio_rustls::{rustls, TlsAcceptor};
     use tokio_util::sync::CancellationToken;
-
-    use popcorn_fx_core::core::subtitles::{
-        MockSubtitleProvider, SubtitleProvider, SubtitleServer,
-    };
-    use popcorn_fx_core::core::utils::network::{available_socket, local_ip_addr};
-
-    use crate::chromecast::device::{MockFxCastDevice, DEFAULT_RECEIVER};
-    use crate::chromecast::transcode::{MockTranscoder, Transcoder};
 
     use super::*;
 
@@ -68,6 +63,7 @@ mod tests {
 
     #[derive(Debug)]
     pub struct TestInstance {
+        pub temp_dir: TempDir,
         pub mdns: Option<MdnsInstance>,
         pub player: Option<ChromecastPlayer<MockFxCastDevice>>,
         pub cancel_token: CancellationToken,
@@ -139,22 +135,23 @@ mod tests {
         pub async fn new_player(device: Box<dyn Fn() -> MockFxCastDevice + Send + Sync>) -> Self {
             let mut transcoder = MockTranscoder::new();
             transcoder.expect_stop().return_const(());
-            Self::new_player_with_additions(
-                device,
-                Arc::new(MockSubtitleProvider::new()),
-                Box::new(transcoder),
-            )
-            .await
+            Self::new_player_with_additions(device, Box::new(transcoder)).await
         }
 
         pub async fn new_player_with_additions(
             device: Box<dyn Fn() -> MockFxCastDevice + Send + Sync>,
-            subtitle_provider: Arc<dyn SubtitleProvider>,
             transcoder: Box<dyn Transcoder>,
         ) -> Self {
             let mut instance = Self::new();
             let addr = available_socket();
-            let subtitle_server = SubtitleServer::new(subtitle_provider).await.unwrap();
+            let subtitle_server =
+                SubtitleServer::new(Arc::new(subtitle_manager!(settings!(instance
+                    .temp_dir
+                    .path()
+                    .to_string_lossy()
+                    .as_ref()))))
+                .await
+                .unwrap();
             let player = ChromecastPlayer::builder()
                 .id("MyChromecastId")
                 .name("MyChromecastName")
@@ -178,6 +175,7 @@ mod tests {
 
         fn new() -> Self {
             Self {
+                temp_dir: tempdir().unwrap(),
                 mdns: None,
                 player: None,
                 cancel_token: Default::default(),

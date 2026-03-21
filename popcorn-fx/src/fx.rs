@@ -29,9 +29,7 @@ use popcorn_fx_core::core::playlist::PlaylistManager;
 use popcorn_fx_core::core::stream::StreamServer;
 use popcorn_fx_core::core::subtitles::model::SubtitleType;
 use popcorn_fx_core::core::subtitles::parsers::{SrtParser, VttParser};
-use popcorn_fx_core::core::subtitles::{
-    DefaultSubtitleManager, SubtitleManager, SubtitleProvider, SubtitleServer,
-};
+use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleServer};
 use popcorn_fx_core::core::torrents::collection::TorrentCollection;
 use popcorn_fx_core::core::torrents::{FxTorrentManager, TorrentManager};
 use popcorn_fx_core::core::updater::Updater;
@@ -173,8 +171,7 @@ pub struct PopcornFX {
     providers: Arc<ProviderManager>,
     settings: ApplicationConfig,
     stream_server: Arc<StreamServer>,
-    subtitle_manager: Arc<Box<dyn SubtitleManager>>,
-    subtitle_provider: Arc<dyn SubtitleProvider>,
+    subtitle_manager: Arc<SubtitleManager>,
     subtitle_server: Arc<SubtitleServer>,
     torrent_collection: TorrentCollection,
     torrent_manager: Arc<dyn TorrentManager>,
@@ -218,22 +215,24 @@ impl PopcornFX {
             .properties(args.properties.clone())
             .build();
         let cache_manager = CacheManager::new(app_directory_path);
-        let subtitle_provider: Arc<dyn SubtitleProvider> = Arc::new(
-            OpensubtitlesProvider::builder()
+        let subtitle_manager = Arc::new(
+            SubtitleManager::builder()
                 .settings(settings.clone())
-                .with_parser(SubtitleType::Srt, Box::new(SrtParser::default()))
-                .with_parser(SubtitleType::Vtt, Box::new(VttParser::default()))
-                .insecure(args.insecure)
+                .provider(
+                    OpensubtitlesProvider::builder()
+                        .settings(settings.clone())
+                        .insecure(args.insecure)
+                        .build(),
+                )
+                .with_parser(SubtitleType::Srt, SrtParser::default())
+                .with_parser(SubtitleType::Vtt, VttParser::default())
                 .build(),
         );
         let subtitle_server = Arc::new(
-            SubtitleServer::new(subtitle_provider.clone())
+            SubtitleServer::new(subtitle_manager.clone())
                 .await
                 .map_err(|e| Error::Initialization(e.to_string()))?,
         );
-        let subtitle_manager = Arc::new(Box::new(
-            DefaultSubtitleManager::new(settings.clone()).await,
-        ) as Box<dyn SubtitleManager>);
         let platform = Arc::new(Box::new(DefaultPlatform::default()) as Box<dyn PlatformData>);
         let favorites_service =
             Arc::new(FXFavoriteService::new(app_directory_path)) as Arc<dyn FavoriteService>;
@@ -300,10 +299,7 @@ impl PopcornFX {
             Box::new(MediaTorrentUrlLoadingStrategy::new()),
             Box::new(TorrentInfoLoadingStrategy::new(torrent_manager.clone())),
             Box::new(AutoResumeLoadingStrategy::new(auto_resume_service.clone())),
-            Box::new(SubtitlesLoadingStrategy::new(
-                subtitle_provider.clone(),
-                subtitle_manager.clone(),
-            )),
+            Box::new(SubtitlesLoadingStrategy::new(subtitle_manager.clone())),
             Box::new(TorrentLoadingStrategy::new(
                 torrent_manager.clone(),
                 settings.clone(),
@@ -349,7 +345,6 @@ impl PopcornFX {
             )),
             Arc::new(Box::new(VlcDiscovery::new(
                 subtitle_manager.clone(),
-                subtitle_provider.clone(),
                 player_manager.clone(),
             ))),
         ];
@@ -381,7 +376,6 @@ impl PopcornFX {
             providers,
             settings,
             subtitle_manager,
-            subtitle_provider,
             subtitle_server,
             torrent_collection,
             torrent_manager,
@@ -400,18 +394,13 @@ impl PopcornFX {
         &self.settings
     }
 
-    /// The platform service of the popcorn FX instance.
-    pub fn subtitle_provider(&self) -> &Arc<dyn SubtitleProvider> {
-        &self.subtitle_provider
-    }
-
     /// Retrieve the subtitle server instance.
     pub fn subtitle_server(&mut self) -> &mut Arc<SubtitleServer> {
         &mut self.subtitle_server
     }
 
     /// Retrieve the subtitle manager instance.
-    pub fn subtitle_manager(&self) -> &Arc<Box<dyn SubtitleManager>> {
+    pub fn subtitle_manager(&self) -> &Arc<SubtitleManager> {
         &self.subtitle_manager
     }
 

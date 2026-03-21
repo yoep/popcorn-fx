@@ -17,7 +17,6 @@ import com.github.yoep.popcorn.ui.events.ShowUpdateEvent;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
 import com.github.yoep.popcorn.ui.view.controls.AboutDetails;
 import com.github.yoep.popcorn.ui.view.controls.ImageCover;
-import com.github.yoep.popcorn.ui.view.listeners.AboutSectionListener;
 import com.github.yoep.popcorn.ui.view.services.AboutSectionService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.animation.Animation;
@@ -62,8 +61,6 @@ public class AboutSectionController implements Initializable {
     @FXML
     AboutDetails playersPane;
     @FXML
-    AboutDetails videoPane;
-    @FXML
     Button updateButton;
     @FXML
     Icon updateIcon;
@@ -95,17 +92,7 @@ public class AboutSectionController implements Initializable {
     }
 
     private void initializeListeners() {
-        aboutService.addListener(new AboutSectionListener() {
-            @Override
-            public void onPlayersChanged(List<ComponentInfo> players) {
-                AboutSectionController.this.onPlayersChanged(players);
-            }
-
-            @Override
-            public void onVideoPlayersChanged(List<ComponentInfo> videoPlayers) {
-                AboutSectionController.this.onVideoPlayersChanged(videoPlayers);
-            }
-        });
+        aboutService.addListener(AboutSectionController.this::onPlayersChanged);
         eventPublisher.register(ShowAboutEvent.class, event -> {
             Platform.runLater(() -> updateButton.requestFocus());
             return event;
@@ -179,11 +166,7 @@ public class AboutSectionController implements Initializable {
         Platform.runLater(() -> playersPane.setItems(players));
     }
 
-    private void onVideoPlayersChanged(List<ComponentInfo> videoPlayers) {
-        Platform.runLater(() -> videoPane.setItems(videoPlayers));
-    }
-
-    private void onUpdate() {
+    private void onUpdateAction() {
         updateService.getState().whenComplete((state, throwable) -> {
             if (throwable == null) {
                 if (state == Update.State.UPDATE_AVAILABLE) {
@@ -208,14 +191,14 @@ public class AboutSectionController implements Initializable {
     @FXML
     void onUpdateClicked(MouseEvent event) {
         event.consume();
-        onUpdate();
+        onUpdateAction();
     }
 
     @FXML
     void onUpdatePressed(KeyEvent event) {
         if (event.getCode() == KeyCode.ENTER) {
             event.consume();
-            onUpdate();
+            onUpdateAction();
         }
     }
 }

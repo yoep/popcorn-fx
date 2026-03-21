@@ -5,7 +5,7 @@
 
     <groupId>com.github.yoep</groupId>
     <artifactId>popcorn-fx</artifactId>
-    <version>0.9.3</version>
+    <version>0.9.4</version>
     <name>Popcorn FX</name>
     <packaging>pom</packaging>
 

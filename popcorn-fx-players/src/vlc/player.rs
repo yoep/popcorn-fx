@@ -9,7 +9,7 @@ use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, error, info, trace, warn};
 use popcorn_fx_core::core::players::{PlayRequest, Player, PlayerEvent, PlayerState};
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
-use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider};
+use popcorn_fx_core::core::subtitles::SubtitleManager;
 use reqwest::header::HeaderMap;
 use reqwest::{Client, ClientBuilder, Error, Response};
 use serde_xml_rs::from_reader;
@@ -132,8 +132,7 @@ impl Drop for VlcPlayer {
 /// ```
 #[derive(Debug, Default)]
 pub struct VlcPlayerBuilder {
-    subtitle_manager: Option<Arc<Box<dyn SubtitleManager>>>,
-    subtitle_provider: Option<Arc<dyn SubtitleProvider>>,
+    subtitle_manager: Option<Arc<SubtitleManager>>,
     password: Option<String>,
     address: Option<SocketAddr>,
 }
@@ -145,14 +144,8 @@ impl VlcPlayerBuilder {
     }
 
     /// Sets the subtitle manager for the VLC player.
-    pub fn subtitle_manager(mut self, subtitle_manager: Arc<Box<dyn SubtitleManager>>) -> Self {
+    pub fn subtitle_manager(mut self, subtitle_manager: Arc<SubtitleManager>) -> Self {
         self.subtitle_manager = Some(subtitle_manager);
-        self
-    }
-
-    /// Sets the subtitle provider for the VLC player.
-    pub fn subtitle_provider(mut self, subtitle_provider: Arc<dyn SubtitleProvider>) -> Self {
-        self.subtitle_provider = Some(subtitle_provider);
         self
     }
 
@@ -219,9 +212,6 @@ impl VlcPlayerBuilder {
             subtitle_manager: self
                 .subtitle_manager
                 .expect("exself.inner.send_command(VlcPlayerCommand::Pause)pected the subtitle_manager to have been set"),
-            subtitle_provider: self
-                .subtitle_provider
-                .expect("expected the subtitle_provider to have been set"),
             command_sender,
             cancellation_token: Default::default(),
         });
@@ -258,8 +248,7 @@ struct InnerVlcPlayer {
     process: Mutex<Option<Child>>,
     state: Mutex<PlayerState>,
     callbacks: MultiThreadedCallback<PlayerEvent>,
-    subtitle_manager: Arc<Box<dyn SubtitleManager>>,
-    subtitle_provider: Arc<dyn SubtitleProvider>,
+    subtitle_manager: Arc<SubtitleManager>,
     command_sender: UnboundedSender<VlcPlayerCommand>,
     cancellation_token: CancellationToken,
 }
@@ -414,7 +403,7 @@ impl InnerVlcPlayer {
 
         if let Some(subtitle) = request.subtitle().info.as_ref() {
             let matcher = SubtitleMatcher::from_string(filename, request.quality());
-            match self.subtitle_provider.download(subtitle, &matcher).await {
+            match self.subtitle_manager.download(subtitle, &matcher).await {
                 Ok(uri) => {
                     debug!("Adding VLC player subtitle file {}", uri);
                     command.arg(format!("--sub-file={}", uri));
@@ -548,25 +537,30 @@ impl VlcCommandBuilder {
 #[cfg(test)]
 #[cfg(not(target_os = "windows"))]
 mod tests {
-    use httpmock::Method::GET;
-    use httpmock::MockServer;
-
     use super::*;
     use crate::tests::wait_for_hit;
+    use httpmock::Method::GET;
+    use httpmock::MockServer;
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
-    use popcorn_fx_core::core::subtitles::{MockSubtitleProvider, SubtitlePreference};
-    use popcorn_fx_core::testing::MockSubtitleManager;
+    use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
     use popcorn_fx_core::{assert_timeout, init_logger, recv_timeout};
+    use std::path::PathBuf;
+    use tempfile::tempdir;
 
     #[tokio::test]
     async fn test_id() {
         init_logger!();
-        let manager = MockSubtitleManager::new();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
-            .subtitle_manager(Arc::new(Box::new(manager)))
-            .subtitle_provider(Arc::new(provider))
+            .subtitle_manager(Arc::new(
+                SubtitleManager::builder()
+                    .settings(settings!(temp_path))
+                    .provider(provider)
+                    .build(),
+            ))
             .build();
 
         assert_eq!("vlc", player.id());
@@ -575,11 +569,16 @@ mod tests {
     #[tokio::test]
     async fn test_name() {
         init_logger!();
-        let manager = MockSubtitleManager::new();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
-            .subtitle_manager(Arc::new(Box::new(manager)))
-            .subtitle_provider(Arc::new(provider))
+            .subtitle_manager(Arc::new(
+                SubtitleManager::builder()
+                    .settings(settings!(temp_path))
+                    .provider(provider)
+                    .build(),
+            ))
             .build();
 
         assert_eq!("VLC", player.name());
@@ -588,11 +587,16 @@ mod tests {
     #[tokio::test]
     async fn test_description() {
         init_logger!();
-        let manager = MockSubtitleManager::new();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
-            .subtitle_manager(Arc::new(Box::new(manager)))
-            .subtitle_provider(Arc::new(provider))
+            .subtitle_manager(Arc::new(
+                SubtitleManager::builder()
+                    .settings(settings!(temp_path))
+                    .provider(provider)
+                    .build(),
+            ))
             .build();
 
         assert_eq!(VLC_DESCRIPTION, player.description());
@@ -601,11 +605,16 @@ mod tests {
     #[tokio::test]
     async fn test_graphic_resource() {
         init_logger!();
-        let manager = MockSubtitleManager::new();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
-            .subtitle_manager(Arc::new(Box::new(manager)))
-            .subtitle_provider(Arc::new(provider))
+            .subtitle_manager(Arc::new(
+                SubtitleManager::builder()
+                    .settings(settings!(temp_path))
+                    .provider(provider)
+                    .build(),
+            ))
             .build();
 
         assert!(
@@ -617,11 +626,16 @@ mod tests {
     #[tokio::test]
     async fn test_state() {
         init_logger!();
-        let manager = MockSubtitleManager::new();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
-            .subtitle_manager(Arc::new(Box::new(manager)))
-            .subtitle_provider(Arc::new(provider))
+            .subtitle_manager(Arc::new(
+                SubtitleManager::builder()
+                    .settings(settings!(temp_path))
+                    .provider(provider)
+                    .build(),
+            ))
             .build();
 
         let result = player.state().await;
@@ -632,6 +646,8 @@ mod tests {
     #[tokio::test]
     async fn test_play() {
         init_logger!();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let title = "FooBarTitle";
         let language = SubtitleLanguage::Finnish;
         let request = PlayRequest::builder()
@@ -647,18 +663,18 @@ mod tests {
             )
             .build();
         let subtitle_url = "http://localhost:8080/subtitle.srt";
-        let mut manager = MockSubtitleManager::new();
-        manager
-            .expect_preference()
-            .return_const(SubtitlePreference::Language(language));
         let mut provider = MockSubtitleProvider::new();
         provider
             .expect_download()
             .times(1)
-            .returning(|_, _| Ok(subtitle_url.to_string()));
+            .returning(|_, _| Ok(PathBuf::from("/tmp/subtitle.srt")));
         let player = VlcPlayer::builder()
-            .subtitle_manager(Arc::new(Box::new(manager)))
-            .subtitle_provider(Arc::new(provider))
+            .subtitle_manager(Arc::new(
+                SubtitleManager::builder()
+                    .settings(settings!(temp_path))
+                    .provider(provider)
+                    .build(),
+            ))
             .build();
 
         player.play(request).await;
@@ -679,6 +695,8 @@ mod tests {
     #[tokio::test]
     async fn test_stop() {
         init_logger!();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let server = MockServer::start();
         let mock = server.mock(move |when, then| {
             when.method(GET)
@@ -691,14 +709,8 @@ mod tests {
             .title("MyVideo")
             .subtitles_enabled(false)
             .build();
-        let mut manager = MockSubtitleManager::new();
-        manager
-            .expect_preference()
-            .return_const(SubtitlePreference::Language(SubtitleLanguage::None));
-        let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
-            .subtitle_manager(Arc::new(Box::new(manager)))
-            .subtitle_provider(Arc::new(provider))
+            .subtitle_manager(Arc::new(subtitle_manager!(settings!(temp_path))))
             .address(server.address().clone())
             .build();
 
@@ -716,6 +728,8 @@ mod tests {
     #[tokio::test]
     async fn test_check_status() {
         init_logger!();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let server = MockServer::start();
         server.mock(|when, then| {
             when.method(GET).path(STATUS_URI);
@@ -734,11 +748,14 @@ mod tests {
         let (tx_status, mut rx_status) = unbounded_channel();
         let (tx_time, mut rx_time) = unbounded_channel();
         let (tx_duration, mut rx_duration) = unbounded_channel();
-        let manager = MockSubtitleManager::new();
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
-            .subtitle_manager(Arc::new(Box::new(manager)))
-            .subtitle_provider(Arc::new(provider))
+            .subtitle_manager(Arc::new(
+                SubtitleManager::builder()
+                    .settings(settings!(temp_path))
+                    .provider(provider)
+                    .build(),
+            ))
             .address(server.address().clone())
             .build();
 
@@ -785,6 +802,8 @@ mod tests {
     #[tokio::test]
     async fn test_pause() {
         init_logger!();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let server = MockServer::start();
         let mock = server.mock(move |when, then| {
             when.method(GET)
@@ -792,11 +811,14 @@ mod tests {
                 .query_param(COMMAND_NAME_PARAM, COMMAND_PLAY_PAUSE);
             then.status(200);
         });
-        let manager = MockSubtitleManager::new();
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
-            .subtitle_manager(Arc::new(Box::new(manager)))
-            .subtitle_provider(Arc::new(provider))
+            .subtitle_manager(Arc::new(
+                SubtitleManager::builder()
+                    .settings(settings!(temp_path))
+                    .provider(provider)
+                    .build(),
+            ))
             .address(server.address().clone())
             .build();
 
@@ -809,6 +831,8 @@ mod tests {
     #[tokio::test]
     async fn test_resume() {
         init_logger!();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let server = MockServer::start();
         let mock = server.mock(move |when, then| {
             when.method(GET)
@@ -816,11 +840,14 @@ mod tests {
                 .query_param(COMMAND_NAME_PARAM, COMMAND_PLAY_PAUSE);
             then.status(200);
         });
-        let manager = MockSubtitleManager::new();
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
-            .subtitle_manager(Arc::new(Box::new(manager)))
-            .subtitle_provider(Arc::new(provider))
+            .subtitle_manager(Arc::new(
+                SubtitleManager::builder()
+                    .settings(settings!(temp_path))
+                    .provider(provider)
+                    .build(),
+            ))
             .address(server.address().clone())
             .build();
 
@@ -833,6 +860,8 @@ mod tests {
     #[tokio::test]
     async fn test_seek() {
         init_logger!();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let server = MockServer::start();
         let mock = server.mock(move |when, then| {
             when.method(GET)
@@ -841,11 +870,14 @@ mod tests {
                 .query_param(COMMAND_VALUE_PARAM, "12");
             then.status(200);
         });
-        let manager = MockSubtitleManager::new();
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
-            .subtitle_manager(Arc::new(Box::new(manager)))
-            .subtitle_provider(Arc::new(provider))
+            .subtitle_manager(Arc::new(
+                SubtitleManager::builder()
+                    .settings(settings!(temp_path))
+                    .provider(provider)
+                    .build(),
+            ))
             .address(server.address().clone())
             .build();
 
@@ -858,6 +890,8 @@ mod tests {
     #[tokio::test]
     async fn test_seek_time_invalid() {
         init_logger!();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let server = MockServer::start();
         let mock = server.mock(move |when, then| {
             when.method(GET)
@@ -866,11 +900,14 @@ mod tests {
                 .query_param(COMMAND_VALUE_PARAM, "0");
             then.status(200);
         });
-        let manager = MockSubtitleManager::new();
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
-            .subtitle_manager(Arc::new(Box::new(manager)))
-            .subtitle_provider(Arc::new(provider))
+            .subtitle_manager(Arc::new(
+                SubtitleManager::builder()
+                    .settings(settings!(temp_path))
+                    .provider(provider)
+                    .build(),
+            ))
             .address(server.address().clone())
             .build();
 

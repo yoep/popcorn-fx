@@ -1,24 +1,20 @@
-use std::process::Stdio;
-use std::sync::Arc;
-
+use crate::vlc::VlcPlayer;
+use crate::{Discovery, DiscoveryError, DiscoveryState};
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, info, trace, warn};
+use popcorn_fx_core::core::players::PlayerManager;
+use popcorn_fx_core::core::subtitles::SubtitleManager;
+use std::process::Stdio;
+use std::sync::Arc;
 use tokio::process::Command;
 use tokio::sync::Mutex;
-
-use popcorn_fx_core::core::players::PlayerManager;
-use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider};
-
-use crate::vlc::VlcPlayer;
-use crate::{Discovery, DiscoveryError, DiscoveryState};
 
 /// VLC discovery service responsible for searching and registering an external VLC player.
 #[derive(Debug, Display)]
 #[display("VLC local player discovery")]
 pub struct VlcDiscovery {
-    subtitle_manager: Arc<Box<dyn SubtitleManager>>,
-    subtitle_provider: Arc<dyn SubtitleProvider>,
+    subtitle_manager: Arc<SubtitleManager>,
     player_manager: Arc<Box<dyn PlayerManager>>,
     state: Mutex<DiscoveryState>,
 }
@@ -26,13 +22,11 @@ pub struct VlcDiscovery {
 impl VlcDiscovery {
     /// Creates a new instance of `VlcDiscovery`.
     pub fn new(
-        subtitle_manager: Arc<Box<dyn SubtitleManager>>,
-        subtitle_provider: Arc<dyn SubtitleProvider>,
+        subtitle_manager: Arc<SubtitleManager>,
         player_manager: Arc<Box<dyn PlayerManager>>,
     ) -> Self {
         Self {
             subtitle_manager,
-            subtitle_provider,
             player_manager,
             state: Mutex::new(DiscoveryState::Stopped),
         }
@@ -89,7 +83,6 @@ impl Discovery for VlcDiscovery {
             trace!("Creating new external VLC player instance");
             let vlc_player = VlcPlayer::builder()
                 .subtitle_manager(self.subtitle_manager.clone())
-                .subtitle_provider(self.subtitle_provider.clone())
                 .build();
             debug!("Created new external VLC player {:?}", vlc_player);
             if let Err(e) = self.player_manager.add_player(Box::new(vlc_player)) {
@@ -120,9 +113,9 @@ impl Discovery for VlcDiscovery {
 mod tests {
     use popcorn_fx_core::core::players::MockPlayerManager;
     use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
-    use popcorn_fx_core::testing::MockSubtitleManager;
     use popcorn_fx_core::{init_logger, recv_timeout};
     use std::time::Duration;
+    use tempfile::tempdir;
     use tokio::sync::mpsc::unbounded_channel;
 
     use crate::vlc::VLC_ID;
@@ -132,7 +125,8 @@ mod tests {
     #[tokio::test]
     async fn test_start_discovery() {
         init_logger!();
-        let manager = MockSubtitleManager::new();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let provider = MockSubtitleProvider::new();
         let (tx, mut rx) = unbounded_channel();
         let mut player_manager = MockPlayerManager::new();
@@ -144,8 +138,12 @@ mod tests {
                 Ok(())
             });
         let discovery = VlcDiscovery::new(
-            Arc::new(Box::new(manager)),
-            Arc::new(provider),
+            Arc::new(
+                SubtitleManager::builder()
+                    .settings(settings!(temp_path))
+                    .provider(provider)
+                    .build(),
+            ),
             Arc::new(Box::new(player_manager)),
         );
 
@@ -159,12 +157,17 @@ mod tests {
     #[tokio::test]
     async fn test_stop_discovery() {
         init_logger!();
-        let manager = MockSubtitleManager::new();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let provider = MockSubtitleProvider::new();
         let player_manager = MockPlayerManager::new();
         let discovery = VlcDiscovery::new(
-            Arc::new(Box::new(manager)),
-            Arc::new(provider),
+            Arc::new(
+                SubtitleManager::builder()
+                    .settings(settings!(temp_path))
+                    .provider(provider)
+                    .build(),
+            ),
             Arc::new(Box::new(player_manager)),
         );
 

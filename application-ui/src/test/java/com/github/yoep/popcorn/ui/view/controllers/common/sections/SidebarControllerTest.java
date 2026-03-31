@@ -4,6 +4,8 @@ import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowAboutEvent;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Update;
+import com.github.yoep.popcorn.backend.messages.UpdateMessage;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.updater.UpdateService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
@@ -102,12 +104,13 @@ class SidebarControllerTest {
     @Test
     void testInitialize_shouldActivePreferredDefaultCategory() {
         when(settings.getStartScreen()).thenReturn(Media.Category.SERIES);
+        when(updateService.getState()).thenReturn(new CompletableFuture<>());
         var expectedEvent = new CategoryChangedEvent(controller, Media.Category.SERIES);
 
         controller.initialize(url, resourceBundle);
 
         verify(eventPublisher, timeout(250)).publish(expectedEvent);
-        assertEquals(controller.lastKnownSelectedCategory, Media.Category.SERIES);
+        assertEquals(Media.Category.SERIES, controller.lastKnownSelectedCategory);
         assertFalse(controller.movieIcon.getStyleClass().contains(SidebarController.ACTIVE_STYLE));
         assertFalse(controller.movieText.getStyleClass().contains(SidebarController.ACTIVE_STYLE));
         assertFalse(controller.favoriteIcon.getStyleClass().contains(SidebarController.ACTIVE_STYLE));
@@ -119,11 +122,27 @@ class SidebarControllerTest {
     }
 
     @Test
+    void testInitialize_shouldRequestUpdateState() throws TimeoutException {
+        var expectedText = "update available";
+        when(updateService.getState()).thenReturn(CompletableFuture.completedFuture(Update.State.UPDATE_AVAILABLE));
+        when(localeText.get(UpdateMessage.UPDATE_AVAILABLE)).thenReturn(expectedText);
+        when(settings.getStartScreen()).thenReturn(Media.Category.MOVIES);
+        controller.initialize(url, resourceBundle);
+
+        WaitForAsyncUtils.waitForFxEvents();
+        WaitForAsyncUtils.waitFor(250, TimeUnit.MILLISECONDS, () -> !controller.infoTooltip.getText().isEmpty());
+
+        verify(updateService).getState();
+        assertEquals(expectedText, controller.infoTooltip.getText());
+    }
+
+    @Test
     void testOnCategoryClicked() {
         var event = mock(MouseEvent.class);
         when(event.getSource()).thenReturn(controller.favoriteIcon);
         when(settings.getStartScreen()).thenReturn(Media.Category.MOVIES);
         when(event.getSource()).thenReturn(controller.favoriteIcon);
+        when(updateService.getState()).thenReturn(new CompletableFuture<>());
         controller.initialize(url, resourceBundle);
         WaitForAsyncUtils.waitForFxEvents();
 
@@ -162,6 +181,7 @@ class SidebarControllerTest {
         when(settings.getStartScreen()).thenReturn(Media.Category.MOVIES);
         when(event.getTarget()).thenReturn(controller.favoriteIcon);
         when(event.getCode()).thenReturn(KeyCode.ENTER);
+        when(updateService.getState()).thenReturn(new CompletableFuture<>());
         controller.initialize(url, resourceBundle);
 
         controller.onCategoryPressed(event);
@@ -174,6 +194,7 @@ class SidebarControllerTest {
     void testOnHovering() {
         var event = mock(MouseEvent.class);
         when(settings.getStartScreen()).thenReturn(Media.Category.MOVIES);
+        when(updateService.getState()).thenReturn(new CompletableFuture<>());
         controller.initialize(url, resourceBundle);
 
         controller.onHovering(event);
@@ -187,6 +208,7 @@ class SidebarControllerTest {
     void testOnHoverStopped() {
         var event = mock(MouseEvent.class);
         when(settings.getStartScreen()).thenReturn(Media.Category.MOVIES);
+        when(updateService.getState()).thenReturn(new CompletableFuture<>());
         controller.initialize(url, resourceBundle);
 
         controller.onHoverStopped(event);
@@ -200,6 +222,7 @@ class SidebarControllerTest {
     void testOnSettingsClicked() {
         var event = mock(MouseEvent.class);
         when(settings.getStartScreen()).thenReturn(Media.Category.MOVIES);
+        when(updateService.getState()).thenReturn(new CompletableFuture<>());
         controller.initialize(url, resourceBundle);
 
         controller.onSettingsClicked(event);
@@ -213,6 +236,7 @@ class SidebarControllerTest {
         var event = mock(KeyEvent.class);
         when(event.getCode()).thenReturn(KeyCode.ENTER);
         when(settings.getStartScreen()).thenReturn(Media.Category.MOVIES);
+        when(updateService.getState()).thenReturn(new CompletableFuture<>());
         controller.initialize(url, resourceBundle);
 
         controller.onSettingsPressed(event);
@@ -226,6 +250,7 @@ class SidebarControllerTest {
     void testOnInfoClicked() {
         var event = mock(MouseEvent.class);
         when(settings.getStartScreen()).thenReturn(Media.Category.MOVIES);
+        when(updateService.getState()).thenReturn(new CompletableFuture<>());
         controller.initialize(url, resourceBundle);
 
         controller.onInfoClicked(event);
@@ -240,6 +265,7 @@ class SidebarControllerTest {
         var event = mock(KeyEvent.class);
         when(event.getCode()).thenReturn(KeyCode.ENTER);
         when(settings.getStartScreen()).thenReturn(Media.Category.MOVIES);
+        when(updateService.getState()).thenReturn(new CompletableFuture<>());
         controller.initialize(url, resourceBundle);
 
         controller.onInfoPressed(event);
@@ -255,6 +281,7 @@ class SidebarControllerTest {
         var trigger = new CompletableFuture<Void>();
         when(event.getSource()).thenReturn(controller.serieIcon);
         when(settings.getStartScreen()).thenReturn(Media.Category.MOVIES);
+        when(updateService.getState()).thenReturn(new CompletableFuture<>());
         eventPublisher.register(ShowSettingsEvent.class, e -> {
             trigger.complete(null);
             return null;
@@ -298,6 +325,7 @@ class SidebarControllerTest {
     @Test
     void testHomeEvent() {
         when(settings.getStartScreen()).thenReturn(Media.Category.SERIES);
+        when(updateService.getState()).thenReturn(new CompletableFuture<>());
         controller.initialize(url, resourceBundle);
 
         eventPublisher.publishEvent(new HomeEvent(this));
@@ -310,6 +338,7 @@ class SidebarControllerTest {
     void testCollectionClicked() {
         var event = mock(MouseEvent.class);
         when(settings.getStartScreen()).thenReturn(Media.Category.SERIES);
+        when(updateService.getState()).thenReturn(new CompletableFuture<>());
         controller.initialize(url, resourceBundle);
 
         controller.onCollectionClicked(event);
@@ -324,6 +353,7 @@ class SidebarControllerTest {
         var event = mock(KeyEvent.class);
         when(settings.getStartScreen()).thenReturn(Media.Category.SERIES);
         when(event.getCode()).thenReturn(KeyCode.ENTER);
+        when(updateService.getState()).thenReturn(new CompletableFuture<>());
         controller.initialize(url, resourceBundle);
 
         controller.onCollectionPressed(event);
@@ -337,6 +367,7 @@ class SidebarControllerTest {
     void testInitializeTvMode() {
         when(settings.getStartScreen()).thenReturn(Media.Category.SERIES);
         when(applicationConfig.isTvMode()).thenReturn(true);
+        when(updateService.getState()).thenReturn(new CompletableFuture<>());
 
         controller.initialize(url, resourceBundle);
 

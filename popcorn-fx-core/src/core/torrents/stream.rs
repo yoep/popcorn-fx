@@ -210,6 +210,7 @@ impl InnerTorrentStreamingResource {
         let state = self.torrent.state().await;
         let stats = self.torrent.stats();
         let priorities = self.torrent.piece_priorities().await;
+        let is_finished = state == TorrentState::Finished || stats.progress() == 1.0;
         trace!(
             "Torrent stream {} preparation with torrent state {}",
             self,
@@ -218,7 +219,7 @@ impl InnerTorrentStreamingResource {
         let is_finished = priorities
             .iter()
             .any(|(_, priority)| *priority != PiecePriority::None)
-            && (state == TorrentState::Finished || stats.progress() == 1.0);
+            && (is_finished);
 
         if is_finished {
             debug!(

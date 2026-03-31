@@ -1,6 +1,6 @@
 use crate::core::subtitles::model::{Subtitle, SubtitleType};
-use crate::core::subtitles::Result;
-use crate::core::subtitles::{SubtitleError, SubtitleProvider};
+use crate::core::subtitles::SubtitleError;
+use crate::core::subtitles::{Result, SubtitleManager};
 use crate::core::utils::network::local_ip_addr;
 use axum::body::Body;
 use axum::extract::Path as AxumPath;
@@ -34,17 +34,17 @@ pub struct SubtitleServer {
 
 impl SubtitleServer {
     /// Create a new subtitle server for the given provider.
-    pub async fn new(provider: Arc<dyn SubtitleProvider>) -> Result<Self> {
-        Self::with_port(0, provider).await
+    pub async fn new(manager: Arc<SubtitleManager>) -> Result<Self> {
+        Self::with_port(0, manager).await
     }
 
     /// Create a new subtitle server for the given provider on the given port.
-    pub async fn with_port(port: u16, provider: Arc<dyn SubtitleProvider>) -> Result<Self> {
+    pub async fn with_port(port: u16, manager: Arc<SubtitleManager>) -> Result<Self> {
         let listener = TcpListener::bind((Ipv4Addr::UNSPECIFIED, port)).await?;
         let addr = (local_ip_addr(), listener.local_addr()?.port()).into();
         let inner = Arc::new(InnerServer {
             addr,
-            provider,
+            manager,
             subtitles: Default::default(),
             cancellation_token: Default::default(),
         });
@@ -112,7 +112,12 @@ impl SubtitleServer {
         subtitle: Subtitle,
         serving_type: SubtitleType,
     ) -> Result<String> {
-        match self.inner.provider.convert(subtitle, serving_type.clone()) {
+        match self
+            .inner
+            .manager
+            .convert(subtitle, serving_type.clone())
+            .await
+        {
             Ok(data) => {
                 debug!("Converted subtitle for serving");
                 let filename_full = format!("{}.{}", filename_base, &serving_type.extension());
@@ -155,7 +160,7 @@ impl Drop for SubtitleServer {
 #[derive(Debug)]
 struct InnerServer {
     addr: SocketAddr,
-    provider: Arc<dyn SubtitleProvider>,
+    manager: Arc<SubtitleManager>,
     subtitles: Mutex<HashMap<String, DataHolder>>,
     cancellation_token: CancellationToken,
 }
@@ -222,26 +227,55 @@ impl DataHolder {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
+    use crate::core::subtitles::parsers::VttParser;
     use crate::core::subtitles::MockSubtitleProvider;
     use crate::init_logger;
     use reqwest::header::CONTENT_TYPE;
     use reqwest::{Client, Url};
+    use tempfile::tempdir;
 
     #[tokio::test]
     async fn test_subtitle_is_served() {
         init_logger!();
-        let mut provider = MockSubtitleProvider::new();
-        let subtitle = Subtitle::new(vec![], None, "my-subtitle - heavy.srt".to_string());
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let subtitle = Subtitle::new(
+            vec![SubtitleCue::new(
+                "1".to_string(),
+                10000,
+                11200,
+                vec![SubtitleLine::new(vec![StyledText::new(
+                    "lorem ipsum".to_string(),
+                    false,
+                    false,
+                    false,
+                )])],
+            )],
+            None,
+            "my-subtitle - heavy.srt".to_string(),
+        );
+        let expected_result = r#"WEBVTT
+
+1
+00:00:10.000 --> 00:00:11.200
+lorem ipsum
+
+"#;
         let client = Client::builder()
             .build()
             .expect("Client should have been created");
-        provider
-            .expect_convert()
-            .returning(|_: Subtitle, _: SubtitleType| -> Result<String> {
-                Ok("lorem ipsum".to_string())
-            });
-        let server = SubtitleServer::new(Arc::new(provider)).await.unwrap();
+        let server = SubtitleServer::new(Arc::new(
+            SubtitleManager::builder()
+                .settings(settings!(temp_path))
+                .provider(MockSubtitleProvider::new())
+                .with_parser(SubtitleType::Vtt, VttParser::default())
+                .build(),
+        ))
+        .await
+        .unwrap();
 
+        // start serving the given subtitle
         let serving_url = server
             .serve(subtitle, SubtitleType::Vtt)
             .await
@@ -271,18 +305,20 @@ mod test {
         }
         .await;
 
-        assert_eq!(String::from("lorem ipsum"), body);
-        assert_eq!("text/vtt; charset=utf-8", content_type.to_str().unwrap())
+        assert_eq!("text/vtt; charset=utf-8", content_type.to_str().unwrap());
+        assert_eq!(expected_result, body.as_str());
     }
 
     #[tokio::test]
     async fn test_subtitle_not_being_served() {
         init_logger!();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let filename = "lorem.srt";
         let client = Client::builder()
             .build()
             .expect("Client should have been created");
-        let server = SubtitleServer::new(Arc::new(MockSubtitleProvider::new()))
+        let server = SubtitleServer::new(Arc::new(subtitle_manager!(settings!(temp_path, false))))
             .await
             .unwrap();
         let serving_url = server.build_url(filename).unwrap();
@@ -304,7 +340,9 @@ mod test {
     #[tokio::test]
     async fn test_build_url_escape_characters() {
         init_logger!();
-        let server = SubtitleServer::new(Arc::new(MockSubtitleProvider::new()))
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let server = SubtitleServer::new(Arc::new(subtitle_manager!(settings!(temp_path, false))))
             .await
             .unwrap();
         let expected_result = format!(

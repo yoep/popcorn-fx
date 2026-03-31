@@ -32,7 +32,7 @@ impl TorrentLoadingStrategy {
         }
     }
 
-    async fn create_torrent(
+    async fn start_torrent_download(
         &self,
         torrent: &Box<dyn Torrent>,
         torrent_filename: &str,
@@ -116,7 +116,7 @@ impl LoadingStrategy for TorrentLoadingStrategy {
                 context.send_event(LoadingEvent::StateChanged(LoadingState::Connecting));
 
                 match self
-                    .create_torrent(torrent, torrent_filename.as_str(), context)
+                    .start_torrent_download(torrent, torrent_filename.as_str(), context)
                     .await
                 {
                     Ok(torrent) => {

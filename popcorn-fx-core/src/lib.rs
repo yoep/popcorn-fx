@@ -1,5 +1,5 @@
 /// The current application version of Popcorn FX.
-pub const VERSION: &str = "0.9.3";
+pub const VERSION: &str = "0.9.4";
 
 pub mod core;
 
@@ -8,8 +8,6 @@ pub mod testing {
     use crate::core::platform::{Platform, PlatformData, PlatformEvent, PlatformInfo};
     use crate::core::playback::MediaNotificationEvent;
     use crate::core::players::{PlayRequest, Player, PlayerEvent, PlayerState};
-    use crate::core::subtitles::model::SubtitleInfo;
-    use crate::core::subtitles::{SubtitleEvent, SubtitleManager, SubtitlePreference};
 
     use async_trait::async_trait;
     use fx_callback::{Callback, Subscriber, Subscription};
@@ -214,26 +212,6 @@ pub mod testing {
 
     mock! {
         #[derive(Debug)]
-        pub SubtitleManager {}
-
-        #[async_trait]
-        impl SubtitleManager for SubtitleManager {
-            async fn preference(&self) -> SubtitlePreference;
-            async fn preference_async(&self) -> SubtitlePreference;
-            async fn update_preference(&self, preference: SubtitlePreference);
-            async fn select_or_default(&self, subtitles: &[SubtitleInfo]) -> SubtitleInfo;
-            async fn reset(&self);
-            async fn cleanup(&self);
-        }
-
-         impl Callback<SubtitleEvent> for SubtitleManager {
-            fn subscribe(&self) -> Subscription<SubtitleEvent>;
-            fn subscribe_with(&self, subscriber: Subscriber<SubtitleEvent>);
-        }
-    }
-
-    mock! {
-        #[derive(Debug)]
         pub DummyPlatform {}
 
         impl Platform for DummyPlatform {
@@ -361,6 +339,47 @@ pub mod testing {
             _ = tokio::time::sleep(timeout) => panic!("receiver timed-out after {}ms, {}", timeout.as_millis(), message),
             result = receiver.recv() => result.expect(message)
         }
+    }
+
+    /// A macro wrapper for [`tokio::time::timeout`] that awaits a future with a timeout duration.
+    #[macro_export]
+    macro_rules! timeout {
+        ($future:expr, $duration:expr) => {{
+            use std::io;
+            use std::time::Duration;
+            use tokio::time::timeout;
+
+            let future = $future;
+            let duration: Duration = $duration;
+
+            timeout(duration, future)
+                .await
+                .map_err(|_| {
+                    io::Error::new(
+                        io::ErrorKind::TimedOut,
+                        format!("after {}.{:03}s", duration.as_secs(), duration.as_millis()),
+                    )
+                })
+                .expect("operation timed-out")
+        }};
+        ($future:expr, $duration:expr, $message:expr) => {{
+            use std::io;
+            use std::time::Duration;
+            use tokio::time::timeout;
+
+            let future = $future;
+            let duration: Duration = $duration;
+
+            timeout(duration, future)
+                .await
+                .map_err(|_| {
+                    io::Error::new(
+                        io::ErrorKind::TimedOut,
+                        format!("after {}.{:03}s", duration.as_secs(), duration.as_millis()),
+                    )
+                })
+                .expect($message)
+        }};
     }
 }
 

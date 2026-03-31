@@ -314,9 +314,9 @@ impl Debug for InnerChromecastDiscovery {
 #[cfg(test)]
 mod tests {
     use popcorn_fx_core::core::players::MockPlayerManager;
-    use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
     use popcorn_fx_core::{assert_timeout, init_logger, recv_timeout};
     use std::time::Duration;
+    use tempfile::tempdir;
     use tokio::sync::mpsc::unbounded_channel;
 
     use crate::chromecast::tests::TestInstance;
@@ -326,10 +326,11 @@ mod tests {
     #[tokio::test]
     async fn test_state() {
         init_logger!();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let player_manager = MockPlayerManager::new();
-        let subtitle_provider = MockSubtitleProvider::new();
         let subtitle_server = Arc::new(
-            SubtitleServer::new(Arc::new(subtitle_provider))
+            SubtitleServer::new(Arc::new(subtitle_manager!(settings!(temp_path))))
                 .await
                 .unwrap(),
         );
@@ -348,6 +349,8 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_start_discovery() {
         init_logger!();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let mut player_buf = vec![];
         let (tx, mut rx) = unbounded_channel();
         let mut player_manager = MockPlayerManager::new();
@@ -362,9 +365,8 @@ mod tests {
         });
         let mut test_instance = TestInstance::new_mdns().await;
         let mdns = test_instance.mdns.take().unwrap();
-        let subtitle_provider = MockSubtitleProvider::new();
         let subtitle_server = Arc::new(
-            SubtitleServer::new(Arc::new(subtitle_provider))
+            SubtitleServer::new(Arc::new(subtitle_manager!(settings!(temp_path))))
                 .await
                 .unwrap(),
         );
@@ -386,12 +388,13 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_stop_discovery() {
         init_logger!();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let player_manager = MockPlayerManager::new();
         let mut test_instance = TestInstance::new_mdns().await;
         let mdns = test_instance.mdns.take().unwrap();
-        let subtitle_provider = MockSubtitleProvider::new();
         let subtitle_server = Arc::new(
-            SubtitleServer::new(Arc::new(subtitle_provider))
+            SubtitleServer::new(Arc::new(subtitle_manager!(settings!(temp_path))))
                 .await
                 .unwrap(),
         );

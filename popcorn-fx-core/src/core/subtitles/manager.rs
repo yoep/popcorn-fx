@@ -1,14 +1,22 @@
+use crate::core::channel::{ChannelReceiver, ChannelSender, Reply};
 use crate::core::config::ApplicationConfig;
+use crate::core::media::{Episode, MovieDetails, ShowDetails};
 use crate::core::storage::Storage;
+use crate::core::subtitles;
 use crate::core::subtitles::language::SubtitleLanguage;
-use crate::core::subtitles::model::SubtitleInfo;
-use async_trait::async_trait;
+use crate::core::subtitles::matcher::SubtitleMatcher;
+use crate::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
+use crate::core::subtitles::parsers::Parser;
+use crate::core::subtitles::{Result, SubtitleError, SubtitleProvider};
 use derive_more::Display;
 use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, error, info, trace};
+use std::collections::HashMap;
 use std::fmt::Debug;
+use std::path::Path;
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::fs::OpenOptions;
+use tokio::select;
 use tokio_util::sync::CancellationToken;
 
 /// The callback to listen on events of the subtitle manager.
@@ -32,66 +40,168 @@ pub enum SubtitlePreference {
     Disabled,
 }
 
-#[async_trait]
-pub trait SubtitleManager: Debug + Callback<SubtitleEvent> + Send + Sync {
-    /// Retrieves the current subtitle preference.
-    async fn preference(&self) -> SubtitlePreference;
-
-    /// Asynchronously retrieves the current subtitle preference.
-    async fn preference_async(&self) -> SubtitlePreference;
-
-    /// Updates the subtitle preference.
-    ///
-    /// # Arguments
-    ///
-    /// * `preference` - The new subtitle preference to set.
-    async fn update_preference(&self, preference: SubtitlePreference);
-
-    /// Selects a subtitle from the available list or returns a default if none match the preference.
-    ///
-    /// # Arguments
-    ///
-    /// * `subtitles` - Available subtitle options to choose from.
-    ///
-    /// # Returns
-    ///
-    /// The selected subtitle information, or a default if none match the preference.
-    async fn select_or_default(&self, subtitles: &[SubtitleInfo]) -> SubtitleInfo;
-
-    /// Resets the current selected subtitle information.
-    async fn reset(&self);
-
-    /// Cleans up stored subtitle files.
-    async fn cleanup(&self);
-}
-
 /// The subtitle manager manages subtitles for media item playbacks.
 #[derive(Debug, Clone)]
-pub struct DefaultSubtitleManager {
-    inner: Arc<InnerSubtitleManager>,
+pub struct SubtitleManager {
+    sender: ChannelSender<SubtitleManagerCommand>,
+    callbacks: MultiThreadedCallback<SubtitleEvent>,
+    cancellation_token: CancellationToken,
 }
 
-impl DefaultSubtitleManager {
-    /// Creates a new `SubtitleManager` instance.
-    ///
-    /// # Arguments
-    ///
-    /// * `settings` - The application settings for configuring the manager.
-    pub async fn new(settings: ApplicationConfig) -> Self {
-        let inner = Arc::new(InnerSubtitleManager::new(settings).await);
+impl SubtitleManager {
+    /// Create a new subtitle manager builder.
+    pub fn builder() -> SubtitleManagerBuilder {
+        SubtitleManagerBuilder::new()
+    }
 
-        let inner_main = inner.clone();
+    /// Create a new subtitle manager instance.
+    pub fn new(
+        settings: ApplicationConfig,
+        providers: Box<dyn SubtitleProvider>,
+        parsers: HashMap<SubtitleType, Box<dyn Parser>>,
+    ) -> Self {
+        let (sender, receiver) = channel!(128);
+        let mut inner = InnerSubtitleManager::new(settings, Arc::from(providers), parsers);
+        let callbacks = inner.callbacks.clone();
+        let cancellation_token = inner.cancellation_token.clone();
+
+        // spawn the main loop on a separate task
         tokio::spawn(async move {
-            inner_main.start().await;
+            inner.run(receiver).await;
         });
 
-        Self { inner }
+        Self {
+            sender,
+            callbacks,
+            cancellation_token,
+        }
+    }
+
+    /// Returns the default subtitles options.
+    pub fn default_subtitle_options() -> Vec<SubtitleInfo> {
+        vec![SubtitleInfo::none(), SubtitleInfo::custom()]
+    }
+
+    /// Returns the subtitle preference.
+    pub async fn preference(&self) -> SubtitlePreference {
+        self.sender
+            .send(|tx| SubtitleManagerCommand::GetPreference { response: tx })
+            .await
+            .await
+            .unwrap_or(SubtitlePreference::Disabled)
+    }
+
+    /// Update the active subtitle preference.
+    pub async fn update_preference(&self, preference: SubtitlePreference) {
+        let _ = self
+            .sender
+            .send(|tx| SubtitleManagerCommand::UpdatePreference {
+                preference,
+                response: tx,
+            })
+            .await
+            .await;
+    }
+
+    /// Select a subtitle from the available subtitles list.
+    /// The default [SubtitleInfo::none] is returned when none of the available subtitles match
+    /// the current subtitle preference.
+    pub async fn select_or_default(&self, subtitles: &[SubtitleInfo]) -> SubtitleInfo {
+        self.sender
+            .send(|tx| SubtitleManagerCommand::SelectOrDefault {
+                subtitles: subtitles.to_vec(),
+                response: tx,
+            })
+            .await
+            .await
+            .unwrap_or(SubtitleInfo::none())
+    }
+
+    /// Convert the given [Subtitle] into the given output type.
+    pub async fn convert(&self, subtitle: Subtitle, output_type: SubtitleType) -> Result<String> {
+        self.sender
+            .send(|tx| SubtitleManagerCommand::Convert {
+                subtitle,
+                output_type,
+                response: tx,
+            })
+            .await
+            .await
+    }
+
+    /// Returns the available movie subtitles for the given media item.
+    pub async fn movie_subtitles(&self, media: &MovieDetails) -> Result<Vec<SubtitleInfo>> {
+        let provider = self
+            .sender
+            .send(|tx| SubtitleManagerCommand::GetProvider { response: tx })
+            .await
+            .await?;
+        provider.movie_subtitles(media).await
+    }
+
+    /// Returns the available subtitles for the given media file.
+    pub async fn file_subtitles(&self, filename: &str) -> subtitles::Result<Vec<SubtitleInfo>> {
+        let provider = self
+            .sender
+            .send(|tx| SubtitleManagerCommand::GetProvider { response: tx })
+            .await
+            .await?;
+        provider.file_subtitles(filename).await
+    }
+
+    /// Returns the available episode subtitles for the given media item.
+    pub async fn episode_subtitles(
+        &self,
+        media: &ShowDetails,
+        episode: &Episode,
+    ) -> Result<Vec<SubtitleInfo>> {
+        let provider = self
+            .sender
+            .send(|tx| SubtitleManagerCommand::GetProvider { response: tx })
+            .await
+            .await?;
+        provider.episode_subtitles(media, episode).await
+    }
+
+    /// Try to download the given subtitle info.
+    /// It returns the parsed downloaded subtitle.
+    pub async fn download(
+        &self,
+        subtitle_info: &SubtitleInfo,
+        matcher: &SubtitleMatcher,
+    ) -> Result<Subtitle> {
+        self.sender
+            .send(|tx| SubtitleManagerCommand::Download {
+                subtitle: subtitle_info.clone(),
+                matcher: matcher.clone(),
+                response: tx,
+            })
+            .await
+            .await
+    }
+
+    /// Reset the selected subtitle preference.
+    pub async fn reset(&self) {
+        let _ = self
+            .sender
+            .send(|tx| SubtitleManagerCommand::Reset { response: tx })
+            .await
+            .await;
+    }
+
+    /// Execute a cleanup cycle of the subtitles.
+    pub async fn cleanup(&self) {
+        let _ = self
+            .sender
+            .send(|tx| SubtitleManagerCommand::DoCleanup { response: tx })
+            .await
+            .await;
     }
 }
 
-impl Callback<SubtitleEvent> for DefaultSubtitleManager {
+impl Callback<SubtitleEvent> for SubtitleManager {
     fn subscribe(&self) -> Subscription<SubtitleEvent> {
-        self.inner.callbacks.subscribe()
+        self.callbacks.subscribe()
     }
 }
 
@@ -100,64 +210,193 @@ impl SubtitleManager for DefaultSubtitleManager {
     async fn preference(&self) -> SubtitlePreference {
         self.inner.preference().await
     }
+}
 
-    async fn preference_async(&self) -> SubtitlePreference {
-        self.inner.preference().await
-    }
-
-    async fn update_preference(&self, preference: SubtitlePreference) {
-        self.inner.update_preference(preference).await
-    }
-
-    async fn select_or_default(&self, subtitles: &[SubtitleInfo]) -> SubtitleInfo {
-        self.inner.select_or_default(subtitles).await
-    }
-
-    async fn reset(&self) {
-        self.inner.reset().await
-    }
-
-    async fn cleanup(&self) {
-        self.inner.cleanup().await
+impl Drop for SubtitleManager {
+    fn drop(&mut self) {
+        self.cancellation_token.cancel();
     }
 }
 
-impl Drop for DefaultSubtitleManager {
-    fn drop(&mut self) {
-        self.inner.cancellation_token.cancel();
+/// The builder for the subtitle manager.
+#[derive(Debug, Default)]
+pub struct SubtitleManagerBuilder {
+    settings: Option<ApplicationConfig>,
+    provider: Option<Box<dyn SubtitleProvider>>,
+    parsers: HashMap<SubtitleType, Box<dyn Parser>>,
+}
+
+impl SubtitleManagerBuilder {
+    /// Create a new subtitle manager builder.
+    pub fn new() -> Self {
+        Self::default()
     }
+
+    /// Set the settings of the application.
+    pub fn settings(&mut self, settings: ApplicationConfig) -> &mut Self {
+        self.settings = Some(settings);
+        self
+    }
+
+    /// Set the subtitle provider.
+    pub fn provider<P>(&mut self, provider: P) -> &mut Self
+    where
+        P: SubtitleProvider + 'static,
+    {
+        self.provider = Some(Box::new(provider));
+        self
+    }
+
+    /// Add the given subtitle parser.
+    pub fn with_parser<P>(&mut self, subtitle_type: SubtitleType, parser: P) -> &mut Self
+    where
+        P: Parser + 'static,
+    {
+        self.parsers.insert(subtitle_type, Box::new(parser));
+        self
+    }
+
+    /// Set the subtitle parsers.
+    /// This overrides any existing parsers.
+    pub fn set_parsers(&mut self, parsers: HashMap<SubtitleType, Box<dyn Parser>>) -> &mut Self {
+        self.parsers = parsers;
+        self
+    }
+
+    /// Build the subtitle manager.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the settings or subtitle provider have not been set.
+    pub fn build(&mut self) -> SubtitleManager {
+        let settings = self.settings.take().expect("expected settings to be set");
+        let provider = self
+            .provider
+            .take()
+            .expect("expected subtitle provider to be set");
+
+        SubtitleManager::new(settings, provider, self.parsers.drain().collect())
+    }
+}
+
+#[derive(Debug)]
+enum SubtitleManagerCommand {
+    /// Get the active subtitle preference.
+    GetPreference { response: Reply<SubtitlePreference> },
+    /// Update the subtitle preference.
+    UpdatePreference {
+        preference: SubtitlePreference,
+        response: Reply<()>,
+    },
+    /// Select the subtitle from the given list based on preference or configured defaults.
+    SelectOrDefault {
+        subtitles: Vec<SubtitleInfo>,
+        response: Reply<SubtitleInfo>,
+    },
+    /// Get the subtitle provider.
+    GetProvider {
+        response: Reply<Arc<dyn SubtitleProvider>>,
+    },
+    /// Download the subtitle.
+    Download {
+        subtitle: SubtitleInfo,
+        matcher: SubtitleMatcher,
+        response: Reply<Result<Subtitle>>,
+    },
+    /// Convert the given subtitle into the given output type.
+    Convert {
+        subtitle: Subtitle,
+        output_type: SubtitleType,
+        response: Reply<Result<String>>,
+    },
+    /// Reset the subtitle preference to the default.
+    Reset { response: Reply<()> },
+    /// Clean up the subtitle directory.
+    DoCleanup { response: Reply<()> },
 }
 
 #[derive(Debug)]
 struct InnerSubtitleManager {
     /// The known info of the selected subtitle if applicable.
-    preference: Arc<Mutex<SubtitlePreference>>,
+    preference: SubtitlePreference,
+    /// The application settings.
+    settings: ApplicationConfig,
+    /// The subtitle provider for the manager.
+    provider: Arc<dyn SubtitleProvider>,
+    /// The subtitle parsers of the manager.
+    parsers: HashMap<SubtitleType, Box<dyn Parser>>,
     /// Callbacks for handling subtitle events.
     callbacks: MultiThreadedCallback<SubtitleEvent>,
-    /// Application settings.
-    settings: ApplicationConfig,
     cancellation_token: CancellationToken,
 }
 
 impl InnerSubtitleManager {
-    /// Creates a new `SubtitleManager` instance.
-    ///
-    /// # Arguments
-    ///
-    /// * `settings` - The application settings for configuring the manager.
-    async fn new(settings: ApplicationConfig) -> Self {
-        let preference = Self::default_preference(&settings).await;
+    fn new(
+        settings: ApplicationConfig,
+        provider: Arc<dyn SubtitleProvider>,
+        parsers: HashMap<SubtitleType, Box<dyn Parser>>,
+    ) -> Self {
         Self {
-            preference: Arc::new(Mutex::new(preference)),
-            callbacks: MultiThreadedCallback::new(),
+            preference: SubtitlePreference::Disabled,
             settings,
+            provider,
+            parsers,
+            callbacks: MultiThreadedCallback::new(),
             cancellation_token: Default::default(),
         }
     }
 
-    async fn start(&self) {
-        self.cancellation_token.cancelled().await;
-        self.on_drop().await;
+    /// Run the main loop of the subtitle manager.
+    async fn run(&mut self, mut command_receiver: ChannelReceiver<SubtitleManagerCommand>) {
+        // update the preference to the default value
+        self.preference = Self::default_preference(&self.settings).await;
+
+        loop {
+            select! {
+                _ = self.cancellation_token.cancelled() => break,
+                Some(command) = command_receiver.recv() => self.on_command(command).await,
+            }
+        }
+
+        self.on_close().await;
+        debug!("Subtitle manager main loop ended");
+    }
+
+    /// Handle the given command.
+    async fn on_command(&mut self, command: SubtitleManagerCommand) {
+        match command {
+            SubtitleManagerCommand::GetPreference { response } => {
+                response.send(self.preference.clone())
+            }
+            SubtitleManagerCommand::GetProvider { response } => {
+                response.send(self.provider.clone())
+            }
+            SubtitleManagerCommand::UpdatePreference {
+                preference,
+                response,
+            } => {
+                self.update_preference(preference);
+                response.send(());
+            }
+            SubtitleManagerCommand::SelectOrDefault {
+                subtitles,
+                response,
+            } => {
+                response.send(self.select_or_default(&subtitles).await);
+            }
+            SubtitleManagerCommand::Download {
+                subtitle,
+                matcher,
+                response,
+            } => response.send(self.download(&subtitle, &matcher).await),
+            SubtitleManagerCommand::Convert {
+                subtitle,
+                output_type,
+                response,
+            } => response.send(self.convert(subtitle, output_type)),
+            SubtitleManagerCommand::Reset { response } => response.send(self.reset().await),
+            SubtitleManagerCommand::DoCleanup { response } => response.send(self.cleanup().await),
+        }
     }
 
     /// Find the subtitle for the default configured subtitle language.
@@ -192,45 +431,111 @@ impl InnerSubtitleManager {
             .map(|e| e.clone())
     }
 
-    async fn preference(&self) -> SubtitlePreference {
-        (*self.preference.lock().await).clone()
-    }
-
-    async fn update_preference(&self, preference: SubtitlePreference) {
-        *self.preference.lock().await = preference;
+    fn update_preference(&mut self, preference: SubtitlePreference) {
+        self.preference = preference;
     }
 
     async fn select_or_default(&self, subtitles: &[SubtitleInfo]) -> SubtitleInfo {
         trace!("Selecting subtitle out of {:?}", subtitles);
-        let mut subtitle: Option<SubtitleInfo> = None;
-        let preference = self.preference().await;
-
-        if let SubtitlePreference::Language(language) = preference {
-            if let Some(subtitle_info) = subtitles.iter().find(|e| e.language() == &language) {
-                subtitle = Some(subtitle_info.clone());
-            } else {
+        let language = match &self.preference {
+            SubtitlePreference::Language(language) => language,
+            SubtitlePreference::Disabled => return SubtitleInfo::none(),
+        };
+        let subtitle = match subtitles.iter().find(|e| e.language() == language) {
+            Some(info) => Some(info.clone()),
+            None => {
                 trace!("Subtitle preference language {} not found, using default subtitle language instead", language);
-                subtitle = self.find_for_default_subtitle_language(subtitles).await;
-
-                if subtitle.is_none() {
-                    subtitle = self.find_for_interface_language(subtitles).await;
+                match self.find_for_default_subtitle_language(subtitles).await {
+                    None => self.find_for_interface_language(subtitles).await,
+                    Some(subtitle) => Some(subtitle),
                 }
             }
-        }
+        };
 
         debug!("Selected subtitle {:?}", &subtitle);
         subtitle.unwrap_or(SubtitleInfo::none())
     }
 
+    /// Try to download the given subtitle through the subtitle provider.
+    ///
+    /// If the subtitle was downloaded, try to parse it.
+    async fn download(
+        &self,
+        subtitle: &SubtitleInfo,
+        matcher: &SubtitleMatcher,
+    ) -> Result<Subtitle> {
+        let path = self.provider.download(subtitle, matcher).await?;
+        self.parse(path.as_path(), Some(subtitle)).await
+    }
+
+    async fn parse(&self, path: &Path, info: Option<&SubtitleInfo>) -> Result<Subtitle> {
+        trace!("Parsing subtitle file {}", path.to_string_lossy());
+        let extension = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.to_string())
+            .ok_or_else(|| {
+                SubtitleError::ParseFileError(
+                    format!("{}", path.to_string_lossy()),
+                    "file has no extension".to_string(),
+                )
+            })?;
+        let subtitle_type = SubtitleType::from_extension(&extension)
+            .map_err(|err| SubtitleError::ParseFileError(format!("{:?}", path), err.to_string()))?;
+        let parser = self
+            .parsers
+            .get(&subtitle_type)
+            .ok_or_else(|| SubtitleError::TypeNotSupported(subtitle_type))?;
+
+        let file = OpenOptions::new().read(true).open(path).await?;
+        let subtitle = parser.parse_file(file).await?;
+
+        info!("Parsed subtitle file {}", path.to_string_lossy());
+        Ok(Subtitle::new(
+            subtitle,
+            info.map(|e| e.clone()),
+            path.to_string_lossy().to_string(),
+        ))
+    }
+
+    fn convert(&self, subtitle: Subtitle, output_type: SubtitleType) -> Result<String> {
+        match self.parsers.get(&output_type) {
+            None => Err(SubtitleError::TypeNotSupported(output_type)),
+            Some(parser) => {
+                debug!(
+                    "Converting subtitle to raw format of {} for {}",
+                    &output_type, subtitle
+                );
+                match parser.convert(subtitle.cues()) {
+                    Err(err) => {
+                        error!("Subtitle parsing to raw {} failed, {}", &output_type, err);
+                        Err(SubtitleError::ConversionFailed(
+                            output_type.clone(),
+                            err.to_string(),
+                        ))
+                    }
+                    Ok(e) => {
+                        debug!(
+                            "Converted subtitle {:?} to raw {}",
+                            &subtitle.file(),
+                            &output_type
+                        );
+                        Ok(e)
+                    }
+                }
+            }
+        }
+    }
+
     /// Reset the player to its default state for the next media playback.
-    async fn reset(&self) {
+    async fn reset(&mut self) {
         let preference = Self::default_preference(&self.settings).await;
-        self.update_preference(preference).await;
+        self.update_preference(preference);
         info!("Subtitle has been reset for next media playback")
     }
 
     /// Clean up the subtitle directory by removing all files.
-    async fn cleanup(&self) {
+    async fn cleanup(&mut self) {
         let path = self
             .settings
             .user_settings_ref(|e| e.subtitle_settings.directory())
@@ -245,7 +550,7 @@ impl InnerSubtitleManager {
         }
     }
 
-    async fn on_drop(&self) {
+    async fn on_close(&mut self) {
         let auto_cleaning_enabled = self
             .settings
             .user_settings_ref(|e| e.subtitle().auto_cleaning_enabled)
@@ -267,27 +572,23 @@ impl InnerSubtitleManager {
 
 #[cfg(test)]
 mod test {
-    use std::path::PathBuf;
-    use tempfile::tempdir;
+    use super::*;
 
-    use crate::core::config::{
-        DecorationType, PopcornProperties, PopcornSettings, SubtitleFamily, SubtitleSettings,
-        UiScale, UiSettings,
-    };
+    use crate::core::config::{UiScale, UiSettings};
     use crate::core::media::Category;
+    use crate::core::subtitles::MockSubtitleProvider;
     use crate::testing::copy_test_file;
     use crate::{assert_timeout, init_logger};
-
-    use super::*;
+    use std::path::PathBuf;
+    use tempfile::tempdir;
 
     #[tokio::test]
     async fn test_update_preference_language() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = default_settings(temp_path, false);
         let preference = SubtitlePreference::Language(SubtitleLanguage::Dutch);
-        let manager = DefaultSubtitleManager::new(settings).await;
+        let manager = subtitle_manager!(settings!(temp_path));
 
         manager.update_preference(preference.clone()).await;
 
@@ -300,9 +601,8 @@ mod test {
         init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = default_settings(temp_path, false);
         let preference = SubtitlePreference::Disabled;
-        let manager = DefaultSubtitleManager::new(settings).await;
+        let manager = subtitle_manager!(settings!(temp_path));
 
         manager.update_preference(preference.clone()).await;
 
@@ -315,9 +615,8 @@ mod test {
         init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = default_settings(temp_path, false);
         let preference = SubtitlePreference::Language(SubtitleLanguage::Bulgarian);
-        let manager = DefaultSubtitleManager::new(settings).await;
+        let manager = subtitle_manager!(settings!(temp_path));
 
         manager.update_preference(preference.clone()).await;
         manager.reset().await;
@@ -334,8 +633,7 @@ mod test {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = default_settings(temp_path, true);
-        let manager = DefaultSubtitleManager::new(settings).await;
+        let manager = subtitle_manager!(settings!(temp_path, true));
         let subtitle_info = SubtitleInfo::builder()
             .imdb_id("lorem")
             .language(SubtitleLanguage::English)
@@ -352,7 +650,7 @@ mod test {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = default_settings(temp_path, true);
+        let settings = settings!(temp_path, true);
         settings
             .update_ui(UiSettings {
                 default_language: "fr".to_string(),
@@ -362,7 +660,7 @@ mod test {
                 native_window_enabled: false,
             })
             .await;
-        let manager = DefaultSubtitleManager::new(settings).await;
+        let manager = subtitle_manager!(settings);
         let subtitle_info = SubtitleInfo::builder()
             .imdb_id("ipsum")
             .language(SubtitleLanguage::French)
@@ -379,8 +677,7 @@ mod test {
         init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = default_settings(temp_path, true);
-        let manager = DefaultSubtitleManager::new(settings).await;
+        let manager = subtitle_manager!(settings!(temp_path, true));
         let filepath = copy_test_file(temp_path, "example.srt", None);
 
         drop(manager);
@@ -397,26 +694,74 @@ mod test {
         );
     }
 
-    fn default_settings(temp_path: &str, auto_cleaning_enabled: bool) -> ApplicationConfig {
-        ApplicationConfig::builder()
-            .storage(temp_path)
-            .properties(PopcornProperties::default())
-            .settings(PopcornSettings {
-                subtitle_settings: SubtitleSettings {
-                    directory: temp_path.to_string(),
-                    auto_cleaning_enabled,
-                    default_subtitle: SubtitleLanguage::English,
-                    font_family: SubtitleFamily::Arial,
-                    font_size: 28,
-                    decoration: DecorationType::None,
-                    bold: false,
-                },
-                ui_settings: Default::default(),
-                server_settings: Default::default(),
-                torrent_settings: Default::default(),
-                playback_settings: Default::default(),
-                tracking_settings: Default::default(),
-            })
-            .build()
+    mod convert {
+        use super::*;
+        use crate::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
+        use crate::core::subtitles::parsers::{SrtParser, VttParser};
+        use crate::testing::read_test_file_to_string;
+
+        #[tokio::test]
+        async fn test_convert_srt() {
+            init_logger!();
+            let temp_dir = tempdir().expect("expected a tempt dir to be created");
+            let temp_path = temp_dir.path().to_str().unwrap();
+            let subtitle = create_subtitle();
+            let expected_result =
+                read_test_file_to_string("example-conversion.srt").replace("\r\n", "\n");
+            let settings = settings!(temp_path, true);
+            let manager = SubtitleManager::builder()
+                .settings(settings)
+                .provider(MockSubtitleProvider::new())
+                .with_parser(SubtitleType::Srt, SrtParser::default())
+                .build();
+
+            let result = manager
+                .convert(subtitle, SubtitleType::Srt)
+                .await
+                .expect("expected the conversion to succeed");
+
+            assert_eq!(expected_result, result);
+        }
+
+        #[tokio::test]
+        async fn test_convert_vtt() {
+            init_logger!();
+            let temp_dir = tempdir().expect("expected a tempt dir to be created");
+            let temp_path = temp_dir.path().to_str().unwrap();
+            let subtitle = create_subtitle();
+            let expected_result =
+                read_test_file_to_string("example-conversion.vtt").replace("\r\n", "\n");
+            let settings = settings!(temp_path, true);
+            let manager = SubtitleManager::builder()
+                .settings(settings)
+                .provider(MockSubtitleProvider::new())
+                .with_parser(SubtitleType::Vtt, VttParser::default())
+                .build();
+
+            let result = manager
+                .convert(subtitle, SubtitleType::Vtt)
+                .await
+                .expect("expected the conversion to succeed");
+
+            assert_eq!(expected_result, result);
+        }
+
+        fn create_subtitle() -> Subtitle {
+            Subtitle::new(
+                vec![SubtitleCue::new(
+                    "1".to_string(),
+                    45000,
+                    46890,
+                    vec![SubtitleLine::new(vec![StyledText::new(
+                        "lorem".to_string(),
+                        false,
+                        false,
+                        true,
+                    )])],
+                )],
+                None,
+                String::new(),
+            )
+        }
     }
 }

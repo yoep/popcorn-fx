@@ -253,17 +253,18 @@ mod tests {
     use httpmock::Method::GET;
     use httpmock::MockServer;
     use popcorn_fx_core::core::players::{MockPlayerManager, Player};
-    use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
     use popcorn_fx_core::{assert_timeout, init_logger};
     use std::sync::mpsc::channel;
+    use tempfile::tempdir;
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_state() {
         init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
         let player_manager = MockPlayerManager::new();
-        let subtitle_provider = MockSubtitleProvider::new();
         let subtitle_server = Arc::new(
-            SubtitleServer::new(Arc::new(subtitle_provider))
+            SubtitleServer::new(Arc::new(subtitle_manager!(settings!(temp_path))))
                 .await
                 .unwrap(),
         );
@@ -283,6 +284,8 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_execute_search() {
         init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
         let server = MockServer::start();
         server.mock(|when, then| {
             when.method(GET).path("/description.xml");
@@ -301,9 +304,8 @@ mod tests {
 
             Ok(())
         });
-        let subtitle_provider = MockSubtitleProvider::new();
         let subtitle_server = Arc::new(
-            SubtitleServer::new(Arc::new(subtitle_provider))
+            SubtitleServer::new(Arc::new(subtitle_manager!(settings!(temp_path))))
                 .await
                 .unwrap(),
         );
@@ -327,11 +329,12 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_stop_discovery() {
         init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
         let mut player_manager = MockPlayerManager::new();
         player_manager.expect_add_player().returning(|_| Ok(()));
-        let subtitle_provider = MockSubtitleProvider::new();
         let subtitle_server = Arc::new(
-            SubtitleServer::new(Arc::new(subtitle_provider))
+            SubtitleServer::new(Arc::new(subtitle_manager!(settings!(temp_path))))
                 .await
                 .unwrap(),
         );

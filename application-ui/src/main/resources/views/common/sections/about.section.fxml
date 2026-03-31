@@ -63,12 +63,6 @@
                    GridPane.columnIndex="0" GridPane.rowIndex="3"/>
             <AboutDetails fx:id="playersPane" spacing="8"
                           GridPane.columnIndex="0" GridPane.rowIndex="4"/>
-
-            <!-- Section video -->
-            <Label styleClass="subsection-title" text="%about_video"
-                   GridPane.columnIndex="1" GridPane.rowIndex="3"/>
-            <AboutDetails fx:id="videoPane" spacing="8"
-                          GridPane.columnIndex="1" GridPane.rowIndex="4"/>
         </GridPane>
     </VBox>
 </GridPane>

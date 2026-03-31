@@ -6,6 +6,10 @@ use async_trait::async_trait;
 use derive_more::Display;
 use thiserror::Error;
 
+#[cfg(test)]
+#[macro_use]
+mod test_macros;
+
 #[cfg(feature = "chromecast")]
 pub mod chromecast;
 #[cfg(feature = "dlna")]

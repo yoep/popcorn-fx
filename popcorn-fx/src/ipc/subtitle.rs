@@ -105,7 +105,7 @@ impl MessageHandler for SubtitleMessageHandler {
                 if let Some(movie) = media.downcast_ref::<MovieDetails>() {
                     search_result = Some(
                         self.instance
-                            .subtitle_provider()
+                            .subtitle_manager()
                             .movie_subtitles(movie)
                             .await,
                     );
@@ -117,7 +117,7 @@ impl MessageHandler for SubtitleMessageHandler {
                     if let Some(episode) = sub_item.downcast_ref::<Episode>() {
                         search_result = Some(
                             self.instance
-                                .subtitle_provider()
+                                .subtitle_manager()
                                 .episode_subtitles(show, episode)
                                 .await,
                         );
@@ -176,7 +176,7 @@ impl MessageHandler for SubtitleMessageHandler {
 
                 match self
                     .instance
-                    .subtitle_provider()
+                    .subtitle_manager()
                     .file_subtitles(request.filename.as_str())
                     .await
                 {
@@ -244,8 +244,8 @@ impl MessageHandler for SubtitleMessageHandler {
 
                 match self
                     .instance
-                    .subtitle_provider()
-                    .download_and_parse(&info, &matcher)
+                    .subtitle_manager()
+                    .download(&info, &matcher)
                     .await
                 {
                     Ok(subtitle) => {

@@ -132,7 +132,7 @@ impl<D: FxCastDevice> ChromecastPlayer<D> {
             }
 
             let message = inner.cast_device.read().await.receive();
-            inner.handle_event(message).await;
+            inner.on_event(message).await;
         }
 
         debug!("Chromecast {} message handler has been stopped", inner.name);
@@ -865,7 +865,7 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
         }
     }
 
-    async fn handle_event(&self, event: chromecast::Result<ChannelMessage>) {
+    async fn on_event(&self, event: chromecast::Result<ChannelMessage>) {
         trace!("Handling Chromecast {} event {:?}", self.name, event);
         match event {
             Ok(e) => match e {
@@ -1114,13 +1114,15 @@ mod tests {
     use rust_cast::channels::{media, receiver};
     use serde_json::Number;
     use std::sync::mpsc::channel;
+    use tempfile::tempdir;
     use tokio::sync::mpsc::unbounded_channel;
     use url::Url;
 
     #[tokio::test]
     async fn test_player_new() {
         init_logger!();
-        let subtitle_provider = MockSubtitleProvider::new();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let transcoder = MockTranscoder::new();
 
         let result = ChromecastPlayer::new(
@@ -1131,7 +1133,7 @@ mod tests {
             9870,
             Box::new(|_, _| Ok(create_default_device())),
             Arc::new(
-                SubtitleServer::new(Arc::new(subtitle_provider))
+                SubtitleServer::new(Arc::new(subtitle_manager!(settings!(temp_path))))
                     .await
                     .unwrap(),
             ),
@@ -1472,11 +1474,6 @@ mod tests {
                 .collect(),
             ),
         );
-        let mut provider = MockSubtitleProvider::new();
-        provider
-            .expect_convert()
-            .times(2)
-            .returning(|_, _| Ok(subtitle_url.to_string()));
         let (tx_ready, mut rx_ready) = unbounded_channel();
         let (tx_transcode, mut rx_transcode) = unbounded_channel();
         let mut load_transcoding_url = Some(());
@@ -1540,13 +1537,12 @@ mod tests {
                     }));
                 device
                     .expect_media_status::<String>()
-                    .return_const(Ok(media::Status {
+                    .return_const(Ok(Status {
                         request_id: 1,
                         entries: vec![],
                     }));
                 device
             }),
-            Arc::new(provider),
             Box::new(transcoder),
         )
         .await;
@@ -1555,7 +1551,7 @@ mod tests {
         player.play(request).await;
         player
             .inner
-            .handle_event(Ok(ChannelMessage::Media(response)))
+            .on_event(Ok(ChannelMessage::Media(response)))
             .await;
 
         let transcode_url = recv_timeout!(&mut rx_transcode, Duration::from_millis(250));
@@ -1590,7 +1586,7 @@ mod tests {
 
         player
             .inner
-            .handle_event(Err(ChromecastError::Connection("FooBar".to_string())))
+            .on_event(Err(ChromecastError::Connection("FooBar".to_string())))
             .await;
         let result = player.state().await;
 

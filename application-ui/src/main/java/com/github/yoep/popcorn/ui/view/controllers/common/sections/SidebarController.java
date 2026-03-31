@@ -4,8 +4,10 @@ import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowAboutEvent;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Update;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.UpdateEvent;
 import com.github.yoep.popcorn.backend.messages.UpdateMessage;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import com.github.yoep.popcorn.backend.updater.UpdateEventListener;
 import com.github.yoep.popcorn.backend.updater.UpdateService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.*;
@@ -35,7 +37,6 @@ import java.util.ResourceBundle;
 
 @Slf4j
 @RequiredArgsConstructor
-
 public class SidebarController implements Initializable {
     static final String ACTIVE_STYLE = "active";
 
@@ -88,6 +89,7 @@ public class SidebarController implements Initializable {
         initializeSearch();
         initializeFocusListeners();
         initializeMode();
+        initializeUpdateState();
 
         sidebar.getColumnConstraints().get(0).setPrefWidth(searchIcon.getPrefWidth());
     }
@@ -138,12 +140,17 @@ public class SidebarController implements Initializable {
             Platform.runLater(() -> switchCategory(infoIcon, false));
             return event;
         });
-//        updateService.register(event -> {
-//            if (event.getTag() == UpdateCallbackEvent.Tag.StateChanged) {
-//                onUpdateStateChanged(event.getUnion().getState_changed().getNewState());
-//            }
-//        });
-//        onUpdateStateChanged(updateService.getState());
+        updateService.addListener(new UpdateEventListener() {
+            @Override
+            public void onStateChanged(UpdateEvent.StateChanged event) {
+                onUpdateStateChanged(event.getNewState());
+            }
+
+            @Override
+            public void onDownloadProgress(UpdateEvent.DownloadProgress event) {
+                // no-op
+            }
+        });
     }
 
     private void initializeMode() {
@@ -154,11 +161,22 @@ public class SidebarController implements Initializable {
         }
     }
 
+    private void initializeUpdateState() {
+        updateService.getState().whenComplete((state, throwable) -> {
+            if (throwable == null) {
+                onUpdateStateChanged(state);
+            } else {
+                log.error("Failed to retrieve update state", throwable);
+            }
+        });
+    }
+
     private void onUpdateStateChanged(Update.State newState) {
         Platform.runLater(() -> {
             if (newState == Update.State.UPDATE_AVAILABLE) {
                 updateTransition.playFromStart();
                 infoTooltip.setText(localeText.get(UpdateMessage.UPDATE_AVAILABLE));
+                eventPublisher.publish(new ShowUpdateEvent(this));
             } else {
                 updateTransition.stop();
                 infoTooltip.setText(localeText.get("header_about"));

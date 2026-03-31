@@ -16,8 +16,7 @@ use popcorn_fx_core::core::config::ApplicationConfig;
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
-use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
-use popcorn_fx_core::core::subtitles::parsers::Parser;
+use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
 use popcorn_fx_core::core::subtitles::{Result, SubtitleError, SubtitleFile, SubtitleProvider};
 
 use crate::opensubtitles::model::*;
@@ -37,7 +36,6 @@ const MAX_SEARCH_PAGES: u32 = 10;
 pub struct OpensubtitlesProvider {
     settings: ApplicationConfig,
     client: Client,
-    parsers: HashMap<SubtitleType, Box<dyn Parser>>,
 }
 
 impl OpensubtitlesProvider {
@@ -307,7 +305,7 @@ impl OpensubtitlesProvider {
         file_id: &i32,
         path: &Path,
         download_response: DownloadResponse,
-    ) -> Result<String> {
+    ) -> Result<PathBuf> {
         let download_link = download_response.link();
 
         debug!("Downloading subtitle file from {}", download_link);
@@ -325,7 +323,7 @@ impl OpensubtitlesProvider {
         file_id: &i32,
         path: &Path,
         response: Response,
-    ) -> Result<String> {
+    ) -> Result<PathBuf> {
         match response.status() {
             StatusCode::OK => {
                 // create the parent directory if needed
@@ -336,12 +334,6 @@ impl OpensubtitlesProvider {
                 }
 
                 // open the subtitle file that will be written
-                let filepath = path.to_str().map(|e| e.to_string()).ok_or_else(|| {
-                    SubtitleError::IO(io::Error::new(
-                        io::ErrorKind::InvalidFilename,
-                        "subtitle download path is invalid",
-                    ))
-                })?;
                 trace!("Opening subtitle file {:?}", path);
                 let mut file = OpenOptions::new()
                     .create(true)
@@ -357,7 +349,10 @@ impl OpensubtitlesProvider {
                 while let Some(chunk) = stream.next().await {
                     let chunk = chunk.map_err(|e| {
                         error!("Failed to read subtitle response chunk, {}", e);
-                        SubtitleError::DownloadFailed(filepath.clone(), e.to_string())
+                        SubtitleError::DownloadFailed(
+                            format!("{}", path.to_string_lossy()),
+                            e.to_string(),
+                        )
                     })?;
 
                     tokio::io::copy(&mut chunk.as_ref(), &mut file)
@@ -369,7 +364,7 @@ impl OpensubtitlesProvider {
                 }
 
                 info!("Downloaded subtitle file {:?}", path);
-                Ok(filepath)
+                Ok(path.to_path_buf())
             }
             _ => Err(SubtitleError::DownloadFailed(
                 file_id.to_string(),
@@ -383,7 +378,7 @@ impl OpensubtitlesProvider {
         file_id: &i32,
         path: &Path,
         response: Response,
-    ) -> Result<String> {
+    ) -> Result<PathBuf> {
         match response.status() {
             StatusCode::OK => {
                 match response
@@ -411,53 +406,27 @@ impl OpensubtitlesProvider {
         }
     }
 
-    /// Retrieve the storage [Path] for the given subtitle file.
-    async fn storage_file(&self, file: &SubtitleFile) -> PathBuf {
-        let file_name = file.name();
-        let settings = self
+    /// Returns the [Path] to where the subtitle should be stored.
+    async fn storage_file(&self, file: &SubtitleFile, language: &SubtitleLanguage) -> PathBuf {
+        let path = Path::new(file.name());
+        let base_path = self
             .settings
             .user_settings_ref(|e| e.subtitle().clone())
-            .await;
+            .await
+            .directory();
 
-        settings.directory().join(file_name)
-    }
-
-    async fn internal_parse(
-        &self,
-        file_path: &Path,
-        info: Option<&SubtitleInfo>,
-    ) -> Result<Subtitle> {
-        let path = file_path.to_str().map(|e| e.to_string()).ok_or_else(|| {
-            SubtitleError::IO(io::Error::new(
-                io::ErrorKind::InvalidFilename,
-                "subtitle file path is invalid",
-            ))
-        })?;
-
-        trace!("Parsing subtitle file {}", path);
-        let extension = file_path
-            .extension()
-            .and_then(|e| e.to_str())
-            .map(|e| e.to_string())
-            .ok_or_else(|| {
-                SubtitleError::ParseFileError(path.clone(), "file has no extension".to_string())
-            })?;
-        let subtitle_type = SubtitleType::from_extension(&extension)
-            .map_err(|err| SubtitleError::ParseFileError(path.clone(), err.to_string()))?;
-        let parser = self
-            .parsers
-            .get(&subtitle_type)
-            .ok_or_else(|| SubtitleError::TypeNotSupported(subtitle_type))?;
-
-        let file = OpenOptions::new().read(true).open(file_path).await?;
-        let subtitle = parser.parse_file(file).await?;
-
-        info!("Parsed subtitle file {}", path);
-        Ok(Subtitle::new(
-            subtitle,
-            info.map(|e| e.clone()),
-            path.clone(),
-        ))
+        match (path.file_stem(), path.extension()) {
+            (Some(name), Some(extension)) => base_path.join(format!(
+                "{}.{}.{}",
+                name.to_string_lossy(),
+                language.code(),
+                extension.to_string_lossy()
+            )),
+            _ => {
+                warn!("Subtitle file {:?} has no valid name or extension", path);
+                base_path.join(file.name())
+            }
+        }
     }
 
     /// Retrieve the subtitle filename from the given file or attributes.
@@ -541,10 +510,11 @@ impl SubtitleProvider for OpensubtitlesProvider {
         &self,
         subtitle_info: &SubtitleInfo,
         matcher: &SubtitleMatcher,
-    ) -> Result<String> {
+    ) -> Result<PathBuf> {
         trace!("Starting subtitle download for {}", subtitle_info);
         let subtitle_file = subtitle_info.best_matching_file(matcher)?;
-        let file_location = self.storage_file(&subtitle_file).await;
+        let language = subtitle_info.language();
+        let file_location = self.storage_file(&subtitle_file, language).await;
         let file_id = subtitle_file.file_id();
         let path = file_location.as_path();
 
@@ -555,10 +525,7 @@ impl SubtitleProvider for OpensubtitlesProvider {
                 "Subtitle file {:?} already exists, skipping download",
                 path.as_os_str()
             );
-            return Ok(path
-                .to_str()
-                .expect("expected the subtitle path to be valid")
-                .to_string());
+            return Ok(path.to_path_buf());
         }
 
         let url = self.create_download_url()?;
@@ -583,63 +550,11 @@ impl SubtitleProvider for OpensubtitlesProvider {
             )),
         }
     }
-
-    async fn download_and_parse(
-        &self,
-        subtitle_info: &SubtitleInfo,
-        matcher: &SubtitleMatcher,
-    ) -> Result<Subtitle> {
-        match self.download(subtitle_info, matcher).await {
-            Err(e) => Err(e),
-            Ok(path) => {
-                let path = Path::new(&path);
-                self.internal_parse(path, Some(subtitle_info)).await
-            }
-        }
-    }
-
-    async fn parse(&self, file_path: &Path) -> Result<Subtitle> {
-        self.internal_parse(file_path, None).await
-    }
-
-    fn convert(&self, subtitle: Subtitle, output_type: SubtitleType) -> Result<String> {
-        trace!(
-            "Retrieving compatible parser for output type {}",
-            &output_type
-        );
-        match self.parsers.get(&output_type) {
-            None => Err(SubtitleError::TypeNotSupported(output_type)),
-            Some(parser) => {
-                debug!(
-                    "Converting subtitle to raw format of {} for {}",
-                    &output_type, subtitle
-                );
-                match parser.convert(subtitle.cues()) {
-                    Err(err) => {
-                        error!("Subtitle parsing to raw {} failed, {}", &output_type, err);
-                        Err(SubtitleError::ConversionFailed(
-                            output_type.clone(),
-                            err.to_string(),
-                        ))
-                    }
-                    Ok(e) => {
-                        debug!(
-                            "Converted subtitle {:?} to raw {}",
-                            &subtitle.file(),
-                            &output_type
-                        );
-                        Ok(e)
-                    }
-                }
-            }
-        }
-    }
 }
 
 #[derive(Default)]
 pub struct OpensubtitlesProviderBuilder {
     settings: Option<ApplicationConfig>,
-    parsers: HashMap<SubtitleType, Box<dyn Parser>>,
     insecure: bool,
 }
 
@@ -666,25 +581,6 @@ impl OpensubtitlesProviderBuilder {
         self
     }
 
-    /// Adds a parser instance to the `HashMap` of parsers used by the provider.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use popcorn_fx_core::core::subtitles::model::SubtitleType;
-    /// use popcorn_fx_core::core::subtitles::parsers::{Parser, SrtParser};
-    /// use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
-    ///
-    /// let srt_parser: Box<dyn Parser> = Box::new(SrtParser::new());
-    /// let provider = OpensubtitlesProvider::builder()
-    ///     .with_parser(SubtitleType::Srt, srt_parser)
-    ///     .build();
-    /// ```
-    pub fn with_parser(mut self, parser_type: SubtitleType, parser: Box<dyn Parser>) -> Self {
-        self.parsers.insert(parser_type, parser);
-        self
-    }
-
     /// Sets whether insecure connections are allowed the API requests.
     ///
     /// # Examples
@@ -706,26 +602,6 @@ impl OpensubtitlesProviderBuilder {
     /// # Panics
     ///
     /// This function will panic if the `settings` have not been set.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use std::sync::Arc;
-    /// use tokio::sync::Mutex;
-    /// use popcorn_fx_core::core::config::ApplicationConfig;
-    /// use popcorn_fx_core::core::subtitles::model::SubtitleType;
-    /// use popcorn_fx_core::core::subtitles::parsers::{Parser, SrtParser};
-    /// use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
-    ///
-    /// let srt_parser: Box<dyn Parser> = Box::new(SrtParser::new());
-    /// let settings = ApplicationConfig::builder()
-    ///     .storage("storage/path")
-    ///     .build();
-    /// let provider = OpensubtitlesProvider::builder()
-    ///     .settings(settings)
-    ///     .with_parser(SubtitleType::Srt, srt_parser)
-    ///     .build();
-    /// ```
     pub fn build(self) -> OpensubtitlesProvider {
         let settings = self
             .settings
@@ -745,7 +621,6 @@ impl OpensubtitlesProviderBuilder {
                 .danger_accept_invalid_certs(self.insecure)
                 .build()
                 .unwrap(),
-            parsers: self.parsers,
         }
     }
 }
@@ -754,13 +629,10 @@ impl OpensubtitlesProviderBuilder {
 mod test {
     use httpmock::Method::{GET, POST};
     use httpmock::MockServer;
-
     use popcorn_fx_core::core::config::*;
-    use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
-    use popcorn_fx_core::core::subtitles::language::SubtitleLanguage::English;
-    use popcorn_fx_core::core::subtitles::parsers::{SrtParser, VttParser};
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::{copy_test_file, read_test_file_to_string};
+    use tokio::fs::read;
 
     use super::*;
 
@@ -796,7 +668,7 @@ mod test {
                         .unwrap()
                         .to_string(),
                     auto_cleaning_enabled: false,
-                    default_subtitle: English,
+                    default_subtitle: SubtitleLanguage::English,
                     font_family: SubtitleFamily::Arial,
                     font_size: 28,
                     decoration: DecorationType::None,
@@ -924,7 +796,7 @@ mod test {
         });
         let expected_result = SubtitleInfo::builder()
             .imdb_id("tt2861424")
-            .language(English)
+            .language(SubtitleLanguage::English)
             .build();
 
         let result = service.episode_subtitles(&show, &episode).await;
@@ -983,10 +855,7 @@ mod test {
         let temp_dir = settings
             .user_settings_ref(|e| e.subtitle().directory.clone())
             .await;
-        let service = OpensubtitlesProvider::builder()
-            .settings(settings)
-            .with_parser(SubtitleType::Srt, Box::new(SrtParser::new()))
-            .build();
+        let provider = OpensubtitlesProvider::builder().settings(settings).build();
         let filename = "test-subtitle-file.srt".to_string();
         let subtitle_info = SubtitleInfo::builder()
             .imdb_id("tt7405458")
@@ -1017,28 +886,20 @@ mod test {
                 .header("content-type", "text")
                 .body(read_test_file_to_string("subtitle_example.srt"));
         });
-        let expected_file: PathBuf = [temp_dir, filename].iter().collect();
-        let expected_result = Subtitle::new(
-            vec![SubtitleCue::new(
-                "1".to_string(),
-                30296,
-                34790,
-                vec![SubtitleLine::new(vec![StyledText::new(
-                    "Drink up, me hearties, yo ho".to_string(),
-                    true,
-                    false,
-                    false,
-                )])],
-            )],
-            Some(subtitle_info.clone()),
-            expected_file.to_str().unwrap().to_string(),
-        );
+        let expected_file: PathBuf = [temp_dir, "test-subtitle-file.de.srt".to_string()]
+            .iter()
+            .collect();
+        let expected_result = read_test_file_to_string("subtitle_example.srt");
 
-        let result = service
-            .download_and_parse(&subtitle_info, &matcher)
+        // download the subtitle
+        let path = provider.download(&subtitle_info, &matcher).await.unwrap();
+        assert_eq!(expected_file, path);
+
+        // read the stored file
+        let result = read(&path)
             .await
+            .map(|e| String::from_utf8_lossy(e.as_slice()).into_owned())
             .unwrap();
-
         assert_eq!(expected_result, result)
     }
 
@@ -1050,10 +911,7 @@ mod test {
         let temp_dir = settings
             .user_settings_ref(|e| e.subtitle().directory.clone())
             .await;
-        let service = OpensubtitlesProvider::builder()
-            .settings(settings)
-            .with_parser(SubtitleType::Srt, Box::new(SrtParser::new()))
-            .build();
+        let provider = OpensubtitlesProvider::builder().settings(settings).build();
         let filename = "test-subtitle-file.srt".to_string();
         let subtitle_info = SubtitleInfo::builder()
             .imdb_id("tt7405458")
@@ -1085,8 +943,8 @@ mod test {
                 .body(read_test_file_to_string("subtitle_example.srt"));
         });
 
-        let _ = service
-            .download_and_parse(&subtitle_info, &matcher)
+        let path = provider
+            .download(&subtitle_info, &matcher)
             .await
             .expect("expected the download to succeed");
 
@@ -1096,8 +954,9 @@ mod test {
             "expected the subtitle directory to have been created"
         );
         assert!(
-            PathBuf::from(temp_dir.as_str()).join(filename).exists(),
-            "expected the subtitle to have been created"
+            path.exists(),
+            "expected the subtitle path {:?} to have been stored",
+            path
         );
     }
 
@@ -1105,111 +964,37 @@ mod test {
     async fn test_download_when_subtitle_file_exists_should_return_existing_file() {
         init_logger!();
         let test_file = "subtitle_existing.srt";
+        let language = SubtitleLanguage::German;
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let popcorn_settings = PopcornSettings {
-            subtitle_settings: SubtitleSettings {
-                directory: temp_path.to_string(),
-                auto_cleaning_enabled: false,
-                default_subtitle: English,
-                font_family: SubtitleFamily::Arial,
-                font_size: 28,
-                decoration: DecorationType::None,
-                bold: false,
-            },
-            ui_settings: UiSettings {
-                default_language: "en".to_string(),
-                ui_scale: UiScale::new(1f32).expect("Expected ui scale to be valid"),
-                start_screen: Category::Movies,
-                maximized: false,
-                native_window_enabled: false,
-            },
-            server_settings: ServerSettings::default(),
-            torrent_settings: TorrentSettings::default(),
-            playback_settings: Default::default(),
-            tracking_settings: Default::default(),
-        };
-        let settings = ApplicationConfig::builder()
-            .storage(temp_path)
-            .settings(popcorn_settings)
-            .build();
-        let destination = copy_test_file(temp_path, test_file, None);
-        let service = OpensubtitlesProvider::builder()
-            .settings(settings)
-            .with_parser(SubtitleType::Srt, Box::new(SrtParser::new()))
+        let destination = copy_test_file(temp_path, test_file, Some("subtitle_existing.de.srt"));
+        let provider = OpensubtitlesProvider::builder()
+            .settings(settings!(temp_path))
             .build();
         let subtitle_info = SubtitleInfo::builder()
             .imdb_id("tt00001")
-            .language(SubtitleLanguage::German)
+            .language(language)
             .files(vec![SubtitleFile::builder()
                 .file_id(10001111)
-                .name("subtitle_existing.srt")
+                .name(test_file)
                 .url("")
                 .score(0.0)
                 .downloads(0)
                 .build()])
             .build();
         let matcher = SubtitleMatcher::from_string(Some(String::new()), Some(String::from("720")));
-        let expected_cues: Vec<SubtitleCue> = vec![SubtitleCue::new(
-            "1".to_string(),
-            8224,
-            10124,
-            vec![SubtitleLine::new(vec![StyledText::new(
-                "Okay, if no one else will say it, I will.".to_string(),
-                false,
-                false,
-                false,
-            )])],
-        )];
-        let expected_result = Subtitle::new(
-            expected_cues.clone(),
-            Some(subtitle_info.clone()),
-            destination.clone(),
-        );
+        let expected_result = read_test_file_to_string(test_file);
 
-        let result = service
-            .download_and_parse(&subtitle_info, &matcher)
+        // download the subtitle
+        let path = provider.download(&subtitle_info, &matcher).await.unwrap();
+        assert_eq!(destination, path);
+
+        // read the stored file
+        let result = read(&path)
             .await
+            .map(|e| String::from_utf8_lossy(e.as_slice()).into_owned())
             .unwrap();
-
         assert_eq!(expected_result, result);
-        assert_eq!(&expected_cues, result.cues())
-    }
-
-    #[tokio::test]
-    async fn test_parse_valid_file() {
-        init_logger!();
-        let test_file = "subtitle_example.srt";
-        let temp_dir = tempfile::tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = ApplicationConfig::builder().storage(temp_path).build();
-        let service = OpensubtitlesProvider::builder()
-            .settings(settings)
-            .with_parser(SubtitleType::Srt, Box::new(SrtParser::new()))
-            .build();
-        let destination = copy_test_file(temp_dir.path().to_str().unwrap(), test_file, None);
-        let expected_result = Subtitle::new(
-            vec![SubtitleCue::new(
-                "1".to_string(),
-                0,
-                0,
-                vec![SubtitleLine::new(vec![StyledText::new(
-                    "Drink up, me hearties, yo ho".to_string(),
-                    true,
-                    false,
-                    false,
-                )])],
-            )],
-            None,
-            destination.clone(),
-        );
-
-        let result = service
-            .parse(Path::new(&destination))
-            .await
-            .expect("expected the parsing to succeed");
-
-        assert_eq!(expected_result, result)
     }
 
     #[test]
@@ -1264,41 +1049,6 @@ mod test {
         assert_eq!(expected_result, result)
     }
 
-    #[tokio::test]
-    async fn test_convert_to_vtt() {
-        let subtitle = Subtitle::new(
-            vec![SubtitleCue::new(
-                "1".to_string(),
-                45000,
-                46890,
-                vec![SubtitleLine::new(vec![StyledText::new(
-                    "lorem".to_string(),
-                    false,
-                    false,
-                    true,
-                )])],
-            )],
-            None,
-            String::new(),
-        );
-        let temp_dir = tempfile::tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = ApplicationConfig::builder().storage(temp_path).build();
-        let service = OpensubtitlesProvider::builder()
-            .settings(settings)
-            .with_parser(SubtitleType::Vtt, Box::new(VttParser::default()))
-            .build();
-        let expected_result =
-            read_test_file_to_string("example-conversion.vtt").replace("\r\n", "\n");
-
-        let result = service.convert(subtitle, SubtitleType::Vtt);
-
-        assert_eq!(
-            expected_result,
-            result.expect("Expected the conversion to have succeeded")
-        )
-    }
-
     #[test]
     fn test_invalid_extensions() {
         let filename1 = OpensubtitlesProvider::subtitle_file_name(
@@ -1318,5 +1068,61 @@ mod test {
             "lorem.2009.Bluray.1080p.DTSMA5.1.x264.dxva-FraMeSToR.ENG.srt".to_string(),
             filename2
         );
+    }
+
+    mod storage_file {
+        use super::*;
+
+        #[tokio::test]
+        async fn test_filename() {
+            init_logger!();
+            let temp_dir = tempfile::tempdir().unwrap();
+            let temp_path = temp_dir.path().to_str().unwrap();
+            let file = SubtitleFile::builder()
+                .file_id(123)
+                .name("lorem.srt")
+                .url("http://example.com/lorem.srt")
+                .score(0.0)
+                .downloads(0)
+                .build();
+            let provider = OpensubtitlesProvider::builder()
+                .settings(settings!(temp_path))
+                .build();
+
+            let path = provider
+                .storage_file(&file, &SubtitleLanguage::English)
+                .await;
+            let result = path.file_name().unwrap().to_string_lossy();
+            assert_eq!("lorem.en.srt", result);
+
+            let path = provider
+                .storage_file(&file, &SubtitleLanguage::German)
+                .await;
+            let result = path.file_name().unwrap().to_string_lossy();
+            assert_eq!("lorem.de.srt", result);
+        }
+
+        #[tokio::test]
+        async fn test_invalid_filename() {
+            init_logger!();
+            let temp_dir = tempfile::tempdir().unwrap();
+            let temp_path = temp_dir.path().to_str().unwrap();
+            let file = SubtitleFile::builder()
+                .file_id(123)
+                .name("")
+                .url("http://example.com/FooBar.srt")
+                .score(0.0)
+                .downloads(0)
+                .build();
+            let provider = OpensubtitlesProvider::builder()
+                .settings(settings!(temp_path))
+                .build();
+
+            let path = provider
+                .storage_file(&file, &SubtitleLanguage::English)
+                .await;
+            let result = path.file_name().unwrap().to_string_lossy();
+            assert_ne!("", result);
+        }
     }
 }

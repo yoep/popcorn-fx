@@ -127,8 +127,8 @@ public class PopcornTimeApplication extends Application {
 
             // register video playback
             var playerInfoService = IOC.registerInstance(new PlayerInfoService(playerManagerService));
-            var videoInfoService = IOC.registerInstance(new VideoInfoService(IOC));
-            IOC.registerInstance(new AboutSectionService(playerInfoService, videoInfoService));
+            IOC.registerInstance(new VideoInfoService(IOC));
+            IOC.registerInstance(new AboutSectionService(playerInfoService));
 
             // controllers
             IOC.register(AboutSectionController.class);

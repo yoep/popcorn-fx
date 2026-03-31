@@ -562,6 +562,7 @@ mod tests {
     use httpmock::{Mock, MockServer};
     use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
     use popcorn_fx_core::{init_logger, recv_timeout};
+    use tempfile::{tempdir, TempDir};
 
     use super::*;
     use crate::dlna::tests::DEFAULT_SSDP_DESCRIPTION_RESPONSE;
@@ -596,6 +597,7 @@ mod tests {
         </s:Envelope>"#;
 
     struct TestInstance {
+        _temp_dir: TempDir,
         server: MockServer,
         player: Arc<DlnaPlayer>,
     }
@@ -950,6 +952,7 @@ mod tests {
     }
 
     async fn new_test_instance() -> TestInstance {
+        let temp_dir = tempdir().unwrap();
         let server = MockServer::start();
         server.mock(|when, then| {
             when.method(GET).path("/description.xml");
@@ -960,14 +963,20 @@ mod tests {
         let addr = format!("http://{}/description.xml", server.address());
         let device = Device::from_url(addr.parse().unwrap()).await.unwrap();
         let service = device.find_service(&AV_TRANSPORT).cloned().unwrap();
-        let subtitle_provider = MockSubtitleProvider::new();
         let subtitle_server = Arc::new(
-            SubtitleServer::new(Arc::new(subtitle_provider))
-                .await
-                .unwrap(),
+            SubtitleServer::new(Arc::new(subtitle_manager!(settings!(temp_dir
+                .path()
+                .to_string_lossy()
+                .as_ref()))))
+            .await
+            .unwrap(),
         );
         let player = Arc::new(DlnaPlayer::new(device, service, subtitle_server));
 
-        TestInstance { server, player }
+        TestInstance {
+            _temp_dir: temp_dir,
+            server,
+            player,
+        }
     }
 }

@@ -23,7 +23,7 @@ impl WatchedMessageHandler {
     pub fn new(instance: Arc<PopcornFX>, channel: IpcChannel) -> Self {
         let mut receiver = instance.watched_service().subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 let mut proto_event = watched::WatchedEvent::new();
 
                 match &*event {

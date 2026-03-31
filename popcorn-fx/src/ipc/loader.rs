@@ -20,7 +20,7 @@ impl LoaderMessageHandler {
     pub fn new(instance: Arc<PopcornFX>, channel: IpcChannel) -> Self {
         let mut receiver = instance.media_loader().subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 let proto_event = loader::LoaderEvent::from(&*event);
                 if let Err(e) = channel.send(proto_event, loader::LoaderEvent::NAME).await {
                     error!("Failed to send loader event to channel, {}", e);

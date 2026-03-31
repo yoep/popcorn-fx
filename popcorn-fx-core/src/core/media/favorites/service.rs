@@ -7,7 +7,7 @@ use crate::core::media::{
 use crate::core::storage::{Storage, StorageError};
 use async_trait::async_trait;
 use derive_more::Display;
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, error, info, trace, warn};
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -263,10 +263,6 @@ impl FavoriteService for FXFavoriteService {
 impl Callback<FavoriteEvent> for FXFavoriteService {
     fn subscribe(&self) -> Subscription<FavoriteEvent> {
         self.inner.callbacks.subscribe()
-    }
-
-    fn subscribe_with(&self, subscriber: Subscriber<FavoriteEvent>) {
-        self.inner.callbacks.subscribe_with(subscriber)
     }
 }
 

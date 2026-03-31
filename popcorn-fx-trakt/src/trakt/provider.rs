@@ -6,7 +6,7 @@ use axum::response::IntoResponse;
 use axum::routing::get;
 use axum::Router;
 use chrono::{Local, Utc};
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, error, info, trace, warn};
 use oauth2::basic::{BasicClient, BasicTokenResponse};
 use oauth2::{
@@ -431,10 +431,6 @@ impl TrackingProvider for TraktProvider {
 impl Callback<TrackingEvent> for TraktProvider {
     fn subscribe(&self) -> Subscription<TrackingEvent> {
         self.inner.callbacks.subscribe()
-    }
-
-    fn subscribe_with(&self, subscriber: Subscriber<TrackingEvent>) {
-        self.inner.callbacks.subscribe_with(subscriber)
     }
 }
 

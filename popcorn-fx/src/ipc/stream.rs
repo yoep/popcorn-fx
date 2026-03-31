@@ -22,7 +22,7 @@ impl StreamMessageHandler {
 
         let handler = instance.clone();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 handler.handle_event(&*event).await;
             }
         });
@@ -46,7 +46,7 @@ impl StreamMessageHandler {
 
                 let channel = self.channel.clone();
                 tokio::spawn(async move {
-                    while let Some(event) = receiver.recv().await {
+                    while let Ok(event) = receiver.recv().await {
                         Self::handle_stream_event(filename.as_str(), &*event, &channel).await;
                     }
                 });

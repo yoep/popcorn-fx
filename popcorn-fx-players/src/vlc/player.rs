@@ -5,7 +5,7 @@ use chbs::prelude::ToScheme;
 use chbs::probability::Probability;
 use chbs::word::{WordList, WordSampler};
 use derive_more::Display;
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, error, info, trace, warn};
 use popcorn_fx_core::core::players::{PlayRequest, Player, PlayerEvent, PlayerState};
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
@@ -106,10 +106,6 @@ impl Player for VlcPlayer {
 impl Callback<PlayerEvent> for VlcPlayer {
     fn subscribe(&self) -> Subscription<PlayerEvent> {
         self.inner.callbacks.subscribe()
-    }
-
-    fn subscribe_with(&self, subscriber: Subscriber<PlayerEvent>) {
-        self.inner.callbacks.subscribe_with(subscriber)
     }
 }
 

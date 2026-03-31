@@ -3,7 +3,7 @@ use crate::core::loader::{
     LoadingData, LoadingError, LoadingEvent, LoadingHandle, LoadingResult, LoadingState,
 };
 use derive_more::Display;
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, error, info, trace, warn};
 use std::sync::Arc;
 use tokio::select;
@@ -94,10 +94,6 @@ impl LoadingTask {
 impl Callback<LoadingEvent> for LoadingTask {
     fn subscribe(&self) -> Subscription<LoadingEvent> {
         self.context.callbacks.subscribe()
-    }
-
-    fn subscribe_with(&self, subscriber: Subscriber<LoadingEvent>) {
-        self.context.callbacks.subscribe_with(subscriber)
     }
 }
 

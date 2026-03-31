@@ -290,7 +290,7 @@ impl TorrentInfo {
 #[cfg(any(test, feature = "testing"))]
 mod mock {
     use super::*;
-    use fx_callback::{Subscriber, Subscription};
+    use fx_callback::Subscription;
     use mockall::mock;
     use std::fmt::{Display, Formatter};
     use std::ops::Range;
@@ -319,7 +319,6 @@ mod mock {
 
         impl Callback<TorrentEvent> for Torrent {
             fn subscribe(&self) -> Subscription<TorrentEvent>;
-            fn subscribe_with(&self, subscriber: Subscriber<TorrentEvent>);
         }
     }
 

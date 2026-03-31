@@ -10,7 +10,7 @@ jobs:
   package_linux:
     name: Package (Linux)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - uses: actions/checkout@v5
@@ -41,7 +41,7 @@ jobs:
   package_macos_x64:
     name: Package (MacOS X64)
     runs-on: macos-15-intel
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - uses: actions/checkout@v5
@@ -70,7 +70,7 @@ jobs:
   package_macos_arm64:
     name: Package (MacOS ARM64)
     runs-on: macos-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - uses: actions/checkout@v5

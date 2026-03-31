@@ -6,7 +6,7 @@ use crate::core::players::{
 use crate::core::stream::StreamServer;
 use async_trait::async_trait;
 use derive_more::Display;
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, error, info, trace, warn};
 #[cfg(any(test, feature = "testing"))]
 pub use mock::*;
@@ -172,10 +172,6 @@ impl Callback<PlayerManagerEvent> for DefaultPlayerManager {
     fn subscribe(&self) -> Subscription<PlayerManagerEvent> {
         self.inner.callbacks.subscribe()
     }
-
-    fn subscribe_with(&self, subscriber: Subscriber<PlayerManagerEvent>) {
-        self.inner.callbacks.subscribe_with(subscriber)
-    }
 }
 
 #[async_trait]
@@ -298,7 +294,7 @@ impl InnerPlayerManager {
                     select! {
                         _ = cancellation_token.cancelled() => break,
                         event = event_receiver.recv() => {
-                            if let Some(event) = event {
+                            if let Ok(event) = event {
                                 let _ = sender.send((*event).clone());
                             } else {
                                 break;
@@ -541,7 +537,7 @@ struct PlayerData {
 #[cfg(any(test, feature = "testing"))]
 mod mock {
     use super::*;
-    use fx_callback::{Subscriber, Subscription};
+    use fx_callback::Subscription;
 
     use mockall::mock;
 
@@ -562,7 +558,6 @@ mod mock {
 
         impl Callback<PlayerManagerEvent> for PlayerManager {
             fn subscribe(&self) -> Subscription<PlayerManagerEvent>;
-            fn subscribe_with(&self, subscriber: Subscriber<PlayerManagerEvent>);
         }
     }
 }
@@ -601,10 +596,6 @@ mod tests {
     impl Callback<PlayerEvent> for DummyPlayer {
         fn subscribe(&self) -> Subscription<PlayerEvent> {
             self.callbacks.subscribe()
-        }
-
-        fn subscribe_with(&self, subscriber: Subscriber<PlayerEvent>) {
-            self.callbacks.subscribe_with(subscriber)
         }
     }
 

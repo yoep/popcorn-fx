@@ -4,7 +4,7 @@ use crate::core::stream::{
 };
 use async_trait::async_trait;
 use derive_more::Display;
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, trace};
 use std::cmp::min;
 use std::fs::{File, OpenOptions};
@@ -74,10 +74,6 @@ impl StreamingResource for FileStreamingResource {
 impl Callback<StreamEvent> for FileStreamingResource {
     fn subscribe(&self) -> Subscription<StreamEvent> {
         self.inner.callbacks.subscribe()
-    }
-
-    fn subscribe_with(&self, subscriber: Subscriber<StreamEvent>) {
-        self.inner.callbacks.subscribe_with(subscriber);
     }
 }
 

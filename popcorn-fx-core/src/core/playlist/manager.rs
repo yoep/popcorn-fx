@@ -4,7 +4,7 @@ use crate::core::loader::{LoadingHandle, MediaLoader};
 use crate::core::players::{PlayerManager, PlayerManagerEvent};
 use crate::core::playlist::{Playlist, PlaylistItem};
 use derive_more::Display;
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use fx_handle::Handle;
 use log::{debug, error, trace};
 use std::sync::Arc;
@@ -167,10 +167,6 @@ impl Callback<PlaylistManagerEvent> for PlaylistManager {
     fn subscribe(&self) -> Subscription<PlaylistManagerEvent> {
         self.callbacks.subscribe()
     }
-
-    fn subscribe_with(&self, subscriber: Subscriber<PlaylistManagerEvent>) {
-        self.callbacks.subscribe_with(subscriber)
-    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -246,7 +242,7 @@ impl InnerPlaylistManager {
         loop {
             select! {
                 _ = self.cancellation_token.cancelled() => break,
-                Some(event) = player_event_receiver.recv() => self.on_player_event((*event).clone()),
+                Ok(event) = player_event_receiver.recv() => self.on_player_event((*event).clone()),
                 Some(handler) = event_receiver.recv() => self.on_event(handler).await,
                 command = command_receiver.recv() => match command {
                     Some(command) => self.on_command(command).await,

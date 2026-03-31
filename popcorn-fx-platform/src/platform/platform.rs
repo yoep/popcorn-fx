@@ -1,4 +1,4 @@
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, error, info, trace, warn};
 use souvlaki::{MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, PlatformConfig};
 use std::env::consts::{ARCH, OS};
@@ -181,10 +181,6 @@ impl DefaultPlatform {
 impl Callback<PlatformEvent> for DefaultPlatform {
     fn subscribe(&self) -> Subscription<PlatformEvent> {
         self.callbacks.subscribe()
-    }
-
-    fn subscribe_with(&self, subscriber: Subscriber<PlatformEvent>) {
-        self.callbacks.subscribe_with(subscriber);
     }
 }
 

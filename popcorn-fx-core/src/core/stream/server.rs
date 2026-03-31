@@ -11,7 +11,7 @@ use axum::http::{HeaderMap, HeaderValue, Response, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::{get, head};
 use axum::{http, Router};
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, error, trace, warn};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -176,10 +176,6 @@ impl StreamServer {
 impl Callback<StreamServerEvent> for StreamServer {
     fn subscribe(&self) -> Subscription<StreamServerEvent> {
         self.inner.callbacks.subscribe()
-    }
-
-    fn subscribe_with(&self, subscriber: Subscriber<StreamServerEvent>) {
-        self.inner.callbacks.subscribe_with(subscriber);
     }
 }
 

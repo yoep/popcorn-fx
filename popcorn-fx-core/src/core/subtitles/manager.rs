@@ -4,7 +4,7 @@ use crate::core::subtitles::language::SubtitleLanguage;
 use crate::core::subtitles::model::SubtitleInfo;
 use async_trait::async_trait;
 use derive_more::Display;
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, error, info, trace};
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -92,10 +92,6 @@ impl DefaultSubtitleManager {
 impl Callback<SubtitleEvent> for DefaultSubtitleManager {
     fn subscribe(&self) -> Subscription<SubtitleEvent> {
         self.inner.callbacks.subscribe()
-    }
-
-    fn subscribe_with(&self, subscriber: Subscriber<SubtitleEvent>) {
-        self.inner.callbacks.subscribe_with(subscriber);
     }
 }
 

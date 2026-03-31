@@ -23,7 +23,7 @@ impl FavoritesMessageHandler {
     pub fn new(instance: Arc<PopcornFX>, channel: IpcChannel) -> Self {
         let mut receiver = instance.favorite_service().subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 let proto_event: favorites::FavoriteEvent;
 
                 match &*event {

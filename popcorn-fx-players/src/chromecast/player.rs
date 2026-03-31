@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use derive_more::Display;
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, error, trace, warn};
 use rust_cast::channels::heartbeat::HeartbeatResponse;
 use rust_cast::channels::media::{MediaResponse, Status, StatusEntry};
@@ -274,10 +274,6 @@ impl<D: FxCastDevice + 'static> Player for ChromecastPlayer<D> {
 impl<D: FxCastDevice + 'static> Callback<PlayerEvent> for ChromecastPlayer<D> {
     fn subscribe(&self) -> Subscription<PlayerEvent> {
         self.inner.callbacks.subscribe()
-    }
-
-    fn subscribe_with(&self, subscriber: Subscriber<PlayerEvent>) {
-        self.inner.callbacks.subscribe_with(subscriber)
     }
 }
 

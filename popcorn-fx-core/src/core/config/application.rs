@@ -4,7 +4,7 @@ use crate::core::config::{
 };
 use crate::core::storage::Storage;
 use derive_more::Display;
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, error, info, trace, warn};
 use std::sync::Arc;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
@@ -337,10 +337,6 @@ impl ApplicationConfig {
 impl Callback<ApplicationConfigEvent> for ApplicationConfig {
     fn subscribe(&self) -> Subscription<ApplicationConfigEvent> {
         self.inner.callbacks.subscribe()
-    }
-
-    fn subscribe_with(&self, subscriber: Subscriber<ApplicationConfigEvent>) {
-        self.inner.callbacks.subscribe_with(subscriber)
     }
 }
 

@@ -53,7 +53,7 @@ impl TorrentInfoLoadingStrategy {
                 loop {
                     select! {
                         _ = context.cancelled() => return Err(LoadingError::Cancelled),
-                        Some(event) = receiver.recv() => Self::handle_torrent_event(&*event, context),
+                        Ok(event) = receiver.recv() => Self::handle_torrent_event(&*event, context),
                         info = &mut info_future => return info
                             .map_err(|e| LoadingError::TorrentError(e)),
                     }

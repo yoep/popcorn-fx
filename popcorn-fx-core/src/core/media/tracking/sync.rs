@@ -169,7 +169,7 @@ impl InnerSyncMediaTracking {
         loop {
             select! {
                 _ = self.cancellation_token.cancelled() => break,
-                Some(event) = tracking_receiver.recv() => self.handle_event(&*event).await,
+                Ok(event) = tracking_receiver.recv() => self.handle_event(&*event).await,
                 Some(command) = command_receiver.recv() => self.handle_command(command).await
             }
         }

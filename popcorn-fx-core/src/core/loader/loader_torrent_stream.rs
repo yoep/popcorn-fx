@@ -106,7 +106,7 @@ impl LoadingStrategy for TorrentStreamLoadingStrategy {
                     select! {
                         _ = context.cancelled() => break,
                         event = receiver.recv() => {
-                            if let Some(event) = event {
+                            if let Ok(event) = event {
                                 match self.handle_event(&*event, context).await {
                                     Ok(ready) => {
                                         if ready {

@@ -5,7 +5,7 @@ use crate::core::platform::{PlatformData, PlatformEvent};
 use crate::core::playback::{
     MediaInfo, MediaNotificationEvent, PlaybackControlEvent, PlaybackState,
 };
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, trace, warn};
 use std::sync::Arc;
 use tokio::select;
@@ -68,10 +68,6 @@ impl Callback<PlaybackControlEvent> for PlaybackControls {
     fn subscribe(&self) -> Subscription<PlaybackControlEvent> {
         self.inner.callbacks.subscribe()
     }
-
-    fn subscribe_with(&self, subscriber: Subscriber<PlaybackControlEvent>) {
-        self.inner.callbacks.subscribe_with(subscriber);
-    }
 }
 
 /// A builder for `PlaybackControls`.
@@ -129,7 +125,7 @@ impl PlaybackControlsBuilder {
         let inner = instance.inner.clone();
         let mut receiver = instance.inner.platform.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 inner.handle_platform_event(event);
             }
         });
@@ -236,14 +232,13 @@ mod test {
     use crate::{init_logger, recv_timeout};
     use std::sync::mpsc::channel;
     use std::time::Duration;
-    use tokio::sync::mpsc::unbounded_channel;
-    use tokio::sync::oneshot;
+    use tokio::sync::{broadcast, oneshot};
     use tokio::time::timeout;
 
     #[tokio::test]
     async fn test_platform_event_toggle_playback() {
         init_logger!();
-        let (tx, rx) = unbounded_channel();
+        let (tx, rx) = broadcast::channel(64);
         let mut platform = MockDummyPlatformData::new();
         platform.expect_subscribe().return_once(move || rx);
         let event_publisher = EventPublisher::default();
@@ -271,7 +266,7 @@ mod test {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_platform_event_forward() {
         init_logger!();
-        let (tx, rx) = unbounded_channel();
+        let (tx, rx) = broadcast::channel(64);
         let mut platform = MockDummyPlatformData::new();
         platform.expect_subscribe().return_once(move || rx);
         let event_publisher = EventPublisher::default();
@@ -304,7 +299,7 @@ mod test {
             move |notification: MediaNotificationEvent| tx.send(notification).unwrap(),
         );
         platform.expect_subscribe().returning(|| {
-            let (_, rx) = unbounded_channel();
+            let (_, rx) = broadcast::channel(64);
             rx
         });
         let event_publisher = EventPublisher::default();
@@ -353,7 +348,7 @@ mod test {
             .expect_notify_media_event()
             .returning(move |notification: MediaNotificationEvent| tx.send(notification).unwrap());
         platform.expect_subscribe().returning(|| {
-            let (_, rx) = unbounded_channel();
+            let (_, rx) = broadcast::channel(64);
             rx
         });
         let event_publisher = EventPublisher::default();
@@ -382,7 +377,7 @@ mod test {
             .expect_notify_media_event()
             .returning(move |notification: MediaNotificationEvent| tx.send(notification).unwrap());
         platform.expect_subscribe().returning(|| {
-            let (_, rx) = unbounded_channel();
+            let (_, rx) = broadcast::channel(64);
             rx
         });
         let event_publisher = EventPublisher::default();

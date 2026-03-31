@@ -28,7 +28,7 @@ impl TorrentMessageHandler {
 
         let handler = instance.clone();
         tokio::spawn(async move {
-            while let Some(event) = reciever.recv().await {
+            while let Ok(event) = reciever.recv().await {
                 handler
                     .handle_torrent_manager_event(&*event, &channel)
                     .await;
@@ -54,7 +54,7 @@ impl TorrentMessageHandler {
                 let channel = channel.clone();
                 let handle = handle.clone();
                 tokio::spawn(async move {
-                    while let Some(event) = torrent_receiver.recv().await {
+                    while let Ok(event) = torrent_receiver.recv().await {
                         let mut proto_event = proto::torrent::TorrentEvent::from(&*event);
                         proto_event.torrent_handle =
                             MessageField::some(message::Handle::from(&handle));

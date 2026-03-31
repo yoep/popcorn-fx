@@ -9,7 +9,7 @@ use derive_more::Display;
 use futures::future::BoxFuture;
 use futures::task::AtomicWaker;
 use futures::{ready, FutureExt};
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use fx_torrent::{PieceIndex, PiecePriority, TorrentEvent, TorrentState};
 use itertools::Itertools;
 use log::{debug, error, trace, warn};
@@ -71,10 +71,6 @@ impl Callback<StreamEvent> for TorrentStreamingResource {
     fn subscribe(&self) -> Subscription<StreamEvent> {
         self.inner.callbacks.subscribe()
     }
-
-    fn subscribe_with(&self, subscriber: Subscriber<StreamEvent>) {
-        self.inner.callbacks.subscribe_with(subscriber);
-    }
 }
 
 #[async_trait]
@@ -133,7 +129,7 @@ impl InnerTorrentStreamingResource {
         loop {
             select! {
                 _ = self.cancellation_token.cancelled() => break,
-                Some(event) = receiver.recv() => self.on_event(&event).await,
+                Ok(event) = receiver.recv() => self.on_event(&event).await,
             }
         }
 
@@ -520,7 +516,7 @@ impl TorrentStream {
                     break;
                 }
                 event = receiver.recv() => {
-                    if let Some(event) = event {
+                    if let Ok(event) = event {
                         match &*event {
                             TorrentEvent::StateChanged(_) | TorrentEvent::PieceCompleted(_) => {
                                 event_waker.wake();
@@ -636,6 +632,7 @@ mod tests {
 
     mod filename {
         use super::*;
+        use tokio::sync::broadcast;
 
         #[tokio::test]
         async fn test_filename() {
@@ -649,7 +646,7 @@ mod tests {
                 .returning(move |file| Some(create_torrent_file!(file, pieces_len)));
             torrent.expect_total_pieces().return_const(pieces_len);
             torrent.expect_subscribe().returning(|| {
-                let (_, rx) = unbounded_channel();
+                let (_, rx) = broadcast::channel(64);
                 rx
             });
             let torrent_manager = MockTorrentManager::new();
@@ -767,6 +764,7 @@ mod tests {
         use crate::recv_timeout;
         use fx_torrent::Metrics;
         use std::time::Duration;
+        use tokio::sync::broadcast;
 
         #[tokio::test]
         async fn test_preparing() {
@@ -775,7 +773,7 @@ mod tests {
             let filename = "TorrentVideoFile.mp4";
             let pieces_len = 100;
             let (tx, mut rx) = unbounded_channel();
-            let (_sender, receiver) = unbounded_channel();
+            let (_sender, receiver) = broadcast::channel(64);
             let mut torrent = create_torrent(handle, pieces_len, false);
             torrent
                 .expect_file_by_name()
@@ -834,7 +832,7 @@ mod tests {
             let filename = "TorrentVideoFile.mp4";
             let pieces_len = 100;
             let (tx, mut rx) = unbounded_channel();
-            let (_sender, receiver) = unbounded_channel();
+            let (_sender, receiver) = broadcast::channel(64);
             let mut torrent = create_torrent(handle, pieces_len, true);
             torrent
                 .expect_file_by_name()

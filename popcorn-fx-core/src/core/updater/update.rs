@@ -7,7 +7,7 @@ use std::sync::Arc;
 use derive_more::Display;
 use flate2::read::GzDecoder;
 use futures::StreamExt;
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, error, info, trace, warn};
 use reqwest::{Client, ClientBuilder, Response, StatusCode};
 use semver::Version;
@@ -193,10 +193,6 @@ impl Updater {
 impl Callback<UpdateEvent> for Updater {
     fn subscribe(&self) -> Subscription<UpdateEvent> {
         self.inner.callbacks.subscribe()
-    }
-
-    fn subscribe_with(&self, subscriber: Subscriber<UpdateEvent>) {
-        self.inner.callbacks.subscribe_with(subscriber)
     }
 }
 

@@ -53,7 +53,7 @@ impl TorrentLoadingStrategy {
         loop {
             select! {
                 _ = context.cancelled() => return Err(LoadingError::Cancelled),
-                Some(event) = receiver.recv() => Self::handle_event(&*event, context),
+                Ok(event) = receiver.recv() => Self::handle_event(&*event, context),
                 _ = &mut download_future => break,
             }
         }

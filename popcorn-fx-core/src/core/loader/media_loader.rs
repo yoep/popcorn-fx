@@ -9,7 +9,7 @@ use crate::core::stream::{Error, StreamStats};
 use crate::core::{stream, torrents};
 use async_trait::async_trait;
 use derive_more::Display;
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use fx_handle::Handle;
 use fx_torrent::Metrics;
 use log::{debug, trace};
@@ -354,10 +354,6 @@ impl Callback<MediaLoaderEvent> for DefaultMediaLoader {
     fn subscribe(&self) -> Subscription<MediaLoaderEvent> {
         self.inner.callbacks.subscribe()
     }
-
-    fn subscribe_with(&self, subscriber: Subscriber<MediaLoaderEvent>) {
-        self.inner.callbacks.subscribe_with(subscriber)
-    }
 }
 
 impl Drop for DefaultMediaLoader {
@@ -521,7 +517,7 @@ impl InnerMediaLoader {
                 select! {
                     _ = task_event_cancel.cancelled() => break,
                     event = task_event_receiver.recv() => {
-                        if let Some(event) = event {
+                        if let Ok(event) = event {
                             Self::handle_task_event(&event, task_handle, &task_event_sender, &task_command_sender);
                         } else {
                             break;

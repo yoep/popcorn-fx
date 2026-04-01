@@ -210,7 +210,6 @@ mod test {
     use tempfile::tempdir;
 
     use crate::core::media::{Images, MovieOverview, ShowOverview};
-    use crate::init_logger;
     use crate::testing::read_test_file_to_bytes;
 
     use super::*;

@@ -332,7 +332,6 @@ mod mock {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::init_logger;
     use fx_torrent::TorrentFileInfo;
 
     #[test]

@@ -230,7 +230,6 @@ mod test {
     use crate::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use crate::core::subtitles::parsers::VttParser;
     use crate::core::subtitles::MockSubtitleProvider;
-    use crate::init_logger;
     use reqwest::header::CONTENT_TYPE;
     use reqwest::{Client, Url};
     use tempfile::tempdir;

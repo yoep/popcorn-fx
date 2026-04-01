@@ -141,10 +141,7 @@ mod tests {
     use crate::ipc::proto::application::GetApplicationVersionRequest;
     use crate::ipc::proto::log::LogRequest;
     use crate::ipc::test::create_channel_pair;
-    use crate::timeout;
     use mockall::mock;
-    use popcorn_fx_core::init_logger;
-    use std::time::Duration;
     use tokio::sync::mpsc::unbounded_channel;
 
     mock! {

@@ -420,7 +420,6 @@ impl InnerStreamServer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::init_logger;
     use reqwest::Client;
 
     mod metadata {
@@ -596,7 +595,7 @@ mod tests {
             // start the stream
             let result = server.start_stream(resource).await;
             assert!(result.is_ok(), "expected Ok, but got {:?}", result);
-            let event = recv_timeout!(&mut receiver, Duration::from_millis(250));
+            let event = timeout!(receiver.recv(), Duration::from_millis(250)).unwrap();
             match &*event {
                 StreamServerEvent::StreamStarted(stream) => {
                     assert_eq!(
@@ -613,7 +612,7 @@ mod tests {
 
             // stop the stream
             server.stop_stream(filename).await;
-            let event = recv_timeout!(&mut receiver, Duration::from_millis(250));
+            let event = timeout!(receiver.recv(), Duration::from_millis(250)).unwrap();
             match &*event {
                 StreamServerEvent::StreamStopped(result) => {
                     assert_eq!(filename, result, "expected the stream to have been stopped");

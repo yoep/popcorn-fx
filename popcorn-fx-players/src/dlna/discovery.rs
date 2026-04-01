@@ -252,8 +252,8 @@ mod tests {
     use crate::dlna::tests::{MockUdpServer, DEFAULT_SSDP_DESCRIPTION_RESPONSE};
     use httpmock::Method::GET;
     use httpmock::MockServer;
+    use popcorn_fx_core::assert_timeout;
     use popcorn_fx_core::core::players::{MockPlayerManager, Player};
-    use popcorn_fx_core::{assert_timeout, init_logger};
     use std::sync::mpsc::channel;
     use tempfile::tempdir;
 

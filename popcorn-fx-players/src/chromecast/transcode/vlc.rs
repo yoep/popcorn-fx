@@ -528,7 +528,6 @@ impl VlcTranscoderDiscovery {
 mod tests {
     use super::*;
 
-    use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::write_tmp_dir_file;
     use tempfile::tempdir;
 

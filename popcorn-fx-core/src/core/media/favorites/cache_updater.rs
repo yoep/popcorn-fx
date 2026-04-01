@@ -216,7 +216,7 @@ mod test {
     use crate::core::media::favorites::MockFavoriteService;
     use crate::core::media::providers::MockMediaDetailsProvider;
     use crate::core::media::{MediaOverview, MovieOverview};
-    use crate::{init_logger, recv_timeout};
+    use crate::recv_timeout;
     use tokio::sync::mpsc::unbounded_channel;
 
     use super::*;

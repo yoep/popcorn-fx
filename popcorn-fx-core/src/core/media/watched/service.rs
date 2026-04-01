@@ -436,7 +436,7 @@ pub mod test {
 
     use crate::core::media::{Images, MovieOverview, ShowOverview};
     use crate::testing::copy_test_file;
-    use crate::{assert_timeout, init_logger, recv_timeout};
+    use crate::{assert_timeout, recv_timeout};
 
     use super::*;
 
@@ -589,7 +589,7 @@ pub mod test {
 
         let mut receiver = service.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 tx.send((*event).clone()).unwrap();
             }
         });
@@ -623,7 +623,7 @@ pub mod test {
 
         let mut receiver = service.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 tx.send((*event).clone()).unwrap();
             }
         });

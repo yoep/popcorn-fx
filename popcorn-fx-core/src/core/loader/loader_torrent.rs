@@ -148,7 +148,7 @@ mod tests {
     use crate::core::loader::LoadingResult;
     use crate::core::playlist::{PlaylistItem, PlaylistTorrent};
     use crate::core::torrents::{MockTorrent, MockTorrentManager, TorrentHandle};
-    use crate::{create_loading_task, init_logger, recv_timeout};
+    use crate::{create_loading_task, recv_timeout};
     use std::time::Duration;
     use tokio::sync::mpsc::unbounded_channel;
 

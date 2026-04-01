@@ -296,15 +296,11 @@ mod tests {
     use crate::ipc::proto::media::media;
     use crate::ipc::test::create_channel_pair;
     use crate::tests::default_args;
-    use crate::timeout;
-
     use httpmock::{Method, MockServer};
     use popcorn_fx_core::core::media::{Images, Rating, TorrentInfo};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
-    use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::read_test_file_to_string;
     use protobuf::EnumOrUnknown;
-    use std::time::Duration;
     use tempfile::tempdir;
 
     #[tokio::test]

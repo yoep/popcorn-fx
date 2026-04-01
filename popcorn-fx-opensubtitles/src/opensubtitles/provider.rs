@@ -630,7 +630,6 @@ mod test {
     use httpmock::Method::{GET, POST};
     use httpmock::MockServer;
     use popcorn_fx_core::core::config::*;
-    use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::{copy_test_file, read_test_file_to_string};
     use tokio::fs::read;
 

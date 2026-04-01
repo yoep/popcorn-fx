@@ -220,9 +220,7 @@ impl futures::Stream for FileStream {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::init_logger;
     use crate::testing::copy_test_file;
-    use std::time::Duration;
     use tempfile::{tempdir, TempDir};
 
     mod filename {
@@ -269,7 +267,6 @@ mod tests {
 
     mod stop {
         use super::*;
-        use crate::recv_timeout;
 
         #[tokio::test]
         async fn test_stop() {
@@ -285,7 +282,7 @@ mod tests {
             assert_eq!(StreamState::Stopped, result);
 
             // wait for the stream event
-            let event = recv_timeout!(&mut receiver, Duration::from_millis(250));
+            let event = timeout!(receiver.recv(), Duration::from_millis(250)).unwrap();
             match &*event {
                 StreamEvent::StateChanged(state) => assert_eq!(state, &StreamState::Stopped),
                 _ => assert!(

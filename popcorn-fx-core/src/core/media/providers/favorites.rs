@@ -213,7 +213,6 @@ mod test {
     use crate::core::media::watched::test::MockWatchedService;
     use crate::core::media::watched::DefaultWatchedService;
     use crate::core::media::{Images, MovieOverview, ShowOverview};
-    use crate::init_logger;
     use crate::testing::copy_test_file;
 
     use super::*;

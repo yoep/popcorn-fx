@@ -13,6 +13,10 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
 
+#[cfg(test)]
+#[macro_use]
+mod test_macros;
+
 mod bootstrapper;
 mod data_installer;
 

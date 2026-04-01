@@ -160,7 +160,6 @@ mod test {
     use httpmock::MockServer;
 
     use crate::core::media::{Episode, Images, MovieDetails, ShowDetails};
-    use crate::init_logger;
     use crate::testing::read_test_file_to_string;
 
     use super::*;

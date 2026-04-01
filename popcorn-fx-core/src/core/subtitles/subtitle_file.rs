@@ -260,7 +260,6 @@ mod test {
     use std::cmp::Ordering;
 
     use crate::core::subtitles::SubtitleFile;
-    use crate::init_logger;
 
     #[test]
     fn test_ordering_quality() {

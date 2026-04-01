@@ -28,7 +28,6 @@ html-escape = "0"
 itertools.workspace = true
 local-ip-address.workspace = true
 log.workspace = true
-log4rs = { workspace = true, features = ["console_writer"], optional = true }
 mockall = { workspace = true, optional = true }
 percent-encoding.workspace = true
 regex.workspace = true
@@ -49,6 +48,7 @@ url.workspace = true
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
 
 httpmock.workspace = true
+log4rs = { workspace = true, features = ["console_writer"] }
 mockall.workspace = true
 tempfile.workspace = true
 tokio = { workspace = true, features = ["test-util"] }
@@ -60,7 +60,6 @@ default = [
 
 launcher = []
 testing = [
-    "log4rs",
     "tempfile",
     "mockall"
 ]

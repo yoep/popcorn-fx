@@ -456,8 +456,8 @@ mod test {
     use crate::core::loader::MockMediaLoader;
     use crate::core::players::MockPlayerManager;
     use crate::core::players::Player;
+    use crate::recv_timeout;
     use crate::testing::MockPlayer;
-    use crate::{init_logger, recv_timeout};
     use fx_callback::{Callback, MultiThreadedCallback};
     use std::time::Duration;
     use tokio::sync::mpsc::unbounded_channel;
@@ -530,13 +530,9 @@ mod test {
 
         let mut receiver = manager.subscribe();
         tokio::spawn(async move {
-            loop {
-                if let Some(event) = receiver.recv().await {
-                    if let PlaylistManagerEvent::PlaylistChanged = &*event {
-                        tx_event.send(event.clone()).unwrap();
-                    }
-                } else {
-                    break;
+            while let Ok(event) = receiver.recv().await {
+                if let PlaylistManagerEvent::PlaylistChanged = &*event {
+                    tx_event.send(event.clone()).unwrap();
                 }
             }
         });
@@ -650,12 +646,8 @@ mod test {
 
         let mut receiver = manager.subscribe();
         tokio::spawn(async move {
-            loop {
-                if let Some(event) = receiver.recv().await {
-                    tx_manager.send(event.clone()).unwrap()
-                } else {
-                    break;
-                }
+            while let Ok(event) = receiver.recv().await {
+                tx_manager.send(event.clone()).unwrap()
             }
         });
 
@@ -762,7 +754,7 @@ mod test {
 
         let mut receiver = manager.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 tx_manager.send(event.clone()).unwrap()
             }
         });
@@ -773,7 +765,7 @@ mod test {
             playlist_item!(item2),
         ]);
         manager.play(playlist).await;
-        let result = recv_timeout!(&mut rx_manager, Duration::from_millis(200));
+        let result = timeout!(rx_manager.recv(), Duration::from_millis(200)).unwrap();
         match &*result {
             PlaylistManagerEvent::PlaylistChanged => {}
             _ => assert!(
@@ -816,7 +808,7 @@ mod test {
 
         let mut receiver = manager.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 match &*event {
                     PlaylistManagerEvent::PlayingNextIn(_)
                     | PlaylistManagerEvent::PlayingNextInAborted => {
@@ -833,11 +825,12 @@ mod test {
         callbacks.invoke(PlayerManagerEvent::PlayerDurationChanged(360_000));
         callbacks.invoke(PlayerManagerEvent::PlayerTimeChanged(320_000));
 
-        let result = recv_timeout!(
-            &mut rx,
+        let result = timeout!(
+            rx.recv(),
             Duration::from_millis(500),
             "expected to receive PlaylistManagerEvent::PlayingNextIn"
-        );
+        )
+        .unwrap();
         match &*result {
             PlaylistManagerEvent::PlayingNextIn(playing_in) => {
                 assert_eq!(40u32, *playing_in);
@@ -911,7 +904,7 @@ mod test {
         // subscribe to the events
         let mut receiver = manager.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 match &*event {
                     PlaylistManagerEvent::StateChanged(_) => {
                         let _ = tx.send(event.clone());
@@ -925,7 +918,7 @@ mod test {
         manager.stop().await;
 
         // wait for the state changed event
-        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
+        let result = timeout!(rx.recv(), Duration::from_millis(200)).unwrap();
         match &*result {
             PlaylistManagerEvent::StateChanged(state) => {
                 assert_eq!(

@@ -126,10 +126,8 @@ mod tests {
     use super::*;
     use crate::ipc::test::create_channel_pair;
     use crate::tests::default_args;
-    use crate::timeout;
     use popcorn_fx_core::core::stream::tests::MockStreamingResource;
     use popcorn_fx_core::core::stream::StreamState;
-    use popcorn_fx_core::init_logger;
     use std::time::Duration;
     use tempfile::tempdir;
     use tokio::sync::mpsc::unbounded_channel;
@@ -231,6 +229,7 @@ mod tests {
     mod events {
         use super::*;
         use popcorn_fx_core::recv_timeout;
+        use tokio::sync::broadcast;
 
         #[tokio::test]
         async fn test_stream_event() {
@@ -239,7 +238,7 @@ mod tests {
             let temp_dir = tempdir().unwrap();
             let temp_path = temp_dir.path().to_str().unwrap();
             let (tx, mut rx) = unbounded_channel();
-            let (sender, receiver) = unbounded_channel();
+            let (sender, receiver) = broadcast::channel(24);
             let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
             let (incoming, outgoing) = create_channel_pair().await;
             let _handler = StreamMessageHandler::new(instance.clone(), outgoing.clone());

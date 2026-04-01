@@ -335,7 +335,6 @@ mod mock {
 
         impl Callback<FavoriteEvent> for FavoriteService {
             fn subscribe(&self) -> Subscription<FavoriteEvent>;
-            fn subscribe_with(&self, subscriber: Subscriber<FavoriteEvent>);
         }
     }
 }
@@ -345,8 +344,8 @@ mod test {
     use std::time::Duration;
 
     use crate::core::media::{Images, MovieOverview, Rating};
+    use crate::recv_timeout;
     use crate::testing::copy_test_file;
-    use crate::{init_logger, recv_timeout};
     use tempfile::tempdir;
     use tokio::sync::mpsc::unbounded_channel;
 
@@ -553,7 +552,7 @@ mod test {
 
         let mut receiver = service.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 tx.send((*event).clone()).unwrap();
             }
         });

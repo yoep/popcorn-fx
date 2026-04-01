@@ -565,14 +565,15 @@ mod mock {
 #[cfg(test)]
 mod tests {
     use crate::core::{event, stream};
+    use crate::recv_timeout;
     use crate::testing::MockPlayer;
-    use crate::{init_logger, recv_timeout};
 
     use super::*;
 
     use crate::core::stream::ServerStream;
     use async_trait::async_trait;
     use std::time::Duration;
+    use tokio::sync::broadcast;
     use tokio::sync::mpsc::unbounded_channel;
     use tokio::{select, time};
     use url::Url;
@@ -658,7 +659,7 @@ mod tests {
         player.expect_id().return_const(player_id.to_string());
         player.expect_name().return_const("Foo".to_string());
         player.expect_subscribe().returning(|| {
-            let (_, rx) = unbounded_channel();
+            let (_, rx) = broadcast::channel(24);
             rx
         });
         let player = Box::new(player) as Box<dyn Player>;
@@ -690,7 +691,7 @@ mod tests {
             .expect_name()
             .return_const("FooBar player".to_string());
         player.expect_subscribe().returning(|| {
-            let (_, rx) = unbounded_channel();
+            let (_, rx) = broadcast::channel(24);
             rx
         });
         let player = Box::new(player) as Box<dyn Player>;
@@ -700,7 +701,7 @@ mod tests {
 
         let mut receiver = manager.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 if let PlayerManagerEvent::ActivePlayerChanged(change) = &*event {
                     tx.send(change.clone()).unwrap();
                 }
@@ -732,7 +733,7 @@ mod tests {
             .expect_name()
             .return_const("FooBar player".to_string());
         player.expect_subscribe().returning(|| {
-            let (_, rx) = unbounded_channel();
+            let (_, rx) = broadcast::channel(24);
             rx
         });
         let player = Box::new(player) as Box<dyn Player>;
@@ -742,7 +743,7 @@ mod tests {
 
         let mut receiver = manager.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 if let PlayerManagerEvent::ActivePlayerChanged(change) = &*event {
                     tx.send(change.clone()).unwrap();
                 }
@@ -783,13 +784,9 @@ mod tests {
 
         let mut receiver = manager.subscribe();
         tokio::spawn(async move {
-            loop {
-                if let Some(event) = receiver.recv().await {
-                    if let PlayerManagerEvent::PlayerDurationChanged(_) = &*event {
-                        tx.send((*event).clone()).unwrap();
-                    }
-                } else {
-                    break;
+            while let Ok(event) = receiver.recv().await {
+                if let PlayerManagerEvent::PlayerDurationChanged(_) = &*event {
+                    tx.send((*event).clone()).unwrap();
                 }
             }
         });
@@ -904,7 +901,7 @@ mod tests {
         // subscribe to the player manager events
         let mut receiver = manager.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 if let PlayerManagerEvent::PlayerStateChanged(_) = &*event {
                     tx_player_manager.send((*event).clone()).unwrap();
                     break;
@@ -982,7 +979,7 @@ mod tests {
         player.expect_id().return_const(player_id.to_string());
         player.expect_name().return_const("FooBar".to_string());
         player.expect_subscribe().returning(|| {
-            let (_, rx) = unbounded_channel();
+            let (_, rx) = broadcast::channel(24);
             rx
         });
         player.expect_play().times(1).returning(move |e| {

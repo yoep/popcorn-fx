@@ -113,8 +113,6 @@ impl Discovery for VlcDiscovery {
 mod tests {
     use popcorn_fx_core::core::players::MockPlayerManager;
     use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
-    use popcorn_fx_core::{init_logger, recv_timeout};
-    use std::time::Duration;
     use tempfile::tempdir;
     use tokio::sync::mpsc::unbounded_channel;
 
@@ -149,7 +147,7 @@ mod tests {
 
         discovery.start_discovery().await.unwrap();
 
-        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
+        let result = timeout!(rx.recv(), Duration::from_millis(200)).unwrap();
 
         assert_eq!(VLC_ID, result.id());
     }

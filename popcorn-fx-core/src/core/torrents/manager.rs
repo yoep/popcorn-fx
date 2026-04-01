@@ -588,9 +588,9 @@ mod mock {
 mod tests {
     use super::*;
 
+    use crate::assert_timeout;
     use crate::core::config::PopcornSettings;
     use crate::testing::copy_test_file;
-    use crate::{assert_timeout, init_logger};
 
     use std::fs::{FileTimes, OpenOptions};
     use std::path::PathBuf;

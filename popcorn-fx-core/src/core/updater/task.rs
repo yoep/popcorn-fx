@@ -162,8 +162,6 @@ impl UpdateTaskBuilder {
 mod test {
     use tempfile::tempdir;
 
-    use crate::init_logger;
-
     use super::*;
 
     #[test]

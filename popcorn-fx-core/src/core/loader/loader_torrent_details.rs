@@ -99,7 +99,7 @@ mod tests {
     use crate::core::loader::loading_chain::DEFAULT_ORDER;
     use crate::core::loader::SubtitleData;
     use crate::core::torrents::{MockTorrent, MockTorrentManager, TorrentHandle, TorrentInfo};
-    use crate::{create_loading_task, init_logger, recv_timeout};
+    use crate::{create_loading_task, recv_timeout};
 
     use super::*;
 

@@ -205,13 +205,6 @@ impl Callback<SubtitleEvent> for SubtitleManager {
     }
 }
 
-#[async_trait]
-impl SubtitleManager for DefaultSubtitleManager {
-    async fn preference(&self) -> SubtitlePreference {
-        self.inner.preference().await
-    }
-}
-
 impl Drop for SubtitleManager {
     fn drop(&mut self) {
         self.cancellation_token.cancel();
@@ -574,11 +567,11 @@ impl InnerSubtitleManager {
 mod test {
     use super::*;
 
+    use crate::assert_timeout;
     use crate::core::config::{UiScale, UiSettings};
     use crate::core::media::Category;
     use crate::core::subtitles::MockSubtitleProvider;
     use crate::testing::copy_test_file;
-    use crate::{assert_timeout, init_logger};
     use std::path::PathBuf;
     use tempfile::tempdir;
 

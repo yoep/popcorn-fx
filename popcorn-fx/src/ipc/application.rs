@@ -84,13 +84,9 @@ impl MessageHandler for ApplicationMessageHandler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::time::Duration;
 
     use crate::ipc::test::create_channel_pair;
     use crate::tests::default_args;
-
-    use crate::timeout;
-    use popcorn_fx_core::init_logger;
     use tempfile::tempdir;
 
     #[tokio::test]

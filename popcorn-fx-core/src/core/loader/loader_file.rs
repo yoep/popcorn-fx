@@ -77,9 +77,6 @@ impl LoadingStrategy for FileLoadingStrategy {
 mod tests {
     use super::*;
     use crate::create_loading_task;
-    use crate::init_logger;
-    use crate::recv_timeout;
-    use std::time::Duration;
     use tempfile::tempdir;
 
     mod process {
@@ -163,7 +160,7 @@ mod tests {
             let result = strategy.process(&mut data, &*context).await;
             assert_eq!(LoadingResult::Ok, result);
 
-            let event = recv_timeout!(&mut receiver, Duration::from_millis(200));
+            let event = timeout!(receiver.recv(), Duration::from_millis(200)).unwrap();
             match &*event {
                 StreamServerEvent::StreamStarted(stream) => {
                     assert_eq!(
@@ -183,7 +180,7 @@ mod tests {
             let result = strategy.cancel(&mut data).await;
             assert_eq!(Ok(()), result, "expected the cancellation to succeed");
 
-            let event = recv_timeout!(&mut receiver, Duration::from_millis(200));
+            let event = timeout!(receiver.recv(), Duration::from_millis(200)).unwrap();
             match &*event {
                 StreamServerEvent::StreamStopped(filename) => {
                     assert_eq!(filename, filename.as_str(), "expected the stream to stop");

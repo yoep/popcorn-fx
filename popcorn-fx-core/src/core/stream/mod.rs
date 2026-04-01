@@ -16,7 +16,7 @@ pub mod tests {
     use super::*;
     use async_trait::async_trait;
     use futures::TryStreamExt;
-    use fx_callback::{Callback, Subscriber, Subscription};
+    use fx_callback::{Callback, Subscription};
     use mockall::mock;
 
     mock! {
@@ -38,7 +38,6 @@ pub mod tests {
 
         impl Callback<StreamEvent> for StreamingResource {
             fn subscribe(&self) -> Subscription<StreamEvent>;
-            fn subscribe_with(&self, subscriber: Subscriber<StreamEvent>);
         }
     }
 

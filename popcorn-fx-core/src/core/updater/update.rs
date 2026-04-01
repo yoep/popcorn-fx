@@ -978,7 +978,7 @@ mod test {
         read_test_file_to_bytes, read_test_file_to_string, test_resource_filepath,
         MockDummyPlatformData,
     };
-    use crate::{assert_timeout, assert_timeout_eq, init_logger, recv_timeout};
+    use crate::{assert_timeout, assert_timeout_eq, recv_timeout};
     use httpmock::Method::{GET, HEAD};
     use httpmock::MockServer;
     use tempfile::tempdir;
@@ -1082,7 +1082,7 @@ mod test {
 
         let mut receiver = updater.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 tx.send((*event).clone()).unwrap()
             }
         });
@@ -1383,7 +1383,7 @@ mod test {
 
         let mut receiver = updater.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 tx.send((*event).clone()).unwrap()
             }
         });
@@ -1638,7 +1638,7 @@ mod test {
 
         let mut receiver = updater.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 if let UpdateEvent::StateChanged(state) = &*event {
                     tx.send(state.clone()).unwrap()
                 }
@@ -1744,7 +1744,7 @@ mod test {
 
         let mut receiver = updater.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 if let UpdateEvent::StateChanged(_) = &*event {
                     tx.send((*event).clone()).unwrap()
                 }
@@ -1776,7 +1776,7 @@ mod test {
 
         let mut receiver = updater.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 if let UpdateEvent::StateChanged(_) = &*event {
                     tx.send((*event).clone()).unwrap()
                 }

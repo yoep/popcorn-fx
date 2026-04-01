@@ -625,8 +625,6 @@ mod tests {
     use crate::core::torrents::MockTorrentManager;
     use crate::core::torrents::TorrentHandle;
     use crate::create_torrent_file;
-    use crate::init_logger;
-    use crate::recv_timeout;
     use std::time::Duration;
     use tempfile::tempdir;
     use tokio::sync::mpsc::unbounded_channel;
@@ -699,7 +697,7 @@ mod tests {
             // invoke the state change event
             callbacks.invoke(TorrentEvent::StateChanged(TorrentState::Finished));
 
-            let event = recv_timeout!(&mut receiver, Duration::from_millis(250));
+            let event = timeout!(receiver.recv(), Duration::from_millis(250)).unwrap();
             match &*event {
                 StreamEvent::StateChanged(result) => {
                     assert_eq!(StreamState::Streaming, *result);
@@ -739,7 +737,7 @@ mod tests {
             let mut receiver = stream.subscribe();
             let (tx, mut rx) = oneshot::channel();
             tokio::spawn(async move {
-                while let Some(event) = receiver.recv().await {
+                while let Ok(event) = receiver.recv().await {
                     if let StreamEvent::StatsChanged(stats) = &*event {
                         let _ = tx.send(stats.clone());
                         break;
@@ -892,11 +890,12 @@ mod tests {
             receiver: &mut Subscription<StreamEvent>,
             expected_state: StreamState,
         ) {
-            let event = recv_timeout!(
-                receiver,
+            let event = timeout!(
+                receiver.recv(),
                 Duration::from_millis(250),
                 "expected a stream event"
-            );
+            )
+            .unwrap();
             match &*event {
                 StreamEvent::StateChanged(result) => {
                     assert_eq!(expected_state, *result);
@@ -999,7 +998,7 @@ mod tests {
             let (tx, mut rx) = unbounded_channel();
             let mut receiver = resource.subscribe();
             tokio::spawn(async move {
-                while let Some(event) = receiver.recv().await {
+                while let Ok(event) = receiver.recv().await {
                     match &*event {
                         StreamEvent::StateChanged(state) => {
                             let _ = tx.send(*state);

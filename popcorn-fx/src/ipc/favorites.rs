@@ -147,14 +147,10 @@ mod tests {
 
     use crate::ipc::test::create_channel_pair;
     use crate::tests::default_args;
-    use crate::timeout;
-
     use popcorn_fx_core::core::media::{
         Images, MediaIdentifier, MovieOverview, Rating, ShowOverview,
     };
-    use popcorn_fx_core::init_logger;
     use protobuf::EnumOrUnknown;
-    use std::time::Duration;
     use tempfile::tempdir;
 
     #[tokio::test]

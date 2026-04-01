@@ -540,7 +540,7 @@ mod tests {
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
     use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
-    use popcorn_fx_core::{assert_timeout, init_logger, recv_timeout};
+    use popcorn_fx_core::{assert_timeout, recv_timeout};
     use std::path::PathBuf;
     use tempfile::tempdir;
 
@@ -658,7 +658,6 @@ mod tests {
                     .build(),
             )
             .build();
-        let subtitle_url = "http://localhost:8080/subtitle.srt";
         let mut provider = MockSubtitleProvider::new();
         provider
             .expect_download()
@@ -757,7 +756,7 @@ mod tests {
 
         let mut receiver = player.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 match &*event {
                     PlayerEvent::DurationChanged(e) => tx_duration.send(*e).unwrap(),
                     PlayerEvent::TimeChanged(e) => tx_time.send(*e).unwrap(),

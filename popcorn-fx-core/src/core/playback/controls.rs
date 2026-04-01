@@ -229,7 +229,6 @@ mod test {
     use super::*;
     use crate::core::event::PlayerStoppedEvent;
     use crate::testing::MockDummyPlatformData;
-    use crate::{init_logger, recv_timeout};
     use std::sync::mpsc::channel;
     use std::time::Duration;
     use tokio::sync::{broadcast, oneshot};
@@ -252,7 +251,7 @@ mod test {
         tx.send(Arc::new(PlatformEvent::TogglePlaybackState))
             .unwrap();
 
-        let result = recv_timeout!(&mut receiver, Duration::from_millis(500));
+        let result = timeout!(receiver.recv(), Duration::from_millis(500)).unwrap();
         match &*result {
             PlaybackControlEvent::TogglePlaybackState => {}
             _ => assert!(
@@ -279,7 +278,7 @@ mod test {
         let mut receiver = controls.subscribe();
         tx.send(Arc::new(PlatformEvent::ForwardMedia)).unwrap();
 
-        let result = recv_timeout!(&mut receiver, Duration::from_millis(500));
+        let result = timeout!(receiver.recv(), Duration::from_millis(500)).unwrap();
         match &*result {
             PlaybackControlEvent::Forward => {}
             _ => assert!(

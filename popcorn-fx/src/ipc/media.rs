@@ -255,12 +255,8 @@ mod tests {
     use crate::ipc::proto::media::media::MovieDetails;
     use crate::ipc::test::create_channel_pair;
     use crate::tests::default_args;
-    use crate::timeout;
-
     use popcorn_fx_core::core::media::{Images, MovieOverview, Rating};
-    use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::copy_test_file;
-    use std::time::Duration;
     use tempfile::tempdir;
 
     #[tokio::test]

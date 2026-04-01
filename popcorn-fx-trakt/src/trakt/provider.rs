@@ -497,7 +497,7 @@ mod tests {
 
     use popcorn_fx_core::core::config::{PopcornProperties, PopcornSettings, TrackingSettings};
     use popcorn_fx_core::core::media::MediaType;
-    use popcorn_fx_core::{init_logger, recv_timeout};
+    use popcorn_fx_core::recv_timeout;
 
     use super::*;
 
@@ -627,7 +627,7 @@ mod tests {
 
         let mut receiver = trakt.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 if let TrackingEvent::OpenAuthorization(uri) = &*event {
                     tx.send(uri.clone()).unwrap();
                 }

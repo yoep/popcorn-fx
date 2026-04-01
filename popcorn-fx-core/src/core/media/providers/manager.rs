@@ -244,7 +244,6 @@ mod test {
     use crate::core::media::providers::MockMediaDetailsProvider;
     use crate::core::media::providers::ShowProvider;
     use crate::core::media::{Episode, ShowDetails, ShowOverview};
-    use crate::init_logger;
 
     use super::*;
 

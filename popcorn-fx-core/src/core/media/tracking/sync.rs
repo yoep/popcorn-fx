@@ -300,10 +300,10 @@ impl InnerSyncMediaTracking {
 mod tests {
     use super::*;
 
+    use crate::assert_timeout_eq;
     use crate::core::media::tracking::MockTrackingProvider;
     use crate::core::media::watched::test::MockWatchedService;
     use crate::core::media::{MediaIdentifier, MockMediaIdentifier};
-    use crate::{assert_timeout_eq, init_logger};
 
     use fx_callback::{Callback, MultiThreadedCallback};
     use std::time::Duration;

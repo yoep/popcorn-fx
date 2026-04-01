@@ -233,7 +233,7 @@ mod tests {
     use crate::core::media::ShowOverview;
     use crate::core::playlist::{PlaylistItem, PlaylistMedia};
     use crate::core::torrents::{MockTorrent, MockTorrentManager, TorrentInfo};
-    use crate::{create_loading_task, init_logger, recv_timeout};
+    use crate::{create_loading_task, recv_timeout};
 
     use fx_callback::{Callback, MultiThreadedCallback};
     use fx_torrent::TorrentFileInfo;

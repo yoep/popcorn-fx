@@ -488,12 +488,8 @@ mod tests {
     use crate::ipc::proto::player::PlayerPlayRequest;
     use crate::ipc::test::create_channel_pair;
     use crate::tests::default_args;
-    use crate::timeout;
-
-    use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::MockPlayer;
     use protobuf::EnumOrUnknown;
-    use std::time::Duration;
     use tempfile::tempdir;
     use tokio::sync::{broadcast, oneshot};
 

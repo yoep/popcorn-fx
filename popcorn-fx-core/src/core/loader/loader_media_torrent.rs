@@ -123,7 +123,7 @@ mod tests {
     use std::collections::HashMap;
 
     use crate::core::playlist::{PlaylistItem, PlaylistMedia};
-    use crate::{create_loading_task, init_logger};
+    use crate::create_loading_task;
 
     use super::*;
 

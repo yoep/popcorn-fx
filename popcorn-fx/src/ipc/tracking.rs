@@ -122,15 +122,11 @@ mod tests {
     use crate::ipc::proto::tracking::{tracking_provider_event, TrackingProviderAuthorizeResponse};
     use crate::ipc::test::create_channel_pair;
     use crate::tests::default_args;
-    use crate::timeout;
-
     use popcorn_fx_core::core::media::tracking::TrackingEvent;
-    use popcorn_fx_core::init_logger;
     use protobuf::MessageField;
     use reqwest::Client;
     use std::collections::HashMap;
     use std::str::FromStr;
-    use std::time::Duration;
     use tempfile::tempdir;
     use url::Url;
 
@@ -225,7 +221,7 @@ mod tests {
 
         let mut receiver = instance.tracking_provider().subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 if let TrackingEvent::OpenAuthorization(url) = &*event {
                     let client = Client::new();
                     let query_params: HashMap<String, String> = url

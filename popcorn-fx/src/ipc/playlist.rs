@@ -145,12 +145,8 @@ mod tests {
 
     use crate::ipc::test::create_channel_pair;
     use crate::tests::default_args;
-    use crate::timeout;
-
     use popcorn_fx_core::core::media::{Episode, Images, Rating, ShowOverview, TorrentInfo};
     use popcorn_fx_core::core::playlist::{PlaylistItem, PlaylistMedia};
-    use popcorn_fx_core::init_logger;
-    use std::time::Duration;
     use tempfile::tempdir;
 
     #[tokio::test]

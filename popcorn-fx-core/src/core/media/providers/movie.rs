@@ -209,7 +209,6 @@ mod test {
 
     use crate::core::cache::CacheManagerBuilder;
     use crate::core::media::{Images, MediaIdentifier, Rating};
-    use crate::init_logger;
     use crate::test::start_mock_server;
     use crate::testing::read_test_file_to_string;
 

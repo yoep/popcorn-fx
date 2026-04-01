@@ -77,7 +77,6 @@ impl PlatformType {
 mod mock {
     use super::*;
 
-    use fx_callback::Subscriber;
     use mockall::mock;
 
     mock! {
@@ -92,7 +91,6 @@ mod mock {
 
         impl Callback<PlatformEvent> for Platform {
             fn subscribe(&self) -> Subscription<PlatformEvent>;
-            fn subscribe_with(&self, subscriber: Subscriber<PlatformEvent>);
         }
     }
 }

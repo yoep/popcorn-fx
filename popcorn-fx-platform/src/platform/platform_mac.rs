@@ -74,7 +74,6 @@ impl SystemPlatform for PlatformMac {
 #[cfg(test)]
 mod test {
     use crate::platform::SystemPlatform;
-    use popcorn_fx_core::init_logger;
 
     use super::PlatformMac;
 

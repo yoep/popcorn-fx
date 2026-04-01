@@ -110,7 +110,6 @@ mod test {
     use chrono::Timelike;
 
     use crate::core::media::Images;
-    use crate::init_logger;
 
     use super::*;
 

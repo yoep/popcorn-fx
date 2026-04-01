@@ -15,6 +15,10 @@ use std::{env, io};
 use tokio::net::TcpStream;
 use tokio::select;
 
+#[cfg(test)]
+#[macro_use]
+mod test_macros;
+
 mod fx;
 mod ipc;
 
@@ -131,7 +135,6 @@ mod tests {
     use super::*;
 
     use log::error;
-    use popcorn_fx_core::init_logger;
     use std::path::PathBuf;
     use std::time::Duration;
     use tempfile::tempdir;

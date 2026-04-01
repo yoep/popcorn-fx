@@ -169,7 +169,7 @@ impl InnerSyncMediaTracking {
         loop {
             select! {
                 _ = self.cancellation_token.cancelled() => break,
-                Some(event) = tracking_receiver.recv() => self.handle_event(&*event).await,
+                Ok(event) = tracking_receiver.recv() => self.handle_event(&*event).await,
                 Some(command) = command_receiver.recv() => self.handle_command(command).await
             }
         }
@@ -300,10 +300,10 @@ impl InnerSyncMediaTracking {
 mod tests {
     use super::*;
 
+    use crate::assert_timeout_eq;
     use crate::core::media::tracking::MockTrackingProvider;
     use crate::core::media::watched::test::MockWatchedService;
     use crate::core::media::{MediaIdentifier, MockMediaIdentifier};
-    use crate::{assert_timeout_eq, init_logger};
 
     use fx_callback::{Callback, MultiThreadedCallback};
     use std::time::Duration;

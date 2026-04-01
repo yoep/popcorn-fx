@@ -91,7 +91,7 @@ pub trait TrackingProvider: Debug + Callback<TrackingEvent> + Send + Sync {
 #[cfg(test)]
 mod mock {
     use super::*;
-    use fx_callback::{Subscriber, Subscription};
+    use fx_callback::Subscription;
     use mockall::mock;
 
     mock! {
@@ -109,7 +109,6 @@ mod mock {
 
         impl Callback<TrackingEvent> for TrackingProvider {
             fn subscribe(&self) -> Subscription<TrackingEvent>;
-            fn subscribe_with(&self, subscriber: Subscriber<TrackingEvent>);
         }
     }
 }

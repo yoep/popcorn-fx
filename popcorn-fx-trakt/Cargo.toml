@@ -32,5 +32,6 @@ url.workspace = true
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
 
-tempfile.workspace = true
 httpmock.workspace = true
+log4rs = { workspace = true, features = ["console_writer"] }
+tempfile.workspace = true

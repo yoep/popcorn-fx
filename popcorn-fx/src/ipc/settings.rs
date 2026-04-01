@@ -28,7 +28,7 @@ impl SettingsMessageHandler {
     pub fn new(instance: Arc<PopcornFX>, channel: IpcChannel) -> Self {
         let mut receiver = instance.settings().subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 if let Err(e) = Self::on_event(&event, &channel).await {
                     error!("Failed to send application settings event, {}", e);
                 }
@@ -198,10 +198,6 @@ mod tests {
     use crate::ipc::proto::settings::application_settings::torrent_settings;
     use crate::ipc::test::create_channel_pair;
     use crate::tests::default_args;
-    use crate::timeout;
-
-    use popcorn_fx_core::init_logger;
-    use std::time::Duration;
     use tempfile::tempdir;
 
     #[tokio::test]

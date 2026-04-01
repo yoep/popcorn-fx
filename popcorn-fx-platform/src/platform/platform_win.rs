@@ -129,8 +129,6 @@ unsafe impl Sync for PlatformWin {}
 
 #[cfg(test)]
 mod test {
-    use popcorn_fx_core::init_logger;
-
     use super::*;
 
     #[test]

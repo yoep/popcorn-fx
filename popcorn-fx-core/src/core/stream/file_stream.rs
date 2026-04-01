@@ -4,7 +4,7 @@ use crate::core::stream::{
 };
 use async_trait::async_trait;
 use derive_more::Display;
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, trace};
 use std::cmp::min;
 use std::fs::{File, OpenOptions};
@@ -74,10 +74,6 @@ impl StreamingResource for FileStreamingResource {
 impl Callback<StreamEvent> for FileStreamingResource {
     fn subscribe(&self) -> Subscription<StreamEvent> {
         self.inner.callbacks.subscribe()
-    }
-
-    fn subscribe_with(&self, subscriber: Subscriber<StreamEvent>) {
-        self.inner.callbacks.subscribe_with(subscriber);
     }
 }
 
@@ -224,9 +220,7 @@ impl futures::Stream for FileStream {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::init_logger;
     use crate::testing::copy_test_file;
-    use std::time::Duration;
     use tempfile::{tempdir, TempDir};
 
     mod filename {
@@ -273,7 +267,6 @@ mod tests {
 
     mod stop {
         use super::*;
-        use crate::recv_timeout;
 
         #[tokio::test]
         async fn test_stop() {
@@ -289,7 +282,7 @@ mod tests {
             assert_eq!(StreamState::Stopped, result);
 
             // wait for the stream event
-            let event = recv_timeout!(&mut receiver, Duration::from_millis(250));
+            let event = timeout!(receiver.recv(), Duration::from_millis(250)).unwrap();
             match &*event {
                 StreamEvent::StateChanged(state) => assert_eq!(state, &StreamState::Stopped),
                 _ => assert!(

@@ -183,7 +183,6 @@ impl From<&str> for LauncherOptions {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::init_logger;
     use popcorn_fx_core::testing::copy_test_file;
     use tempfile::tempdir;
 

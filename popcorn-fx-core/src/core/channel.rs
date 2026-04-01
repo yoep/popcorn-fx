@@ -378,17 +378,16 @@ mod tests {
 
     mod reply {
         use super::*;
-        use crate::timeout;
 
         #[tokio::test]
         async fn test_send_sender() {
             let expected_result = 42;
-            let (tx, mut rx) = oneshot::channel();
+            let (tx, rx) = oneshot::channel();
             let reply = Reply::new(tx);
 
             reply.send(expected_result);
 
-            let result = timeout!(&mut rx, Duration::from_millis(100)).expect("expected a reply");
+            let result = timeout!(rx, Duration::from_millis(100)).expect("expected a reply");
             assert_eq!(expected_result, result);
         }
 

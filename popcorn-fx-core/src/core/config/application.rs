@@ -4,7 +4,7 @@ use crate::core::config::{
 };
 use crate::core::storage::Storage;
 use derive_more::Display;
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, error, info, trace, warn};
 use std::sync::Arc;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
@@ -338,10 +338,6 @@ impl Callback<ApplicationConfigEvent> for ApplicationConfig {
     fn subscribe(&self) -> Subscription<ApplicationConfigEvent> {
         self.inner.callbacks.subscribe()
     }
-
-    fn subscribe_with(&self, subscriber: Subscriber<ApplicationConfigEvent>) {
-        self.inner.callbacks.subscribe_with(subscriber)
-    }
 }
 
 impl PartialEq for ApplicationConfig {
@@ -621,8 +617,8 @@ mod test {
     };
     use crate::core::media::Category;
     use crate::core::subtitles::language::SubtitleLanguage;
+    use crate::recv_timeout;
     use crate::testing::copy_test_file;
-    use crate::{init_logger, recv_timeout};
 
     use std::path::PathBuf;
     use std::time::Duration;
@@ -668,14 +664,14 @@ mod test {
 
         let mut receiver = application.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 if let ApplicationConfigEvent::Loaded = &*event {
                     tx.send(()).unwrap();
                 }
             }
         });
 
-        let _ = recv_timeout!(&mut rx, Duration::from_millis(250));
+        let _ = timeout!(rx.recv(), Duration::from_millis(250)).unwrap();
         let result = application.user_settings().await;
 
         assert_eq!(expected_result, result)
@@ -714,7 +710,7 @@ mod test {
 
         let mut receiver = application.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 match &*event {
                     ApplicationConfigEvent::Loaded => tx.send((*event).clone()).unwrap(),
                     _ => {}
@@ -764,7 +760,7 @@ mod test {
 
         let mut receiver = application.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 match &*event {
                     ApplicationConfigEvent::Loaded => tx_loaded.send(()).unwrap(),
                     ApplicationConfigEvent::SubtitleSettingsChanged(_) => {
@@ -838,14 +834,14 @@ mod test {
 
         let mut reciever = application.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = reciever.recv().await {
+            while let Ok(event) = reciever.recv().await {
                 tx.send((*event).clone()).unwrap();
             }
         });
 
         application.update_subtitle(expected_settings.clone()).await;
 
-        let result = recv_timeout!(&mut rx, Duration::from_millis(100));
+        let result = timeout!(rx.recv(), Duration::from_millis(100)).unwrap();
         match result {
             ApplicationConfigEvent::SubtitleSettingsChanged(result) => {
                 let settings = application.user_settings().await;
@@ -877,7 +873,7 @@ mod test {
 
         let mut reciever = application.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = reciever.recv().await {
+            while let Ok(event) = reciever.recv().await {
                 tx.send((*event).clone()).unwrap();
             }
         });
@@ -914,7 +910,7 @@ mod test {
 
         let mut reciever = application.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = reciever.recv().await {
+            while let Ok(event) = reciever.recv().await {
                 tx.send((*event).clone()).unwrap();
             }
         });
@@ -946,7 +942,7 @@ mod test {
 
         let mut reciever = application.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = reciever.recv().await {
+            while let Ok(event) = reciever.recv().await {
                 tx.send((*event).clone()).unwrap();
             }
         });

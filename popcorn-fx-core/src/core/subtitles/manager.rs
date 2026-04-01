@@ -9,7 +9,7 @@ use crate::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
 use crate::core::subtitles::parsers::Parser;
 use crate::core::subtitles::{Result, SubtitleError, SubtitleProvider};
 use derive_more::Display;
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, error, info, trace};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -202,10 +202,6 @@ impl SubtitleManager {
 impl Callback<SubtitleEvent> for SubtitleManager {
     fn subscribe(&self) -> Subscription<SubtitleEvent> {
         self.callbacks.subscribe()
-    }
-
-    fn subscribe_with(&self, subscriber: Subscriber<SubtitleEvent>) {
-        self.callbacks.subscribe_with(subscriber);
     }
 }
 
@@ -571,11 +567,11 @@ impl InnerSubtitleManager {
 mod test {
     use super::*;
 
+    use crate::assert_timeout;
     use crate::core::config::{UiScale, UiSettings};
     use crate::core::media::Category;
     use crate::core::subtitles::MockSubtitleProvider;
     use crate::testing::copy_test_file;
-    use crate::{assert_timeout, init_logger};
     use std::path::PathBuf;
     use tempfile::tempdir;
 

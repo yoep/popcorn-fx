@@ -407,10 +407,6 @@ mod tests {
 
     use crate::ipc::proto::update::{update, GetUpdateStateRequest, GetUpdateStateResponse};
     use crate::ipc::test::create_channel_pair;
-    use crate::timeout;
-
-    use popcorn_fx_core::init_logger;
-    use std::time::Duration;
 
     #[tokio::test]
     async fn test_ipc_channel_get() {

@@ -153,7 +153,6 @@ mod test {
 
     use crate::core::media::{Episode, Images, Rating, ShowOverview};
     use crate::core::players::PlayRequestBuilder;
-    use crate::init_logger;
 
     use super::*;
 

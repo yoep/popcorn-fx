@@ -228,7 +228,6 @@ impl Debug for DefaultCastDevice {
 mod tests {
     use super::*;
     use crate::chromecast::tests::TestInstance;
-    use popcorn_fx_core::init_logger;
 
     #[tokio::test]
     async fn test_default_cast_device_new() {

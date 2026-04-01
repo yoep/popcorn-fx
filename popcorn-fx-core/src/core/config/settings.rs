@@ -86,7 +86,6 @@ impl From<&str> for PopcornSettings {
 mod test {
     use crate::core::config::{DecorationType, SubtitleFamily};
     use crate::core::subtitles::language::SubtitleLanguage;
-    use crate::init_logger;
 
     use super::*;
 

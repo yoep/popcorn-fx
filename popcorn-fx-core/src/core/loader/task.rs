@@ -3,7 +3,7 @@ use crate::core::loader::{
     LoadingData, LoadingError, LoadingEvent, LoadingHandle, LoadingResult, LoadingState,
 };
 use derive_more::Display;
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, error, info, trace, warn};
 use std::sync::Arc;
 use tokio::select;
@@ -94,10 +94,6 @@ impl LoadingTask {
 impl Callback<LoadingEvent> for LoadingTask {
     fn subscribe(&self) -> Subscription<LoadingEvent> {
         self.context.callbacks.subscribe()
-    }
-
-    fn subscribe_with(&self, subscriber: Subscriber<LoadingEvent>) {
-        self.context.callbacks.subscribe_with(subscriber)
     }
 }
 
@@ -387,7 +383,7 @@ mod tests {
     use crate::core::loader::LoadingError;
     use crate::core::loader::{LoadingStrategy, MockLoadingStrategy};
     use crate::core::playlist::PlaylistItem;
-    use crate::{init_logger, recv_timeout};
+    use crate::recv_timeout;
 
     #[tokio::test]
     async fn test_handle() {
@@ -422,17 +418,13 @@ mod tests {
 
         let mut receiver = task.subscribe();
         tokio::spawn(async move {
-            loop {
-                if let Some(event) = receiver.recv().await {
-                    debug!("Received task event {:?}", event);
-                    if let LoadingEvent::StateChanged(state) = &*event {
-                        // the first event is always initializing, so ignore it
-                        if *state != LoadingState::Initializing {
-                            tx.send(*state).unwrap();
-                        }
+            while let Ok(event) = receiver.recv().await {
+                debug!("Received task event {:?}", event);
+                if let LoadingEvent::StateChanged(state) = &*event {
+                    // the first event is always initializing, so ignore it
+                    if *state != LoadingState::Initializing {
+                        tx.send(*state).unwrap();
                     }
-                } else {
-                    break;
                 }
             }
             debug!("Task event receiver loop ended");
@@ -472,7 +464,7 @@ mod tests {
 
         let mut receiver = task.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 if let LoadingEvent::Completed = &*event {
                     tx_completed.send(()).unwrap();
                     break;
@@ -522,20 +514,16 @@ mod tests {
 
         let mut receiver = task.subscribe();
         tokio::spawn(async move {
-            loop {
-                if let Some(event) = receiver.recv().await {
-                    match &*event {
-                        LoadingEvent::StateChanged(state) => {
-                            if *state == LoadingState::Initializing {
-                                tx.send(()).unwrap();
-                            }
+            while let Ok(event) = receiver.recv().await {
+                match &*event {
+                    LoadingEvent::StateChanged(state) => {
+                        if *state == LoadingState::Initializing {
+                            tx.send(()).unwrap();
                         }
-                        LoadingEvent::LoadingError(e) => tx_error.send(e.clone()).unwrap(),
-                        LoadingEvent::Cancelled => tx_cancelled.send(()).unwrap(),
-                        _ => {}
                     }
-                } else {
-                    break;
+                    LoadingEvent::LoadingError(e) => tx_error.send(e.clone()).unwrap(),
+                    LoadingEvent::Cancelled => tx_cancelled.send(()).unwrap(),
+                    _ => {}
                 }
             }
         });
@@ -597,13 +585,9 @@ mod tests {
 
         let mut receiver = task.subscribe();
         tokio::spawn(async move {
-            loop {
-                if let Some(event) = receiver.recv().await {
-                    if let LoadingEvent::Cancelled = &*event {
-                        tx_event.send(()).unwrap();
-                        break;
-                    }
-                } else {
+            while let Ok(event) = receiver.recv().await {
+                if let LoadingEvent::Cancelled = &*event {
+                    tx_event.send(()).unwrap();
                     break;
                 }
             }
@@ -701,7 +685,7 @@ mod tests {
 
         let result = select! {
             _ = time::sleep(Duration::from_millis(500)) => Err(LoadingError::TimeoutError("event receiver timed out".to_string())),
-            Some(event) = receiver.recv() => Ok(event),
+            Ok(event) = receiver.recv() => Ok(event),
         }.expect("expected to receive an event");
         assert_eq!(expected_event, *result);
     }

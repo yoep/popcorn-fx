@@ -102,7 +102,7 @@ mod tests {
     use crate::core::media::MovieDetails;
     use crate::core::players::MockPlayerManager;
     use crate::core::playlist::{PlaylistItem, PlaylistMedia};
-    use crate::{create_loading_task, init_logger, recv_timeout};
+    use crate::{create_loading_task, recv_timeout};
 
     use super::*;
 

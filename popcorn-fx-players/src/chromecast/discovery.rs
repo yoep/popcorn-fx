@@ -313,13 +313,11 @@ impl Debug for InnerChromecastDiscovery {
 
 #[cfg(test)]
 mod tests {
+    use crate::chromecast::tests::TestInstance;
+    use popcorn_fx_core::assert_timeout;
     use popcorn_fx_core::core::players::MockPlayerManager;
-    use popcorn_fx_core::{assert_timeout, init_logger, recv_timeout};
-    use std::time::Duration;
     use tempfile::tempdir;
     use tokio::sync::mpsc::unbounded_channel;
-
-    use crate::chromecast::tests::TestInstance;
 
     use super::*;
 
@@ -377,7 +375,7 @@ mod tests {
 
         discovery.start_discovery().await.unwrap();
 
-        let result = recv_timeout!(&mut rx, Duration::from_secs(3));
+        let result = timeout!(rx.recv(), Duration::from_secs(3)).unwrap();
         info!("--- Chromecast player received: {:?}", result);
         discovery.stop_discovery().unwrap();
 

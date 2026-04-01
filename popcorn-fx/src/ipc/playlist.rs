@@ -23,7 +23,7 @@ impl PlaylistMessageHandler {
     pub fn new(instance: Arc<PopcornFX>, channel: IpcChannel) -> Self {
         let mut receiver = instance.playlist_manager().subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 match PlaylistEvent::try_from(&*event) {
                     Ok(proto_event) => {
                         if let Err(e) = channel.send(proto_event, PlaylistEvent::NAME).await {
@@ -145,12 +145,8 @@ mod tests {
 
     use crate::ipc::test::create_channel_pair;
     use crate::tests::default_args;
-    use crate::timeout;
-
     use popcorn_fx_core::core::media::{Episode, Images, Rating, ShowOverview, TorrentInfo};
     use popcorn_fx_core::core::playlist::{PlaylistItem, PlaylistMedia};
-    use popcorn_fx_core::init_logger;
-    use std::time::Duration;
     use tempfile::tempdir;
 
     #[tokio::test]

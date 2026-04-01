@@ -23,7 +23,7 @@ impl WatchedMessageHandler {
     pub fn new(instance: Arc<PopcornFX>, channel: IpcChannel) -> Self {
         let mut receiver = instance.watched_service().subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 let mut proto_event = watched::WatchedEvent::new();
 
                 match &*event {
@@ -141,12 +141,8 @@ mod tests {
 
     use crate::ipc::test::create_channel_pair;
     use crate::tests::default_args;
-    use crate::timeout;
-
     use popcorn_fx_core::core::media::{Episode, MovieOverview};
-    use popcorn_fx_core::init_logger;
     use protobuf::EnumOrUnknown;
-    use std::time::Duration;
     use tempfile::tempdir;
 
     #[tokio::test]

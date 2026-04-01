@@ -334,7 +334,6 @@ impl BootstrapperBuilder {
 mod test {
     use super::*;
     use crate::data_installer::{DataInstallerError, MockDataInstaller};
-    use popcorn_fx_core::init_logger;
     use tempfile::tempdir;
 
     #[tokio::test]

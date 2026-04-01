@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use derive_more::Display;
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, error, trace, warn};
 use rupnp::{Device, Service};
 use tokio::select;
@@ -157,10 +157,6 @@ impl Player for DlnaPlayer {
 impl Callback<PlayerEvent> for DlnaPlayer {
     fn subscribe(&self) -> Subscription<PlayerEvent> {
         self.inner.callbacks.subscribe()
-    }
-
-    fn subscribe_with(&self, subscriber: Subscriber<PlayerEvent>) {
-        self.inner.callbacks.subscribe_with(subscriber)
     }
 }
 
@@ -564,8 +560,7 @@ mod tests {
 
     use httpmock::Method::{GET, POST};
     use httpmock::{Mock, MockServer};
-    use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
-    use popcorn_fx_core::{init_logger, recv_timeout};
+    use popcorn_fx_core::recv_timeout;
     use tempfile::{tempdir, TempDir};
 
     use super::*;
@@ -847,7 +842,7 @@ mod tests {
 
         let mut receiver = player.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 match &*event {
                     PlayerEvent::DurationChanged(_) => tx_duration.send((*event).clone()).unwrap(),
                     PlayerEvent::TimeChanged(_) => tx_time.send((*event).clone()).unwrap(),
@@ -918,7 +913,7 @@ mod tests {
 
         let mut receiver = player.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 match &*event {
                     PlayerEvent::StateChanged(_) => tx.send((*event).clone()).unwrap(),
                     _ => {}

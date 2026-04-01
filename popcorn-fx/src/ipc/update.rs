@@ -22,7 +22,7 @@ impl UpdateMessageHandler {
     pub fn new(instance: Arc<PopcornFX>, channel: IpcChannel) -> Self {
         let mut receiver = instance.updater().subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 let proto_event = UpdateEvent::from(&*event);
                 if let Err(e) = channel.send(proto_event, UpdateEvent::NAME).await {
                     error!("Failed to send update event to channel, {}", e);
@@ -163,11 +163,7 @@ mod tests {
 
     use crate::ipc::test::create_channel_pair;
     use crate::tests::default_args;
-    use crate::timeout;
-
-    use popcorn_fx_core::init_logger;
     use protobuf::EnumOrUnknown;
-    use std::time::Duration;
     use tempfile::tempdir;
 
     #[tokio::test]

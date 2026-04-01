@@ -1,4 +1,4 @@
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, error, info, trace, warn};
 use souvlaki::{MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, PlatformConfig};
 use std::env::consts::{ARCH, OS};
@@ -182,10 +182,6 @@ impl Callback<PlatformEvent> for DefaultPlatform {
     fn subscribe(&self) -> Subscription<PlatformEvent> {
         self.callbacks.subscribe()
     }
-
-    fn subscribe_with(&self, subscriber: Subscriber<PlatformEvent>) {
-        self.callbacks.subscribe_with(subscriber);
-    }
 }
 
 impl Platform for DefaultPlatform {
@@ -258,7 +254,6 @@ mod test {
     use super::*;
 
     use mockall::mock;
-    use popcorn_fx_core::init_logger;
     use std::time::Duration;
     use tokio::sync::oneshot::channel;
     use tokio::time::timeout;
@@ -375,7 +370,7 @@ mod test {
 
         let mut receiver = callbacks.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 tx.send(event).unwrap();
                 break;
             }
@@ -398,7 +393,7 @@ mod test {
 
         let mut receiver = callbacks.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 tx.send(event).unwrap();
                 break;
             }
@@ -421,7 +416,7 @@ mod test {
 
         let mut receiver = callbacks.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 tx.send(event).unwrap();
                 break;
             }

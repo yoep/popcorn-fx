@@ -341,7 +341,7 @@ impl Debug for EventCallbackHolder {
 #[cfg(test)]
 mod test {
     use crate::core::event::PlayerStoppedEvent;
-    use crate::{assert_timeout, init_logger, recv_timeout};
+    use crate::{assert_timeout, recv_timeout};
 
     use std::time::Duration;
     use tokio::time;

@@ -321,7 +321,6 @@ impl PlaylistItemBuilder {
 #[cfg(test)]
 mod test {
     use crate::core::media::MovieOverview;
-    use crate::init_logger;
 
     use super::*;
 

@@ -4,7 +4,7 @@ use crate::core::media::{MediaError, MediaIdentifier, MediaType};
 use crate::core::storage::{Storage, StorageError};
 use crate::core::{event, media};
 use async_trait::async_trait;
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, error, info, trace, warn};
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
@@ -148,10 +148,6 @@ impl WatchedService for DefaultWatchedService {
 impl Callback<WatchedEvent> for DefaultWatchedService {
     fn subscribe(&self) -> Subscription<WatchedEvent> {
         self.inner.callbacks.subscribe()
-    }
-
-    fn subscribe_with(&self, subscriber: Subscriber<WatchedEvent>) {
-        self.inner.callbacks.subscribe_with(subscriber)
     }
 }
 
@@ -440,7 +436,7 @@ pub mod test {
 
     use crate::core::media::{Images, MovieOverview, ShowOverview};
     use crate::testing::copy_test_file;
-    use crate::{assert_timeout, init_logger, recv_timeout};
+    use crate::{assert_timeout, recv_timeout};
 
     use super::*;
 
@@ -461,7 +457,6 @@ pub mod test {
 
         impl Callback<WatchedEvent> for WatchedService {
             fn subscribe(&self) -> Subscription<WatchedEvent>;
-            fn subscribe_with(&self, subscriber: Subscriber<WatchedEvent>);
         }
     }
 
@@ -594,7 +589,7 @@ pub mod test {
 
         let mut receiver = service.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 tx.send((*event).clone()).unwrap();
             }
         });
@@ -628,7 +623,7 @@ pub mod test {
 
         let mut receiver = service.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 tx.send((*event).clone()).unwrap();
             }
         });

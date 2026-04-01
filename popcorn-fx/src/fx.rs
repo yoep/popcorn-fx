@@ -615,7 +615,6 @@ mod test {
     use popcorn_fx_core::core::config::{ApplicationConfigEvent, LoggingProperties};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::subtitles::SubtitlePreference;
-    use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::copy_test_file;
     use std::collections::HashMap;
     use std::sync::mpsc::channel;
@@ -697,7 +696,7 @@ mod test {
 
         let mut receiver = popcorn_fx.settings().subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 if let ApplicationConfigEvent::Loaded = &*event {
                     tx.send((*event).clone()).unwrap()
                 }

@@ -1057,7 +1057,7 @@ mod test {
     use crate::core::cache::CacheExecutionError;
     use crate::core::media::{MediaError, MovieOverview};
     use crate::testing::{copy_test_file, read_test_file_to_bytes};
-    use crate::{assert_timeout, init_logger, recv_timeout};
+    use crate::{assert_timeout, recv_timeout};
     use tokio::time;
 
     use super::*;

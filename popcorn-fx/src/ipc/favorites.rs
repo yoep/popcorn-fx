@@ -23,7 +23,7 @@ impl FavoritesMessageHandler {
     pub fn new(instance: Arc<PopcornFX>, channel: IpcChannel) -> Self {
         let mut receiver = instance.favorite_service().subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 let proto_event: favorites::FavoriteEvent;
 
                 match &*event {
@@ -147,14 +147,10 @@ mod tests {
 
     use crate::ipc::test::create_channel_pair;
     use crate::tests::default_args;
-    use crate::timeout;
-
     use popcorn_fx_core::core::media::{
         Images, MediaIdentifier, MovieOverview, Rating, ShowOverview,
     };
-    use popcorn_fx_core::init_logger;
     use protobuf::EnumOrUnknown;
-    use std::time::Duration;
     use tempfile::tempdir;
 
     #[tokio::test]

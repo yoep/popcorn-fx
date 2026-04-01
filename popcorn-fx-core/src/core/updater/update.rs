@@ -7,7 +7,7 @@ use std::sync::Arc;
 use derive_more::Display;
 use flate2::read::GzDecoder;
 use futures::StreamExt;
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, error, info, trace, warn};
 use reqwest::{Client, ClientBuilder, Response, StatusCode};
 use semver::Version;
@@ -193,10 +193,6 @@ impl Updater {
 impl Callback<UpdateEvent> for Updater {
     fn subscribe(&self) -> Subscription<UpdateEvent> {
         self.inner.callbacks.subscribe()
-    }
-
-    fn subscribe_with(&self, subscriber: Subscriber<UpdateEvent>) {
-        self.inner.callbacks.subscribe_with(subscriber)
     }
 }
 
@@ -982,7 +978,7 @@ mod test {
         read_test_file_to_bytes, read_test_file_to_string, test_resource_filepath,
         MockDummyPlatformData,
     };
-    use crate::{assert_timeout, assert_timeout_eq, init_logger, recv_timeout};
+    use crate::{assert_timeout, assert_timeout_eq, recv_timeout};
     use httpmock::Method::{GET, HEAD};
     use httpmock::MockServer;
     use tempfile::tempdir;
@@ -1086,7 +1082,7 @@ mod test {
 
         let mut receiver = updater.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 tx.send((*event).clone()).unwrap()
             }
         });
@@ -1387,7 +1383,7 @@ mod test {
 
         let mut receiver = updater.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 tx.send((*event).clone()).unwrap()
             }
         });
@@ -1642,7 +1638,7 @@ mod test {
 
         let mut receiver = updater.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 if let UpdateEvent::StateChanged(state) = &*event {
                     tx.send(state.clone()).unwrap()
                 }
@@ -1748,7 +1744,7 @@ mod test {
 
         let mut receiver = updater.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 if let UpdateEvent::StateChanged(_) = &*event {
                     tx.send((*event).clone()).unwrap()
                 }
@@ -1780,7 +1776,7 @@ mod test {
 
         let mut receiver = updater.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 if let UpdateEvent::StateChanged(_) = &*event {
                     tx.send((*event).clone()).unwrap()
                 }

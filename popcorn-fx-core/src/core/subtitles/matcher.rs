@@ -80,7 +80,6 @@ impl SubtitleMatcher {
 
 #[cfg(test)]
 mod test {
-    use crate::init_logger;
 
     use super::*;
 

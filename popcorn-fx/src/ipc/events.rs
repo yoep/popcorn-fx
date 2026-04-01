@@ -74,13 +74,9 @@ mod tests {
     use crate::ipc::proto::player::player;
     use crate::ipc::test::create_channel_pair;
     use crate::tests::default_args;
-    use crate::timeout;
-
     use popcorn_fx_core::core::event::HIGHEST_ORDER;
     use popcorn_fx_core::core::playback::PlaybackState;
-    use popcorn_fx_core::init_logger;
     use protobuf::{EnumOrUnknown, MessageField};
-    use std::time::Duration;
     use tempfile::tempdir;
     use tokio::sync::mpsc::unbounded_channel;
 

@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use derive_more::Display;
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, error, trace, warn};
 use rust_cast::channels::heartbeat::HeartbeatResponse;
 use rust_cast::channels::media::{MediaResponse, Status, StatusEntry};
@@ -274,10 +274,6 @@ impl<D: FxCastDevice + 'static> Player for ChromecastPlayer<D> {
 impl<D: FxCastDevice + 'static> Callback<PlayerEvent> for ChromecastPlayer<D> {
     fn subscribe(&self) -> Subscription<PlayerEvent> {
         self.inner.callbacks.subscribe()
-    }
-
-    fn subscribe_with(&self, subscriber: Subscriber<PlayerEvent>) {
-        self.inner.callbacks.subscribe_with(subscriber)
     }
 }
 
@@ -1111,8 +1107,7 @@ mod tests {
     use popcorn_fx_core::core::stream::ServerStream;
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo};
-    use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
-    use popcorn_fx_core::{assert_timeout, init_logger, recv_timeout};
+    use popcorn_fx_core::{assert_timeout, recv_timeout};
     use rust_cast::channels::media::StatusEntry;
     use rust_cast::channels::receiver::Volume;
     use rust_cast::channels::{media, receiver};
@@ -1290,13 +1285,9 @@ mod tests {
 
         let mut receiver = player.subscribe();
         tokio::spawn(async move {
-            loop {
-                if let Some(event) = receiver.recv().await {
-                    if let PlayerEvent::StateChanged(state) = &*event {
-                        tx.send(*state).unwrap();
-                    }
-                } else {
-                    break;
+            while let Ok(event) = receiver.recv().await {
+                if let PlayerEvent::StateChanged(state) = &*event {
+                    tx.send(*state).unwrap();
                 }
             }
         });
@@ -1445,7 +1436,6 @@ mod tests {
         init_logger!();
         let original_url = "http://localhost:9876/my-video.mp4";
         let transcoding_url = "http://localhost:9875/my-transcoded-video.mp4";
-        let subtitle_url = "http://localhost:9876/my-subtitle.srt";
         let request = PlayRequest::builder()
             .url(original_url)
             .title("My Video")

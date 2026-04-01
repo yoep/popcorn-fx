@@ -12,6 +12,7 @@ macro_rules! init_logger {
         use log4rs::append::console::ConsoleAppender;
         use log4rs::config::Appender;
         use log4rs::config::Root;
+        use log4rs::config::runtime::Logger;
         use log4rs::encode::pattern::PatternEncoder;
         use log::LevelFilter;
 
@@ -22,6 +23,23 @@ macro_rules! init_logger {
                 .appender(Appender::builder().build("stdout", Box::new(ConsoleAppender::builder()
                     .encoder(Box::new(PatternEncoder::new("\x1B[37m{d(%Y-%m-%d %H:%M:%S%.3f)}\x1B[0m {h({l:>5.5})} \x1B[35m{I:>6.6}\x1B[0m \x1B[37m---\x1B[0m \x1B[37m[{T:>15.15}]\x1B[0m \x1B[36m{t:<60.60}\x1B[0m \x1B[37m:\x1B[0m {m}{n}")))
                     .build())))
+                .logger(Logger::builder().build("async_io", LevelFilter::Info))
+                .logger(Logger::builder().build("fx_callback", LevelFilter::Info))
+                .logger(Logger::builder().build("fx_torrent", LevelFilter::Info))
+                .logger(Logger::builder().build("h2", LevelFilter::Info))
+                .logger(Logger::builder().build("httpmock::server", LevelFilter::Debug))
+                .logger(Logger::builder().build("hyper", LevelFilter::Info))
+                .logger(Logger::builder().build("hyper_util", LevelFilter::Info))
+                .logger(Logger::builder().build("mdns_sd", LevelFilter::Info))
+                .logger(Logger::builder().build("mio", LevelFilter::Info))
+                .logger(Logger::builder().build("neli", LevelFilter::Info))
+                .logger(Logger::builder().build("polling", LevelFilter::Info))
+                .logger(Logger::builder().build("popcorn_fx_players", LevelFilter::Debug))
+                .logger(Logger::builder().build("reqwest", LevelFilter::Info))
+                .logger(Logger::builder().build("rustls", LevelFilter::Info))
+                .logger(Logger::builder().build("serde_xml_rs", LevelFilter::Info))
+                .logger(Logger::builder().build("tracing", LevelFilter::Info))
+                .logger(Logger::builder().build("want", LevelFilter::Info))
                 .build(Root::builder().appender("stdout").build(level))
                 .unwrap())
                 .unwrap();
@@ -51,35 +69,5 @@ macro_rules! timeout {
                 )
             })
             .expect($message)
-    }};
-}
-
-/// Create application settings instance.
-macro_rules! settings {
-    ($temp_path:expr) => {{
-        use popcorn_fx_core::core::config::ApplicationConfig;
-
-        ApplicationConfig::builder().storage($temp_path).build()
-    }};
-}
-
-/// Create a subtitle manager instance.
-macro_rules! subtitle_manager {
-    ($settings:expr) => {{
-        subtitle_manager!(
-            $settings,
-            popcorn_fx_core::core::subtitles::MockSubtitleProvider::new()
-        )
-    }};
-    ($settings:expr, $provider:expr) => {{
-        use popcorn_fx_core::core::config::ApplicationConfig;
-        use popcorn_fx_core::core::subtitles::SubtitleManager;
-
-        let settings: ApplicationConfig = $settings;
-
-        SubtitleManager::builder()
-            .settings(settings)
-            .provider($provider)
-            .build()
     }};
 }

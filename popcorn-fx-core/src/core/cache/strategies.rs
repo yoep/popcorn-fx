@@ -150,7 +150,6 @@ mod test {
     use std::time::Duration;
 
     use crate::core::media::MediaError;
-    use crate::init_logger;
 
     use super::*;
 

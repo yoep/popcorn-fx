@@ -106,7 +106,7 @@ impl LoadingStrategy for TorrentStreamLoadingStrategy {
                     select! {
                         _ = context.cancelled() => break,
                         event = receiver.recv() => {
-                            if let Some(event) = event {
+                            if let Ok(event) = event {
                                 match self.handle_event(&*event, context).await {
                                     Ok(ready) => {
                                         if ready {
@@ -153,12 +153,11 @@ mod tests {
     use crate::core::stream::tests::MockStreamingResource;
     use crate::core::stream::StreamServerEvent;
     use crate::core::torrents::{MockTorrent, MockTorrentManager, TorrentHandle};
-    use crate::{create_loading_data, create_loading_task, init_logger, recv_timeout};
+    use crate::{create_loading_data, create_loading_task};
     use fx_callback::Callback;
     use fx_torrent::TorrentFileInfo;
     use std::time::Duration;
-    use tokio::sync::mpsc::unbounded_channel;
-    use tokio::sync::oneshot;
+    use tokio::sync::{broadcast, oneshot};
 
     mod process {
         use super::*;
@@ -262,7 +261,7 @@ mod tests {
             .expect("expected the stream to start");
 
         // wait for the stream to be started
-        let result = recv_timeout!(&mut receiver, Duration::from_millis(200));
+        let result = timeout!(receiver.recv(), Duration::from_millis(200)).unwrap();
         match &*result {
             StreamServerEvent::StreamStarted(result) => {
                 assert_eq!(
@@ -302,7 +301,7 @@ mod tests {
             );
         }
 
-        let result = recv_timeout!(&mut receiver, Duration::from_millis(200));
+        let result = timeout!(receiver.recv(), Duration::from_millis(200)).unwrap();
         match &*result {
             StreamServerEvent::StreamStopped(result) => {
                 assert_eq!(
@@ -342,7 +341,7 @@ mod tests {
             })
         });
         torrent.expect_subscribe().returning(|| {
-            let (_, rx) = unbounded_channel();
+            let (_, rx) = broadcast::channel(24);
             rx
         });
         torrent

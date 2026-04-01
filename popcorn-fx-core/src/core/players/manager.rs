@@ -6,7 +6,7 @@ use crate::core::players::{
 use crate::core::stream::StreamServer;
 use async_trait::async_trait;
 use derive_more::Display;
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, error, info, trace, warn};
 #[cfg(any(test, feature = "testing"))]
 pub use mock::*;
@@ -172,10 +172,6 @@ impl Callback<PlayerManagerEvent> for DefaultPlayerManager {
     fn subscribe(&self) -> Subscription<PlayerManagerEvent> {
         self.inner.callbacks.subscribe()
     }
-
-    fn subscribe_with(&self, subscriber: Subscriber<PlayerManagerEvent>) {
-        self.inner.callbacks.subscribe_with(subscriber)
-    }
 }
 
 #[async_trait]
@@ -298,7 +294,7 @@ impl InnerPlayerManager {
                     select! {
                         _ = cancellation_token.cancelled() => break,
                         event = event_receiver.recv() => {
-                            if let Some(event) = event {
+                            if let Ok(event) = event {
                                 let _ = sender.send((*event).clone());
                             } else {
                                 break;
@@ -541,7 +537,7 @@ struct PlayerData {
 #[cfg(any(test, feature = "testing"))]
 mod mock {
     use super::*;
-    use fx_callback::{Subscriber, Subscription};
+    use fx_callback::Subscription;
 
     use mockall::mock;
 
@@ -562,7 +558,6 @@ mod mock {
 
         impl Callback<PlayerManagerEvent> for PlayerManager {
             fn subscribe(&self) -> Subscription<PlayerManagerEvent>;
-            fn subscribe_with(&self, subscriber: Subscriber<PlayerManagerEvent>);
         }
     }
 }
@@ -570,14 +565,15 @@ mod mock {
 #[cfg(test)]
 mod tests {
     use crate::core::{event, stream};
+    use crate::recv_timeout;
     use crate::testing::MockPlayer;
-    use crate::{init_logger, recv_timeout};
 
     use super::*;
 
     use crate::core::stream::ServerStream;
     use async_trait::async_trait;
     use std::time::Duration;
+    use tokio::sync::broadcast;
     use tokio::sync::mpsc::unbounded_channel;
     use tokio::{select, time};
     use url::Url;
@@ -601,10 +597,6 @@ mod tests {
     impl Callback<PlayerEvent> for DummyPlayer {
         fn subscribe(&self) -> Subscription<PlayerEvent> {
             self.callbacks.subscribe()
-        }
-
-        fn subscribe_with(&self, subscriber: Subscriber<PlayerEvent>) {
-            self.callbacks.subscribe_with(subscriber)
         }
     }
 
@@ -667,7 +659,7 @@ mod tests {
         player.expect_id().return_const(player_id.to_string());
         player.expect_name().return_const("Foo".to_string());
         player.expect_subscribe().returning(|| {
-            let (_, rx) = unbounded_channel();
+            let (_, rx) = broadcast::channel(24);
             rx
         });
         let player = Box::new(player) as Box<dyn Player>;
@@ -699,7 +691,7 @@ mod tests {
             .expect_name()
             .return_const("FooBar player".to_string());
         player.expect_subscribe().returning(|| {
-            let (_, rx) = unbounded_channel();
+            let (_, rx) = broadcast::channel(24);
             rx
         });
         let player = Box::new(player) as Box<dyn Player>;
@@ -709,7 +701,7 @@ mod tests {
 
         let mut receiver = manager.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 if let PlayerManagerEvent::ActivePlayerChanged(change) = &*event {
                     tx.send(change.clone()).unwrap();
                 }
@@ -741,7 +733,7 @@ mod tests {
             .expect_name()
             .return_const("FooBar player".to_string());
         player.expect_subscribe().returning(|| {
-            let (_, rx) = unbounded_channel();
+            let (_, rx) = broadcast::channel(24);
             rx
         });
         let player = Box::new(player) as Box<dyn Player>;
@@ -751,7 +743,7 @@ mod tests {
 
         let mut receiver = manager.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 if let PlayerManagerEvent::ActivePlayerChanged(change) = &*event {
                     tx.send(change.clone()).unwrap();
                 }
@@ -792,13 +784,9 @@ mod tests {
 
         let mut receiver = manager.subscribe();
         tokio::spawn(async move {
-            loop {
-                if let Some(event) = receiver.recv().await {
-                    if let PlayerManagerEvent::PlayerDurationChanged(_) = &*event {
-                        tx.send((*event).clone()).unwrap();
-                    }
-                } else {
-                    break;
+            while let Ok(event) = receiver.recv().await {
+                if let PlayerManagerEvent::PlayerDurationChanged(_) = &*event {
+                    tx.send((*event).clone()).unwrap();
                 }
             }
         });
@@ -913,7 +901,7 @@ mod tests {
         // subscribe to the player manager events
         let mut receiver = manager.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 if let PlayerManagerEvent::PlayerStateChanged(_) = &*event {
                     tx_player_manager.send((*event).clone()).unwrap();
                     break;
@@ -991,7 +979,7 @@ mod tests {
         player.expect_id().return_const(player_id.to_string());
         player.expect_name().return_const("FooBar".to_string());
         player.expect_subscribe().returning(|| {
-            let (_, rx) = unbounded_channel();
+            let (_, rx) = broadcast::channel(24);
             rx
         });
         player.expect_play().times(1).returning(move |e| {

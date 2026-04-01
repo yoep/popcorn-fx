@@ -270,7 +270,7 @@ mod tests {
     use crate::core::playlist::{PlaylistItem, PlaylistMedia, PlaylistSubtitle, PlaylistTorrent};
     use crate::core::subtitles::{MockSubtitleProvider, SubtitleFile};
     use crate::testing::copy_test_file;
-    use crate::{create_loading_task, init_logger, recv_timeout};
+    use crate::{create_loading_task, recv_timeout};
     use std::path::PathBuf;
     use std::time::Duration;
     use tempfile::tempdir;

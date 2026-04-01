@@ -6,7 +6,7 @@ use axum::response::IntoResponse;
 use axum::routing::get;
 use axum::Router;
 use chrono::{Local, Utc};
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, error, info, trace, warn};
 use oauth2::basic::{BasicClient, BasicTokenResponse};
 use oauth2::{
@@ -432,10 +432,6 @@ impl Callback<TrackingEvent> for TraktProvider {
     fn subscribe(&self) -> Subscription<TrackingEvent> {
         self.inner.callbacks.subscribe()
     }
-
-    fn subscribe_with(&self, subscriber: Subscriber<TrackingEvent>) {
-        self.inner.callbacks.subscribe_with(subscriber)
-    }
 }
 
 #[derive(Debug)]
@@ -501,7 +497,7 @@ mod tests {
 
     use popcorn_fx_core::core::config::{PopcornProperties, PopcornSettings, TrackingSettings};
     use popcorn_fx_core::core::media::MediaType;
-    use popcorn_fx_core::{init_logger, recv_timeout};
+    use popcorn_fx_core::recv_timeout;
 
     use super::*;
 
@@ -631,7 +627,7 @@ mod tests {
 
         let mut receiver = trakt.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 if let TrackingEvent::OpenAuthorization(uri) = &*event {
                     tx.send(uri.clone()).unwrap();
                 }

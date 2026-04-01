@@ -6,17 +6,19 @@ use crate::core::torrents::{Error, Result, Torrent, TorrentHandle, TorrentInfo};
 use async_trait::async_trait;
 use derive_more::Display;
 use downcast_rs::{impl_downcast, DowncastSync};
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use fx_torrent::dht::DhtTracker;
 use fx_torrent::{
-    DhtOption, FileIndex, FilePriority, FxTorrentSession, Magnet, Session, SessionConfig,
-    SessionEvent, TorrentEvent, TorrentFiles, TorrentFlags, TorrentHealth, TorrentState,
+    FileIndex, FilePriority, FxTorrentSession, LocalServiceDiscovery, Magnet, Session,
+    SessionConfig, SessionEvent, TorrentEvent, TorrentFiles, TorrentFlags, TorrentHealth,
+    TorrentState,
 };
 use log::{debug, error, info, log_enabled, trace, warn, Level};
 #[cfg(any(test, feature = "testing"))]
 pub use mock::*;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::net::Ipv4Addr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::select;
@@ -108,6 +110,15 @@ impl FxTorrentManager {
         settings: ApplicationConfig,
         event_publisher: EventPublisher,
     ) -> Result<Self> {
+        let dht = DhtTracker::builder()
+            .enable_indexing(false)
+            .default_routing_nodes()
+            .build()
+            .await
+            .map_err(|e| Error::TorrentError(e.to_string()))?;
+        let lsd = LocalServiceDiscovery::new(Ipv4Addr::LOCALHOST.into())
+            .await
+            .map_err(|e| Error::TorrentError(e.to_string()))?;
         let session = FxTorrentSession::builder()
             .config(
                 SessionConfig::builder()
@@ -115,14 +126,8 @@ impl FxTorrentManager {
                     .path(settings.user_settings().await.torrent_settings.directory())
                     .build(),
             )
-            .dht(DhtOption::new(
-                DhtTracker::builder()
-                    .enable_indexing(false)
-                    .default_routing_nodes()
-                    .build()
-                    .await
-                    .map_err(|e| Error::TorrentError(e.to_string()))?,
-            ))
+            .dht(dht)
+            .local_service_discovery(lsd)
             .build()
             .map(|e| Box::new(e))
             .map_err(|e| Error::TorrentError(e.to_string()))?;
@@ -186,10 +191,6 @@ impl Callback<TorrentManagerEvent> for FxTorrentManager {
     fn subscribe(&self) -> Subscription<TorrentManagerEvent> {
         self.inner.callbacks.subscribe()
     }
-
-    fn subscribe_with(&self, subscriber: Subscriber<TorrentManagerEvent>) {
-        self.inner.callbacks.subscribe_with(subscriber)
-    }
 }
 
 impl Drop for FxTorrentManager {
@@ -221,7 +222,7 @@ impl InnerTorrentManager {
             select! {
                 _ = self.cancellation_token.cancelled() => break,
                 Some(event) = event_receiver.recv() => self.on_event(event).await,
-                Some(event) = session_receiver.recv() => self.on_session_event(&*event).await,
+                Ok(event) = session_receiver.recv() => self.on_session_event(&*event).await,
             }
         }
 
@@ -248,7 +249,7 @@ impl InnerTorrentManager {
                 let handle = *handle;
                 let mut receiver = torrent.subscribe();
                 tokio::spawn(async move {
-                    while let Some(event) = receiver.recv().await {
+                    while let Ok(event) = receiver.recv().await {
                         match &*event {
                             TorrentEvent::Stats(stats) => {
                                 info!("Torrent {} stats {}", handle, stats);
@@ -474,7 +475,7 @@ impl InnerTorrentManager {
             "Torrent manager is waiting for torrent {} files to be created",
             torrent_handle
         );
-        while let Some(event) = receiver.recv().await {
+        while let Ok(event) = receiver.recv().await {
             match &*event {
                 TorrentEvent::FilesChanged => return Ok(()),
                 TorrentEvent::StateChanged(state) => {
@@ -559,7 +560,6 @@ impl InnerTorrentManager {
 #[cfg(any(test, feature = "testing"))]
 mod mock {
     use super::*;
-    use fx_callback::Subscriber;
     use mockall::mock;
 
     mock! {
@@ -580,7 +580,6 @@ mod mock {
 
         impl Callback<TorrentManagerEvent> for TorrentManager {
             fn subscribe(&self) -> Subscription<TorrentManagerEvent>;
-            fn subscribe_with(&self, subscriber: Subscriber<TorrentManagerEvent>);
         }
     }
 }
@@ -589,9 +588,9 @@ mod mock {
 mod tests {
     use super::*;
 
+    use crate::assert_timeout;
     use crate::core::config::PopcornSettings;
     use crate::testing::copy_test_file;
-    use crate::{assert_timeout, init_logger};
 
     use std::fs::{FileTimes, OpenOptions};
     use std::path::PathBuf;

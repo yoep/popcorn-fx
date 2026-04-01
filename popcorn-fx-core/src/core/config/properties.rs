@@ -411,8 +411,6 @@ pub struct TrackingClientProperties {
 mod test {
     use std::path::MAIN_SEPARATOR;
 
-    use crate::init_logger;
-
     use super::*;
 
     #[test]

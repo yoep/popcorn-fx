@@ -383,8 +383,6 @@ mod test {
     use httpmock::Method::GET;
     use httpmock::MockServer;
 
-    use crate::init_logger;
-
     use super::*;
 
     #[test]

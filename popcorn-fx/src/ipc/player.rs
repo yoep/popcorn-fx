@@ -11,7 +11,7 @@ use crate::ipc::proto::player::{
 use crate::ipc::{proto, Error, IpcChannel, MessageHandler, Result};
 use async_trait::async_trait;
 use derive_more::Display;
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{error, trace, warn};
 use popcorn_fx_core::core::players::{PlayRequest, Player, PlayerEvent, PlayerState};
 use protobuf::{Message, MessageField};
@@ -30,7 +30,7 @@ impl PlayerMessageHandler {
     pub fn new(instance: Arc<PopcornFX>, channel: IpcChannel) -> Self {
         let mut receiver = instance.player_manager().subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 let proto_event = proto::player::PlayerManagerEvent::from(&*event);
 
                 if let Err(e) = channel
@@ -338,10 +338,6 @@ impl Callback<PlayerEvent> for ProtoPlayerWrapper {
     fn subscribe(&self) -> Subscription<PlayerEvent> {
         self.inner.callbacks.subscribe()
     }
-
-    fn subscribe_with(&self, subscriber: Subscriber<PlayerEvent>) {
-        self.inner.callbacks.subscribe_with(subscriber)
-    }
 }
 
 #[async_trait]
@@ -492,15 +488,10 @@ mod tests {
     use crate::ipc::proto::player::PlayerPlayRequest;
     use crate::ipc::test::create_channel_pair;
     use crate::tests::default_args;
-    use crate::timeout;
-
-    use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::MockPlayer;
     use protobuf::EnumOrUnknown;
-    use std::time::Duration;
     use tempfile::tempdir;
-    use tokio::sync::mpsc::unbounded_channel;
-    use tokio::sync::oneshot;
+    use tokio::sync::{broadcast, oneshot};
 
     #[tokio::test]
     async fn test_is_supported() {
@@ -1160,7 +1151,7 @@ mod tests {
         player.expect_state().return_const(PlayerState::Unknown);
         player.expect_graphic_resource().return_const(Vec::new());
         player.expect_subscribe().returning(|| {
-            let (_, rx) = unbounded_channel();
+            let (_, rx) = broadcast::channel(64);
             rx
         });
         player

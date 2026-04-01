@@ -5,7 +5,7 @@ use chbs::prelude::ToScheme;
 use chbs::probability::Probability;
 use chbs::word::{WordList, WordSampler};
 use derive_more::Display;
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use log::{debug, error, info, trace, warn};
 use popcorn_fx_core::core::players::{PlayRequest, Player, PlayerEvent, PlayerState};
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
@@ -106,10 +106,6 @@ impl Player for VlcPlayer {
 impl Callback<PlayerEvent> for VlcPlayer {
     fn subscribe(&self) -> Subscription<PlayerEvent> {
         self.inner.callbacks.subscribe()
-    }
-
-    fn subscribe_with(&self, subscriber: Subscriber<PlayerEvent>) {
-        self.inner.callbacks.subscribe_with(subscriber)
     }
 }
 
@@ -544,7 +540,7 @@ mod tests {
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
     use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
-    use popcorn_fx_core::{assert_timeout, init_logger, recv_timeout};
+    use popcorn_fx_core::{assert_timeout, recv_timeout};
     use std::path::PathBuf;
     use tempfile::tempdir;
 
@@ -662,7 +658,6 @@ mod tests {
                     .build(),
             )
             .build();
-        let subtitle_url = "http://localhost:8080/subtitle.srt";
         let mut provider = MockSubtitleProvider::new();
         provider
             .expect_download()
@@ -761,7 +756,7 @@ mod tests {
 
         let mut receiver = player.subscribe();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 match &*event {
                     PlayerEvent::DurationChanged(e) => tx_duration.send(*e).unwrap(),
                     PlayerEvent::TimeChanged(e) => tx_time.send(*e).unwrap(),

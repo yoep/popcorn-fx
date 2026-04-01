@@ -9,12 +9,10 @@ use crate::core::stream::{Error, StreamStats};
 use crate::core::{stream, torrents};
 use async_trait::async_trait;
 use derive_more::Display;
-use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use fx_handle::Handle;
 use fx_torrent::Metrics;
 use log::{debug, trace};
-#[cfg(any(test, feature = "testing"))]
-pub use mock::*;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::io;
@@ -24,6 +22,9 @@ use tokio::select;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
+
+#[cfg(any(test, feature = "testing"))]
+pub use mock::*;
 
 /// Represents the result of a loading operation.
 ///
@@ -354,10 +355,6 @@ impl Callback<MediaLoaderEvent> for DefaultMediaLoader {
     fn subscribe(&self) -> Subscription<MediaLoaderEvent> {
         self.inner.callbacks.subscribe()
     }
-
-    fn subscribe_with(&self, subscriber: Subscriber<MediaLoaderEvent>) {
-        self.inner.callbacks.subscribe_with(subscriber)
-    }
 }
 
 impl Drop for DefaultMediaLoader {
@@ -521,7 +518,7 @@ impl InnerMediaLoader {
                 select! {
                     _ = task_event_cancel.cancelled() => break,
                     event = task_event_receiver.recv() => {
-                        if let Some(event) = event {
+                        if let Ok(event) = event {
                             Self::handle_task_event(&event, task_handle, &task_event_sender, &task_command_sender);
                         } else {
                             break;
@@ -609,7 +606,6 @@ mod mock {
 
         impl Callback<MediaLoaderEvent> for MediaLoader {
             fn subscribe(&self) -> Subscription<MediaLoaderEvent>;
-            fn subscribe_with(&self, subscriber: Subscriber<MediaLoaderEvent>);
         }
     }
 }
@@ -620,7 +616,7 @@ mod tests {
 
     use crate::core::loader::tests::TestingLoadingStrategy;
     use crate::core::loader::SubtitleData;
-    use crate::{init_logger, recv_timeout};
+    use crate::recv_timeout;
 
     use std::time::Duration;
 
@@ -756,13 +752,9 @@ mod tests {
 
         let mut receiver = loader.subscribe();
         tokio::spawn(async move {
-            loop {
-                if let Some(event) = receiver.recv().await {
-                    if let MediaLoaderEvent::ProgressChanged(_, progress) = &*event {
-                        tx_event.send(progress.clone()).unwrap();
-                        break;
-                    }
-                } else {
+            while let Ok(event) = receiver.recv().await {
+                if let MediaLoaderEvent::ProgressChanged(_, progress) = &*event {
+                    tx_event.send(progress.clone()).unwrap();
                     break;
                 }
             }

@@ -23,6 +23,7 @@ tokio.workspace = true
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
 
+log4rs = { workspace = true, features = ["console_writer"] }
 mockall.workspace = true
 
 [target.'cfg(target_os = "windows")'.dependencies]

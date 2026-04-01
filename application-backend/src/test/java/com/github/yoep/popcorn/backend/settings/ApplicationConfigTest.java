@@ -11,6 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -256,6 +257,25 @@ class ApplicationConfigTest {
 
         assertNotNull(result, "expected to have retrieved supported UI scales");
         assertFalse(result.isEmpty(), "expected to have at least retrieved 1 supported UI scale");
+    }
+
+    @Test
+    void testOnApplicationSettingsEvent_UiSettingsChanged() {
+        var listener = mock(ApplicationSettingsEventListener.class);
+        var event = ApplicationSettingsEvent.newBuilder()
+                .setEvent(ApplicationSettingsEvent.Event.UI_SETTINGS_CHANGED)
+                .setUiSettings(ApplicationSettings.UISettings.newBuilder()
+                        .setDefaultLanguage("fr")
+                        .build())
+                .build();
+        mockDefaultApplicationSettings();
+        var config = new ApplicationConfig(fxChannel, localeText);
+
+        config.addListener(listener);
+        subscriptionHolder.get().callback(event);
+
+        verify(listener).onUiSettingsChanged(event.getUiSettings());
+        verify(localeText).updateLocale(Locale.FRENCH);
     }
 
     @Test

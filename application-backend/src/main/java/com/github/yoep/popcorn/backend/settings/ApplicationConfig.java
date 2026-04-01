@@ -5,7 +5,6 @@ import com.github.yoep.popcorn.backend.lib.FxChannelException;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
-import javafx.application.Platform;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -195,15 +194,8 @@ public class ApplicationConfig extends AbstractListenerService<ApplicationSettin
                 .thenApply(ApplicationSettings::getUiSettings)
                 .whenComplete((settings, throwable) -> {
                     if (throwable == null) {
-                        var locale = supportedLanguages().stream()
-                                .filter(e -> e.getDisplayLanguage().equalsIgnoreCase(settings.getDefaultLanguage()))
-                                .findFirst()
-                                .orElse(Locale.ENGLISH);
                         this.uiScaleIndex = currentUIScaleIndex(settings);
-
-                        Platform.runLater(() -> {
-                            localeText.updateLocale(locale);
-                        });
+                        onUiSettingsChanged(settings);
                     } else {
                         log.error("Failed to retrieve settings", throwable);
                     }
@@ -230,8 +222,11 @@ public class ApplicationConfig extends AbstractListenerService<ApplicationSettin
 
     private void onApplicationEvent(ApplicationSettingsEvent event) {
         switch (event.getEvent()) {
-            case ApplicationSettingsEvent.Event.UI_SETTINGS_CHANGED ->
-                    invokeListeners(listener -> listener.onUiSettingsChanged(event.getUiSettings()));
+            case ApplicationSettingsEvent.Event.UI_SETTINGS_CHANGED -> {
+                var settings = event.getUiSettings();
+                onUiSettingsChanged(settings);
+                invokeListeners(listener -> listener.onUiSettingsChanged(settings));
+            }
             case ApplicationSettingsEvent.Event.SUBTITLE_SETTINGS_CHANGED ->
                     invokeListeners(listener -> listener.onSubtitleSettingsChanged(event.getSubtitleSettings()));
             case ApplicationSettingsEvent.Event.TRACKING_SETTINGS_CHANGED ->
@@ -283,6 +278,15 @@ public class ApplicationConfig extends AbstractListenerService<ApplicationSettin
 
         log.trace("Current UI scale index: {}", index);
         return index;
+    }
+
+    private void onUiSettingsChanged(ApplicationSettings.UISettings settings) {
+        var locale = supportedLanguages().stream()
+                .filter(e -> e.getLanguage().equalsIgnoreCase(settings.getDefaultLanguage()))
+                .findFirst()
+                .orElse(Locale.ENGLISH);
+
+        localeText.updateLocale(locale);
     }
 
     //endregion

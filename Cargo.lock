@@ -2127,21 +2127,6 @@ checksum = "dce6dd36094cac388f119d2e9dc82dc730ef91c32a6222170d630e5414b956e6"
 
 [[package]]
 name = "mockall"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43766c2b5203b10de348ffe19f7e54564b64f3d6018ff7648d1e2d6d3a0f0a48"
-dependencies = [
- "cfg-if",
- "downcast",
- "fragile",
- "lazy_static",
- "mockall_derive 0.12.1",
- "predicates",
- "predicates-tree",
-]
-
-[[package]]
-name = "mockall"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f58d964098a5f9c6b63d0798e5372fd04708193510a7af313c22e9f29b7b620b"
@@ -2149,21 +2134,9 @@ dependencies = [
  "cfg-if",
  "downcast",
  "fragile",
- "mockall_derive 0.14.0",
+ "mockall_derive",
  "predicates",
  "predicates-tree",
-]
-
-[[package]]
-name = "mockall_derive"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af7cbce79ec385a1d4f54baa90a76401eb15d9cab93685f62e7e9f942aa00ae2"
-dependencies = [
- "cfg-if",
- "proc-macro2",
- "quote",
- "syn 2.0.117",
 ]
 
 [[package]]
@@ -2475,7 +2448,7 @@ dependencies = [
  "itertools",
  "log",
  "log4rs",
- "mockall 0.14.0",
+ "mockall",
  "popcorn-fx",
  "popcorn-fx-core",
  "popcorn-fx-logging",
@@ -2501,7 +2474,7 @@ dependencies = [
  "directories",
  "log",
  "log4rs",
- "mockall 0.14.0",
+ "mockall",
  "popcorn-fx-core",
  "popcorn-fx-logging",
  "signal-hook",
@@ -2532,7 +2505,7 @@ dependencies = [
  "local-ip-address",
  "log",
  "log4rs",
- "mockall 0.14.0",
+ "mockall",
  "percent-encoding",
  "popcorn-fx-core",
  "regex",
@@ -2589,7 +2562,7 @@ dependencies = [
  "libc",
  "log",
  "log4rs",
- "mockall 0.14.0",
+ "mockall",
  "popcorn-fx-core",
  "souvlaki",
  "tokio",
@@ -2613,7 +2586,7 @@ dependencies = [
  "log",
  "log4rs",
  "mdns-sd",
- "mockall 0.12.1",
+ "mockall",
  "popcorn-fx-core",
  "protobuf",
  "rand 0.10.0",

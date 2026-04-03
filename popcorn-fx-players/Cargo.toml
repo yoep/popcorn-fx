@@ -44,7 +44,7 @@ popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
 
 httpmock.workspace = true
 log4rs = { workspace = true, features = ["console_writer"] }
-mockall = "0.12.1"
+mockall = "0.14.0"
 protobuf.workspace = true
 rcgen = "0.14.7"
 rust_cast = { git = "https://github.com/yoep/rust-cast", features = ["thread_safe", "cast"] }

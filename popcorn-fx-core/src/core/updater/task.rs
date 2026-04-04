@@ -5,7 +5,7 @@ use semver::Version;
 use url::Url;
 
 use crate::core::updater;
-use crate::core::updater::UpdateError;
+use crate::core::updater::Error;
 
 /// An update task which allows updating a component from the application.
 ///
@@ -75,7 +75,7 @@ impl UpdateTask {
         archive_location: P,
     ) -> updater::Result<()> {
         if self.archive_location.is_some() {
-            return Err(UpdateError::ArchiveLocationAlreadyExists);
+            return Err(Error::ArchiveLocationAlreadyExists);
         }
 
         self.archive_location = Some(PathBuf::from(archive_location.as_ref()));
@@ -210,7 +210,7 @@ mod test {
         let result = update.set_archive_location(temp_path);
 
         if let Err(e) = result {
-            assert_eq!(UpdateError::ArchiveLocationAlreadyExists, e);
+            assert_eq!(Error::ArchiveLocationAlreadyExists, e);
         } else {
             assert!(false, "expected the archive location to error");
         }

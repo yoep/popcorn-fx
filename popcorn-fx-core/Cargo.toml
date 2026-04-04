@@ -22,9 +22,9 @@ chrono = { workspace = true, features = ["serde"] }
 derive_more.workspace = true
 directories.workspace = true
 downcast-rs.workspace = true
-flate2 = "1"
+flate2 = "1.1.9"
 futures.workspace = true
-html-escape = "0"
+html-escape = "0.2.13"
 itertools.workspace = true
 local-ip-address.workspace = true
 log.workspace = true
@@ -32,12 +32,12 @@ mockall = { workspace = true, optional = true }
 percent-encoding.workspace = true
 regex.workspace = true
 reqwest = { workspace = true, features = ["json", "stream"] }
-ring = "0.17"
-semver = "1.0"
+ring = "0.17.14"
+semver = "1.0.28"
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true
-tar = "0.4"
+tar = "0.4.45"
 tempfile = { workspace = true, optional = true }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "fs", "macros"] }

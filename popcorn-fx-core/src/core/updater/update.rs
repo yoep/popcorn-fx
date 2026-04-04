@@ -1,31 +1,32 @@
 use std::cmp::Ordering;
 use std::fmt::{Debug, Formatter};
 use std::fs::OpenOptions;
+use std::io;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use derive_more::Display;
-use flate2::read::GzDecoder;
-use futures::StreamExt;
-use fx_callback::{Callback, MultiThreadedCallback, Subscription};
-use log::{debug, error, info, trace, warn};
-use reqwest::{Client, ClientBuilder, Response, StatusCode};
-use semver::Version;
-use tar::Archive;
-use tokio::select;
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
-use tokio::sync::Mutex;
-use tokio_util::sync::CancellationToken;
-use url::Url;
-
+use crate::core::channel::{ChannelReceiver, ChannelSender, Reply};
 use crate::core::config::ApplicationConfig;
 use crate::core::launcher::LauncherOptions;
 use crate::core::platform::PlatformData;
 use crate::core::storage::{Storage, StorageError};
-use crate::core::updater;
 use crate::core::updater::task::UpdateTask;
-use crate::core::updater::{UpdateError, VersionInfo};
+use crate::core::updater::{Error, Result, VersionInfo};
 use crate::VERSION;
+use derive_more::Display;
+use flate2::read::GzDecoder;
+use futures::StreamExt;
+use fx_callback::{Callback, MultiThreadedCallback, Subscription};
+use itertools::Itertools;
+use log::{debug, error, info, trace, warn};
+use reqwest::{Client, ClientBuilder, Response, StatusCode};
+use semver::Version;
+use tar::Archive;
+use tokio::io::AsyncWriteExt;
+use tokio::select;
+use tokio::sync::Mutex;
+use tokio_util::sync::CancellationToken;
+use url::Url;
 
 const UPDATE_INFO_FILE: &str = "versions.json";
 const UPDATE_DIRECTORY: &str = "updates";
@@ -49,7 +50,7 @@ pub enum UpdateEvent {
 }
 
 /// Represents the state of the updater.
-#[derive(Debug, Clone, Display, PartialEq)]
+#[derive(Debug, Copy, Clone, Display, PartialEq)]
 pub enum UpdateState {
     /// The updater is currently checking for a new version.
     CheckingForNewVersion,
@@ -70,7 +71,7 @@ pub enum UpdateState {
 }
 
 /// Represents the current progress of an update being downloaded.
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct DownloadProgress {
     /// The total size of the download in bytes.
     pub total_size: u64,
@@ -91,7 +92,9 @@ pub struct InstallationProgress {
 /// the latest release information and verifying if an update can be applied.
 #[derive(Debug)]
 pub struct Updater {
-    inner: Arc<InnerUpdater>,
+    sender: ChannelSender<UpdateCommand>,
+    callbacks: MultiThreadedCallback<UpdateEvent>,
+    cancellation_token: CancellationToken,
 }
 
 impl Updater {
@@ -102,46 +105,46 @@ impl Updater {
 
     pub fn new(
         settings: ApplicationConfig,
-        platform: Arc<Box<dyn PlatformData>>,
+        platform: Arc<dyn PlatformData>,
         data_path: &str,
         insecure: bool,
     ) -> Self {
-        let (command_sender, command_receiver) = unbounded_channel();
-        let inner = Arc::new(InnerUpdater::new(
-            settings,
-            insecure,
-            platform,
-            data_path,
-            command_sender,
-        ));
+        let (sender, command_receiver) = channel!(16);
 
-        let inner_main = inner.clone();
+        let mut inner = InnerUpdater::new(settings, insecure, platform, data_path);
+        let callbacks = inner.callbacks.clone();
+        let cancellation_token = inner.cancellation_token.clone();
         tokio::spawn(async move {
-            inner_main.start(command_receiver).await;
+            inner.run(command_receiver).await;
         });
-        inner.send_command(UpdaterCommand::Poll);
 
-        Self { inner }
+        Self {
+            sender,
+            callbacks,
+            cancellation_token,
+        }
     }
 
-    /// Retrieve the version information from the update channel.
+    /// Returns the latest application version info, if available.
     ///
-    /// This will return the cached info if present and otherwise poll the channel for the info.
-    ///
-    /// # Returns
-    ///
-    /// The version info of the latest release on success, else the [UpdateError].
-    pub async fn version_info(&self) -> updater::Result<VersionInfo> {
-        self.inner.version_info().await
+    /// This might return the cached info if present, otherwise polls the channel for the info.
+    pub async fn version_info(&self) -> Result<VersionInfo> {
+        self.sender
+            .send(|tx| UpdateCommand::GetVersionInfo {
+                force_poll: false,
+                response: tx,
+            })
+            .await
+            .await
     }
 
-    /// Retrieve an owned instance of the current update state.
-    ///
-    /// # Returns
-    ///
-    /// The current update state.
+    /// Returns the state of the updater.
     pub async fn state(&self) -> UpdateState {
-        self.inner.state().await
+        self.sender
+            .send(|tx| UpdateCommand::GetState { response: tx })
+            .await
+            .await
+            .unwrap_or(UpdateState::Error)
     }
 
     /// Poll the [PopcornProperties] for a new version.
@@ -151,54 +154,82 @@ impl Updater {
     /// # Returns
     ///
     /// Returns when the action is completed or returns an error when the polling failed.
-    pub async fn poll(&self) -> updater::Result<VersionInfo> {
-        self.inner.poll().await
+    pub async fn poll(&self) -> Result<VersionInfo> {
+        self.sender
+            .send(|tx| UpdateCommand::GetVersionInfo {
+                force_poll: true,
+                response: tx,
+            })
+            .await
+            .await
     }
 
-    /// Download the latest update version of the application if available.
-    ///
-    /// The download will do nothing if no new version is available.
-    ///
-    /// # Returns
-    ///
-    /// An error if the download failed.
-    pub async fn download(&self) -> updater::Result<()> {
-        self.inner.download().await.map_err(|e| {
-            warn!("Failed to download update, {}", e);
-            e
-        })
+    /// Start downloading the latest versions of the application.
+    /// Returns an error when the download could not be started.
+    pub async fn download(&self) -> Result<()> {
+        match self
+            .sender
+            .send(|tx| UpdateCommand::StartDownload { response: tx })
+            .await
+            .await
+        {
+            Ok(_) => {
+                self.sender.fire_and_forget(UpdateCommand::Download).await;
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
     }
 
-    /// Install the downloaded update.
-    ///
-    /// # Returns
-    ///
-    /// An error when the update installation failed to start.
-    pub async fn install(&self) -> updater::Result<()> {
-        self.inner.install(self.inner.clone()).await
+    /// Start installing the downloaded updates.
+    /// Returns an error when the installation could not be started.
+    pub async fn install(&self) -> Result<()> {
+        match self
+            .sender
+            .send(|tx| UpdateCommand::StartInstall { response: tx })
+            .await
+            .await
+        {
+            Ok(_) => {
+                self.sender.fire_and_forget(UpdateCommand::Install).await;
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Clean the updates directory.
+    pub async fn clean(&self) -> Result<()> {
+        Ok(self
+            .sender
+            .send(|tx| UpdateCommand::Clean { response: tx })
+            .await
+            .await?)
     }
 
     /// Poll the update channel for new versions.
     ///
     /// If the updater state is [UpdateState::CheckingForNewVersion], then the call will be ignored.
     pub async fn check_for_updates(&self) {
-        if self.inner.state().await == UpdateState::CheckingForNewVersion {
+        let state = self.state().await;
+        if state == UpdateState::CheckingForNewVersion {
             debug!("Updater is already checking for new version, ignoring check_for_updates");
             return;
         }
-        self.inner.send_command(UpdaterCommand::Poll);
+
+        self.sender.fire_and_forget(UpdateCommand::Poll).await;
     }
 }
 
 impl Callback<UpdateEvent> for Updater {
     fn subscribe(&self) -> Subscription<UpdateEvent> {
-        self.inner.callbacks.subscribe()
+        self.callbacks.subscribe()
     }
 }
 
 impl Drop for Updater {
     fn drop(&mut self) {
-        self.inner.cancellation_token.cancel();
+        self.cancellation_token.cancel();
     }
 }
 
@@ -230,7 +261,7 @@ impl Drop for Updater {
 pub struct UpdaterBuilder {
     settings: Option<ApplicationConfig>,
     insecure: bool,
-    platform: Option<Arc<Box<dyn PlatformData>>>,
+    platform: Option<Arc<dyn PlatformData>>,
     data_path: Option<String>,
 }
 
@@ -248,7 +279,7 @@ impl UpdaterBuilder {
     }
 
     /// Sets the platform data for the updater.
-    pub fn platform(mut self, platform: Arc<Box<dyn PlatformData>>) -> Self {
+    pub fn platform(mut self, platform: Arc<dyn PlatformData>) -> Self {
         self.platform = Some(platform);
         self
     }
@@ -293,10 +324,32 @@ impl Debug for UpdaterBuilder {
     }
 }
 
-#[derive(Debug, PartialEq)]
-enum UpdaterCommand {
+#[derive(Debug)]
+enum UpdateCommand {
+    /// Returns the current state of the updater.
+    GetState {
+        response: Reply<UpdateState>,
+    },
+    /// Returns the polled version of the latest application.
+    GetVersionInfo {
+        force_poll: bool,
+        response: Reply<Result<VersionInfo>>,
+    },
+    /// Start downloading the latest update version.
+    StartDownload {
+        response: Reply<Result<()>>,
+    },
+    /// Start installing the downloaded updates.
+    StartInstall {
+        response: Reply<Result<()>>,
+    },
+    /// Clean the updates directory.
+    Clean {
+        response: Reply<()>,
+    },
+    Download,
+    Install,
     Poll,
-    Clean,
 }
 
 /// Manages the update process by handling configurations, platform-specific data,
@@ -306,20 +359,19 @@ struct InnerUpdater {
     /// The application configuration.
     settings: ApplicationConfig,
     /// The Operating System specific data used for updates.
-    platform: Arc<Box<dyn PlatformData>>,
+    platform: Arc<dyn PlatformData>,
     /// The client used for polling the information
     client: Client,
     /// The cached version information if available
-    cache: Mutex<Option<VersionInfo>>,
+    cache: Option<VersionInfo>,
     /// The last know state of the updater
-    state: Mutex<UpdateState>,
+    state: UpdateState,
     /// The event callbacks for the updater
     callbacks: MultiThreadedCallback<UpdateEvent>,
     data_path: PathBuf,
-    download_progress: Mutex<Option<DownloadProgress>>,
-    tasks: Mutex<Vec<UpdateTask>>,
+    download_progress: Mutex<DownloadProgress>,
+    tasks: Vec<UpdateTask>,
     launcher_options: LauncherOptions,
-    command_sender: UnboundedSender<UpdaterCommand>,
     cancellation_token: CancellationToken,
 }
 
@@ -327,9 +379,8 @@ impl InnerUpdater {
     fn new(
         settings: ApplicationConfig,
         insecure: bool,
-        platform: Arc<Box<dyn PlatformData>>,
+        platform: Arc<dyn PlatformData>,
         data_path: &str,
-        command_sender: UnboundedSender<UpdaterCommand>,
     ) -> Self {
         Self {
             settings,
@@ -338,67 +389,68 @@ impl InnerUpdater {
                 .danger_accept_invalid_certs(insecure)
                 .build()
                 .unwrap(),
-            cache: Mutex::new(None),
-            state: Mutex::new(UpdateState::CheckingForNewVersion),
+            cache: None,
+            state: UpdateState::NoUpdateAvailable,
             callbacks: MultiThreadedCallback::new(),
             data_path: PathBuf::from(data_path),
             download_progress: Default::default(),
             tasks: Default::default(),
             launcher_options: LauncherOptions::new(data_path),
-            command_sender,
             cancellation_token: Default::default(),
         }
     }
 
-    async fn start(&self, mut command_receiver: UnboundedReceiver<UpdaterCommand>) {
+    async fn run(&mut self, mut command_receiver: ChannelReceiver<UpdateCommand>) {
         loop {
             select! {
                 _ = self.cancellation_token.cancelled() => break,
-                Some(command) = command_receiver.recv() => self.handle_command(command).await,
+                Some(command) = command_receiver.recv() => self.on_command(command).await,
             }
         }
 
         self.cleanup().await;
+        debug!("Updater main loop ended");
     }
 
-    async fn handle_command(&self, command: UpdaterCommand) {
+    async fn on_command(&mut self, command: UpdateCommand) {
         match command {
-            UpdaterCommand::Poll => match self.poll().await {
-                Ok(_) => debug!("Updater has polled latest application information"),
-                Err(e) => warn!(
-                    "Updater failed to poll latest application information, {}",
-                    e
-                ),
-            },
-            UpdaterCommand::Clean => self.cleanup().await,
+            UpdateCommand::GetState { response } => response.send(self.state.clone()),
+            UpdateCommand::GetVersionInfo {
+                force_poll,
+                response,
+            } => response.send(self.version_info(force_poll).await),
+            UpdateCommand::StartDownload { response } => response.send(self.start_download().await),
+            UpdateCommand::StartInstall { response } => response.send(self.start_install().await),
+            UpdateCommand::Clean { response } => {
+                response.send(self.cleanup().await);
+            }
+            UpdateCommand::Download => self.download().await,
+            UpdateCommand::Install => self.install().await,
+            UpdateCommand::Poll => {
+                let _ = self.poll().await;
+            }
         }
     }
 
     /// Retrieve the version info from the cache or update channel.
-    async fn version_info(&self) -> updater::Result<VersionInfo> {
-        let mutex = self.cache.lock().await;
-
-        if mutex.is_none() {
-            drop(mutex);
+    async fn version_info(&mut self, force_poll: bool) -> Result<VersionInfo> {
+        if force_poll {
             return self.poll().await;
         }
 
-        Ok(mutex.as_ref().unwrap().clone())
-    }
-
-    async fn state(&self) -> UpdateState {
-        let mutex = self.state.lock().await;
-        mutex.clone()
+        match self.cache.as_ref().cloned() {
+            None => self.poll().await,
+            Some(e) => Ok(e),
+        }
     }
 
     /// Poll the update channel for a new version.
-    async fn poll(&self) -> updater::Result<VersionInfo> {
+    async fn poll(&mut self) -> Result<VersionInfo> {
         trace!("Polling for application information on the update channel");
         let properties = self.settings.properties();
         let update_channel = properties.update_channel();
 
-        self.update_state_async(UpdateState::CheckingForNewVersion)
-            .await;
+        self.update_state(UpdateState::CheckingForNewVersion);
         trace!("Parsing update channel url {}", update_channel);
         match Url::parse(update_channel) {
             Ok(mut url) => {
@@ -412,41 +464,30 @@ impl InnerUpdater {
             }
             Err(e) => {
                 error!("Failed to poll update channel, {}", e);
-                self.update_state_async(UpdateState::Error).await;
-                Err(UpdateError::InvalidUpdateChannel(
-                    update_channel.to_string(),
-                ))
+                self.update_state(UpdateState::Error);
+                Err(Error::InvalidUpdateChannel(update_channel.to_string()))
             }
         }
     }
 
-    async fn update_version_info(&self, version_info: &VersionInfo) -> updater::Result<()> {
-        let mut info_mutex = self.cache.lock().await;
-
-        *info_mutex = Some(version_info.clone());
-        // mutex is not used beyond this point, so release it
-        drop(info_mutex);
-
+    async fn update_version_info(&mut self, version_info: &VersionInfo) -> Result<()> {
+        self.cache = Some(version_info.clone());
         self.create_update_tasks(version_info).await
     }
 
-    async fn create_update_tasks(&self, version_info: &VersionInfo) -> updater::Result<()> {
+    async fn create_update_tasks(&mut self, version_info: &VersionInfo) -> Result<()> {
         let platform_identifier = self.platform_identifier();
         let current_version = Self::current_application_version();
         let application_version =
             Version::parse(version_info.application.version()).map_err(|e| {
-                UpdateError::InvalidApplicationVersion(
+                Error::InvalidApplicationVersion(
                     version_info.application.version().to_string(),
                     e.to_string(),
                 )
             })?;
         let runtime_version = Version::parse(version_info.runtime.version()).map_err(|e| {
-            UpdateError::InvalidRuntimeVersion(
-                version_info.runtime.version().to_string(),
-                e.to_string(),
-            )
+            Error::InvalidRuntimeVersion(version_info.runtime.version().to_string(), e.to_string())
         })?;
-        let mut tasks_mutex = self.tasks.lock().await;
 
         debug!(
             "Checking channel app version {} against local version {}",
@@ -461,7 +502,7 @@ impl InnerUpdater {
                 "New application version {} is available",
                 application_version
             );
-            tasks_mutex.push(
+            self.tasks.push(
                 UpdateTask::builder()
                     .current_version(current_version)
                     .install_directory(application_version.to_string())
@@ -487,12 +528,12 @@ impl InnerUpdater {
             .await
         {
             info!("New runtime version {} is available", runtime_version);
-            tasks_mutex.push(
+            self.tasks.push(
                 UpdateTask::builder()
                     .current_version(
                         Version::parse(self.launcher_options.runtime_version.as_str()).map_err(
                             |e| {
-                                UpdateError::InvalidRuntimeVersion(
+                                Error::InvalidRuntimeVersion(
                                     self.launcher_options.runtime_version.clone(),
                                     e.to_string(),
                                 )
@@ -510,138 +551,182 @@ impl InnerUpdater {
             );
         }
 
-        if tasks_mutex.len() > 0 {
+        if self.tasks.len() > 0 {
             debug!(
                 "A total of {} update tasks have been created",
-                tasks_mutex.len()
+                self.tasks.len()
             );
-            self.update_state_async(UpdateState::UpdateAvailable).await;
+            self.update_state(UpdateState::UpdateAvailable);
             self.callbacks
                 .invoke(UpdateEvent::UpdateAvailable(version_info.clone()));
         } else {
-            self.update_state_async(UpdateState::NoUpdateAvailable)
-                .await;
+            self.update_state(UpdateState::NoUpdateAvailable);
         }
 
         Ok(())
     }
 
-    async fn update_state_async(&self, state: UpdateState) {
-        let mut mutex = self.state.lock().await;
-        if *mutex == state {
+    fn update_state(&mut self, new_state: UpdateState) {
+        if self.state == new_state {
             return; // ignore duplicate state updates
         }
 
-        debug!("Changing update state to {}", state);
-        *mutex = state.clone();
-        self.callbacks.invoke(UpdateEvent::StateChanged(state));
+        debug!("Changing update state to {}", new_state);
+        self.state = new_state;
+        self.callbacks.invoke(UpdateEvent::StateChanged(new_state));
     }
 
-    async fn poll_info_from_url(&self, url: Url) -> updater::Result<Response> {
+    async fn poll_info_from_url(&self, url: Url) -> Result<Response> {
         debug!("Polling update information from {}", url.as_str());
         self.client.get(url.clone()).send().await.map_err(|e| {
             error!("Failed to poll update channel, {}", e);
-            UpdateError::InvalidUpdateChannel(url.to_string())
+            Error::InvalidUpdateChannel(url.to_string())
         })
     }
 
-    async fn download(&self) -> updater::Result<()> {
-        // check the state of the updater
-        let current_state = self.state.lock().await;
-        if *current_state != UpdateState::UpdateAvailable {
-            return Err(UpdateError::UpdateNotAvailable(current_state.clone()));
-        }
-        drop(current_state);
-
-        trace!("Starting update download process");
-        let mut tasks_mutex = self.tasks.lock().await;
-        let mut futures = vec![];
-
-        for task in tasks_mutex.iter_mut() {
-            trace!("Starting download task of {}", task.download_link);
-            futures.push(self.download_update_task(task));
+    async fn start_download(&mut self) -> Result<()> {
+        if self.state != UpdateState::UpdateAvailable {
+            return Err(Error::UpdateNotAvailable(self.state));
         }
 
-        self.update_state_async(UpdateState::Downloading).await;
-        let results: Vec<updater::Result<()>> = futures::future::join_all(futures).await;
+        self.update_state(UpdateState::Downloading);
+        *self.download_progress.lock().await = DownloadProgress::default();
 
-        for result in results {
-            result?;
-        }
-
-        self.update_state_async(UpdateState::DownloadFinished).await;
+        let update_directory = self.update_directory_path();
+        self.create_updates_directory(&update_directory).await?;
         Ok(())
     }
 
-    async fn download_update_task(&self, task: &mut UpdateTask) -> updater::Result<()> {
+    async fn download(&mut self) {
+        let tasks = std::mem::take(&mut self.tasks);
+        let futures = tasks
+            .into_iter()
+            .map(|task| {
+                trace!("Starting download task of {}", task.download_link);
+                self.download_update_task(task)
+            })
+            .collect_vec();
+
+        let tasks: Result<Vec<_>> = futures::future::join_all(futures)
+            .await
+            .into_iter()
+            .collect();
+        match tasks {
+            Ok(tasks) => {
+                self.tasks = tasks;
+                self.update_state(UpdateState::DownloadFinished);
+            }
+            Err(err) => {
+                error!("Updater failed to download update, {}", err);
+                self.update_state(UpdateState::Error);
+            }
+        }
+    }
+
+    async fn download_update_task(&self, mut task: UpdateTask) -> Result<UpdateTask> {
         let directory = self.update_directory_path();
         let url_path = PathBuf::from(task.download_link.path());
         let filename = url_path
             .file_name()
-            .expect("expected a valid filename")
-            .to_str()
-            .unwrap();
-        let mut file = self.create_update_file(&directory, filename).await?;
+            .and_then(|value| value.to_str())
+            .ok_or_else(|| Error::InvalidDownloadUrl(task.download_link.to_string()))?;
+        let (mut file, archive_path) = self.create_update_file(&directory, filename).await?;
 
         debug!(
             "Downloading update patch from {}",
             task.download_link.as_str()
         );
-        match self.client.get(task.download_link.as_ref()).send().await {
-            Ok(response) => {
-                let status_code = response.status();
+        let result = async {
+            let response = self
+                .client
+                .get(task.download_link.as_ref())
+                .send()
+                .await
+                .map_err(|e| {
+                    trace!(
+                        "Received an error for {}, error: {}",
+                        task.download_link.as_str(),
+                        e
+                    );
+                    Error::DownloadFailed("UNKNOWN".to_string(), filename.to_string())
+                })?;
 
-                trace!(
-                    "Received update download status code {} for {}",
-                    status_code,
-                    task.download_link.as_str()
-                );
-                if status_code == StatusCode::OK {
-                    let total_size = response.content_length().unwrap_or(0);
-                    let mut stream = response.bytes_stream();
+            let status_code = response.status();
 
-                    self.update_download_progress(Some(total_size), None).await;
-                    while let Some(chunk) = stream.next().await {
-                        let chunk = chunk.map_err(|e| {
-                            error!("Failed to read update chunk, {}", e);
-                            UpdateError::DownloadFailed(
-                                status_code.to_string(),
-                                filename.to_string(),
-                            )
-                        })?;
-
-                        tokio::io::copy(&mut chunk.as_ref(), &mut file)
-                            .await
-                            .map_err(|e| {
-                                error!("Failed to write update chunk, {}", e);
-                                UpdateError::IO("Failed to write chunk to file".to_string())
-                            })?;
-
-                        self.update_download_progress(None, Some(chunk.len() as u64))
-                            .await;
-                    }
-
-                    task.set_archive_location(directory.join(filename))?;
-                    return Ok(());
-                }
-
-                self.update_state_async(UpdateState::Error).await;
-                Err(UpdateError::DownloadFailed(
+            trace!(
+                "Received update download status code {} for {}",
+                status_code,
+                task.download_link.as_str()
+            );
+            if status_code != StatusCode::OK {
+                return Err(Error::DownloadFailed(
                     status_code.to_string(),
                     filename.to_string(),
-                ))
+                ));
             }
-            Err(e) => {
-                trace!(
-                    "Received an error for {}, error: {}",
-                    task.download_link.as_str(),
-                    e.to_string()
+
+            let total_size = response.content_length().unwrap_or(0);
+            let mut stream = response.bytes_stream();
+
+            self.update_download_progress(Some(total_size), None).await;
+            while let Some(chunk) = stream.next().await {
+                let chunk = chunk.map_err(|e| {
+                    error!("Failed to read update chunk, {}", e);
+                    Error::DownloadFailed(status_code.to_string(), filename.to_string())
+                })?;
+
+                file.write_all(&chunk).await.map_err(Error::Io)?;
+                self.update_download_progress(None, Some(chunk.len() as u64))
+                    .await;
+            }
+
+            file.flush().await.map_err(Error::Io)?;
+            Ok(())
+        }
+        .await;
+
+        if let Err(err) = result {
+            if let Err(clean_err) = tokio::fs::remove_file(&archive_path).await {
+                debug!(
+                    "Unable to clean partial archive at {:?}: {}",
+                    archive_path, clean_err
                 );
-                self.update_state_async(UpdateState::Error).await;
-                Err(UpdateError::DownloadFailed(
-                    "UNKNOWN".to_string(),
-                    e.to_string(),
-                ))
+            }
+            return Err(err);
+        }
+
+        task.set_archive_location(archive_path)?;
+        Ok(task)
+    }
+
+    async fn create_update_file(
+        &self,
+        directory: &PathBuf,
+        filename: &str,
+    ) -> Result<(tokio::fs::File, PathBuf)> {
+        let mut candidate_index = 0usize;
+        loop {
+            let candidate_name = if candidate_index == 0 {
+                filename.to_string()
+            } else {
+                format!("{}.{}", filename, candidate_index)
+            };
+            let filepath = directory.join(candidate_name);
+
+            match tokio::fs::OpenOptions::new()
+                .create_new(true)
+                .write(true)
+                .open(&filepath)
+                .await
+            {
+                Ok(file) => return Ok((file, filepath)),
+                Err(err) if err.kind() == io::ErrorKind::AlreadyExists => {
+                    candidate_index += 1;
+                }
+                Err(err) => {
+                    error!("Failed to create update file, {}", err);
+                    return Err(Error::Io(err));
+                }
             }
         }
     }
@@ -656,107 +741,68 @@ impl InnerUpdater {
             downloaded_size,
             total_size
         );
-        let mut mutex = self.download_progress.lock().await;
-
-        if mutex.is_none() {
-            *mutex = Some(DownloadProgress {
-                total_size: 0,
-                downloaded: 0,
-            })
-        }
+        let mut download_progress = self.download_progress.lock().await;
 
         if let Some(total_size) = total_size {
-            mutex.as_mut().unwrap().total_size += total_size;
+            download_progress.total_size += total_size;
         }
         if let Some(downloaded_size) = downloaded_size {
-            mutex.as_mut().unwrap().downloaded += downloaded_size;
+            download_progress.downloaded += downloaded_size;
         }
-
-        let progress = mutex.as_ref().unwrap().clone();
-        trace!("Dropping download progression lock");
-        drop(mutex);
 
         self.callbacks
-            .invoke(UpdateEvent::DownloadProgress(progress));
+            .invoke(UpdateEvent::DownloadProgress(download_progress.clone()));
     }
 
-    async fn create_update_file(
-        &self,
-        directory: &PathBuf,
-        filename: &str,
-    ) -> updater::Result<tokio::fs::File> {
-        self.create_updates_directory(directory).await?;
-        let filepath = directory.join(filename);
-        match tokio::fs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .open(&filepath)
-            .await
-        {
-            Ok(e) => Ok(e),
-            Err(e) => {
-                error!("Failed to create update file, {}", e);
-                Err(UpdateError::IO(filepath.to_str().unwrap().to_string()))
-            }
-        }
-    }
-
-    async fn create_updates_directory(&self, directory: &PathBuf) -> updater::Result<()> {
+    async fn create_updates_directory(&self, directory: &PathBuf) -> Result<()> {
         trace!("Creating updates directory {}", directory.to_str().unwrap());
         match tokio::fs::create_dir_all(directory).await {
             Ok(_) => Ok(()),
             Err(e) => {
                 error!("Failed to create update directory, {}", e);
-                Err(UpdateError::IO(
-                    "update directory couldn't be created".to_string(),
-                ))
+                Err(Error::Io(e))
             }
         }
     }
 
-    async fn install(&self, inner: Arc<InnerUpdater>) -> updater::Result<()> {
-        trace!("Starting installer");
-        let mutex = self.state.lock().await;
+    async fn start_install(&mut self) -> Result<()> {
+        if self.state != UpdateState::DownloadFinished {
+            warn!("Unable to start update, update state is {}", self.state);
+            return Err(Error::UpdateNotAvailable(self.state));
+        }
 
-        if let UpdateState::DownloadFinished = *mutex {
-            debug!(
-                "Starting update installation from {:?}",
-                self.update_directory_path()
-            );
+        self.update_state(UpdateState::Installing);
+        Ok(())
+    }
 
-            tokio::spawn(async move {
-                match Self::execute_installation(inner.clone()).await {
-                    Ok(_) => {
-                        info!("Update installation finished, restart required");
-                        inner
-                            .update_state_async(UpdateState::InstallationFinished)
-                            .await;
-                    }
-                    Err(e) => {
-                        error!("Update installation failed, {}", e);
-                        inner.update_state_async(UpdateState::Error).await;
-                    }
-                }
-            });
+    async fn install(&mut self) {
+        debug!(
+            "Starting update installation from {:?}",
+            self.update_directory_path()
+        );
 
-            Ok(())
-        } else {
-            warn!("Unable to start update, update state is {}", *mutex);
-            Err(UpdateError::UpdateNotAvailable(mutex.clone()))
+        self.update_state(UpdateState::Installing);
+        match self.execute_installation().await {
+            Ok(_) => {
+                info!("Update installation finished, restart required");
+                self.update_state(UpdateState::InstallationFinished);
+            }
+            Err(e) => {
+                error!("Update installation failed, {}", e);
+                self.update_state(UpdateState::Error);
+            }
         }
     }
 
-    async fn execute_installation(updater: Arc<InnerUpdater>) -> updater::Result<()> {
-        let tasks_mutex = updater.tasks.lock().await;
-        let tasks: Vec<&UpdateTask> = tasks_mutex
+    async fn execute_installation(&mut self) -> Result<()> {
+        let tasks: Vec<&UpdateTask> = self
+            .tasks
             .iter()
             .filter(|e| e.archive_location().is_some())
             .collect();
-        let destination = &updater.data_path;
+        let destination = &self.data_path;
         let total_tasks = tasks.len();
         let mut index = 0;
-        updater.update_state_async(UpdateState::Installing).await;
 
         trace!("Installing a total of {} tasks", total_tasks);
         for task in tasks {
@@ -767,7 +813,7 @@ impl InnerUpdater {
                     task.archive_location()
                         .expect("expected archive location to be present"),
                 )
-                .map_err(|e| UpdateError::IO(e.to_string()))?;
+                .map_err(|e| Error::Io(e))?;
             let gz = GzDecoder::new(file);
             let mut archive = Archive::new(gz);
 
@@ -778,20 +824,20 @@ impl InnerUpdater {
             );
             archive
                 .unpack(destination)
-                .map_err(|e| UpdateError::ExtractionFailed(e.to_string()))?;
+                .map_err(|e| Error::ExtractionFailed(e.to_string()))?;
             index += 1;
             info!("Installation task {} of {} completed", index, total_tasks);
         }
 
         trace!("Updating launcher options");
-        let info = updater.version_info().await?;
-        let mut launcher_options = updater.launcher_options.clone();
+        let info = self.version_info(false).await?;
+        let mut launcher_options = self.launcher_options.clone();
 
         launcher_options.version = info.application.version;
         launcher_options.runtime_version = info.runtime.version;
         launcher_options
-            .write(updater.data_path.join(LauncherOptions::filename()))
-            .map_err(|e| UpdateError::IO(e.to_string()))?;
+            .write(self.data_path.join(LauncherOptions::filename()))
+            .map_err(|e| Error::Io(io::Error::new(io::ErrorKind::Other, e)))?;
         debug!("Launcher options have been updated");
 
         Ok(())
@@ -923,16 +969,16 @@ impl InnerUpdater {
         format!("{}.{}", platform.platform_type.name(), platform.arch)
     }
 
-    async fn handle_query_response(response: Response) -> updater::Result<VersionInfo> {
+    async fn handle_query_response(response: Response) -> Result<VersionInfo> {
         let status_code = response.status();
 
         if status_code == StatusCode::OK {
             response.json::<VersionInfo>().await.map_err(|e| {
                 error!("Failed to parse update info, {}", e);
-                UpdateError::Response(e.to_string())
+                Error::Response(e.to_string())
             })
         } else {
-            Err(UpdateError::Response(format!(
+            Err(Error::Response(format!(
                 "received invalid status code {} from update channel",
                 status_code
             )))
@@ -944,18 +990,12 @@ impl InnerUpdater {
         self.data_path.join(UPDATE_DIRECTORY)
     }
 
-    fn send_command(&self, command: UpdaterCommand) {
-        if let Err(e) = self.command_sender.send(command) {
-            debug!("Updater failed to send command, {}", e);
-        }
-    }
-
-    fn convert_download_link_to_url(link: Option<&String>) -> updater::Result<Url> {
+    fn convert_download_link_to_url(link: Option<&String>) -> Result<Url> {
         match link {
-            None => Err(UpdateError::PlatformUpdateUnavailable),
+            None => Err(Error::PlatformUpdateUnavailable),
             Some(e) => Url::parse(e.as_str()).map_err(|e| {
                 warn!("Download link is invalid for {:?}", link);
-                UpdateError::InvalidDownloadUrl(e.to_string())
+                Error::InvalidDownloadUrl(e.to_string())
             }),
         }
     }
@@ -967,9 +1007,6 @@ impl InnerUpdater {
 
 #[cfg(test)]
 mod test {
-    use std::collections::HashMap;
-    use std::time::Duration;
-
     use crate::core::config::PopcornProperties;
     use crate::core::platform::{PlatformInfo, PlatformType};
     use crate::core::updater::PatchInfo;
@@ -981,6 +1018,9 @@ mod test {
     use crate::{assert_timeout, assert_timeout_eq, recv_timeout};
     use httpmock::Method::{GET, HEAD};
     use httpmock::MockServer;
+    use std::collections::HashMap;
+    use std::fs;
+    use std::time::Duration;
     use tempfile::tempdir;
     use tokio::sync::mpsc::unbounded_channel;
 
@@ -1047,100 +1087,6 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_poll_older_version() {
-        init_logger!();
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let (server, settings) = create_server_and_settings(temp_path);
-        server.mock(|when, then| {
-            when.method(GET).path(format!("/{}", UPDATE_INFO_FILE));
-            then.status(200)
-                .header("content-type", "application/json")
-                .body(
-                    r#"{
-  "application": {
-    "version": "0.5.0",
-    "platforms": {}
-  },
-  "runtime": {
-    "version": "8.0.12",
-    "platforms": {
-      "debian.x86_64": "http://localhost/runtime.tar.gz"
-    }
-  }
-}"#,
-                );
-        });
-        let platform = default_platform_info();
-        let (tx, mut rx) = unbounded_channel();
-        let updater = Updater::builder()
-            .settings(settings)
-            .platform(platform)
-            .data_path(temp_path)
-            .insecure(false)
-            .build();
-
-        let mut receiver = updater.subscribe();
-        tokio::spawn(async move {
-            while let Ok(event) = receiver.recv().await {
-                tx.send((*event).clone()).unwrap()
-            }
-        });
-
-        let event = recv_timeout!(&mut rx, Duration::from_millis(100));
-
-        match event {
-            UpdateEvent::StateChanged(result) => assert_eq!(UpdateState::NoUpdateAvailable, result),
-            _ => assert!(false, "expected UpdateEvent::StateChanged"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_poll_newer_version() {
-        init_logger!();
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let (server, settings) = create_server_and_settings(temp_path);
-        server.mock(|when, then| {
-            when.method(GET).path(format!("/{}", UPDATE_INFO_FILE));
-            then.status(200)
-                .header("content-type", "application/json")
-                .body(format!(
-                    r#"{{
-  "application": {{
-    "version": "999.0.0",
-    "platforms": {{
-        "debian.x86_64": "{}"
-    }}
-  }},
-  "runtime": {{
-    "version": "1.0.0",
-    "platforms": {{}}
-  }}
-}}"#,
-                    server.url("/v999.0.0/popcorn-time_999.0.0.deb")
-                ));
-        });
-        server.mock(|when, then| {
-            when.method(HEAD).path("/v999.0.0/popcorn-time_999.0.0.deb");
-            then.status(200);
-        });
-        let platform = default_platform_info();
-        let updater = Updater::builder()
-            .settings(settings)
-            .platform(platform)
-            .data_path(temp_path)
-            .insecure(false)
-            .build();
-
-        assert_timeout_eq!(
-            Duration::from_millis(500),
-            UpdateState::UpdateAvailable,
-            updater.state().await
-        );
-    }
-
-    #[tokio::test]
     async fn test_poll_download_link_unavailable() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
@@ -1182,190 +1128,6 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_download_application() {
-        init_logger!();
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let (server, settings) = create_server_and_settings(temp_path);
-        let filename = "popcorn-time_99.0.0.deb";
-        let app_url = server.url("/v99.0.0/popcorn-time_99.0.0.deb");
-        server.mock(move |when, then| {
-            when.method(GET).path(format!("/{}", UPDATE_INFO_FILE));
-            then.status(200)
-                .header("content-type", "application/json")
-                .body(format!(
-                    r#"{{
-  "application": {{
-    "version": "99.0.0",
-    "platforms": {{
-        "debian.x86_64": "{}"
-    }}
-  }},
-  "runtime": {{
-    "version": "1.0.0",
-    "platforms": {{}}
-  }}
-}}"#,
-                    app_url
-                ));
-        });
-        server.mock(|when, then| {
-            when.method(HEAD).path("/v99.0.0/popcorn-time_99.0.0.deb");
-            then.status(302);
-        });
-        server.mock(move |when, then| {
-            when.method(GET).path("/v99.0.0/popcorn-time_99.0.0.deb");
-            then.status(200)
-                .header("content-type", "application/octet-stream")
-                .body_from_file(test_resource_filepath(filename).to_str().unwrap());
-        });
-        let platform = default_platform_info();
-        let updater = Updater::builder()
-            .settings(settings)
-            .platform(platform)
-            .data_path(temp_path)
-            .insecure(false)
-            .build();
-        let expected_result = read_test_file_to_string(filename);
-
-        // wait for state update available
-        assert_timeout_eq!(
-            Duration::from_millis(200),
-            UpdateState::UpdateAvailable,
-            updater.state().await
-        );
-
-        let _ = updater
-            .download()
-            .await
-            .expect("expected the download to succeed");
-        let result =
-            read_temp_dir_file_as_string(&temp_dir, format!("updates/{}", filename).as_str());
-
-        assert_eq!(expected_result, result)
-    }
-
-    #[tokio::test]
-    async fn test_download_runtime() {
-        init_logger!();
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let (server, settings) = create_server_and_settings(temp_path);
-        let filename = "runtime.tar.gz";
-        let runtime_url = server.url("/v100.0.0/runtime.tar.gz");
-        server.mock(move |when, then| {
-            when.method(GET).path(format!("/{}", UPDATE_INFO_FILE));
-            then.status(200)
-                .header("content-type", "application/json")
-                .body(format!(
-                    r#"{{
-  "application": {{
-    "version": "1.0.0",
-    "platforms": {{}}
-  }},
-  "runtime": {{
-    "version": "100.0.0",
-    "platforms": {{
-        "debian.x86_64": "{}"
-    }}
-  }}
-}}"#,
-                    runtime_url
-                ));
-        });
-        server.mock(move |when, then| {
-            when.method(HEAD).path("/v100.0.0/runtime.tar.gz");
-            then.status(302);
-        });
-        server.mock(move |when, then| {
-            when.method(GET).path("/v100.0.0/runtime.tar.gz");
-            then.status(200)
-                .header("content-type", "application/octet-stream")
-                .body_from_file(test_resource_filepath(filename).to_str().unwrap());
-        });
-        let platform = default_platform_info();
-        let updater = Updater::builder()
-            .settings(settings)
-            .platform(platform)
-            .data_path(temp_path)
-            .insecure(false)
-            .build();
-        let expected_result = read_test_file_to_bytes(filename);
-
-        // wait for state update available
-        assert_timeout_eq!(
-            Duration::from_millis(200),
-            UpdateState::UpdateAvailable,
-            updater.state().await
-        );
-
-        let _ = updater
-            .download()
-            .await
-            .expect("expected the download to succeed");
-        let result =
-            read_temp_dir_file_as_bytes(&temp_dir, format!("updates/{}", filename).as_str());
-
-        assert_eq!(expected_result, result)
-    }
-
-    #[tokio::test]
-    async fn test_download_not_found() {
-        init_logger!();
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let (server, settings) = create_server_and_settings(temp_path);
-        let url = server.url("/unknown.deb");
-        server.mock(move |when, then| {
-            when.method(GET).path(format!("/{}", UPDATE_INFO_FILE));
-            then.status(200)
-                .header("content-type", "application/json")
-                .body(format!(
-                    r#"{{
-  "application": {{
-    "version": "99.0.0",
-    "platforms": {{
-        "debian.x86_64": "{}"
-    }}
-  }},
-  "runtime": {{
-    "version": "17.0.0",
-    "platforms": {{}}
-  }} }}"#,
-                    url
-                ));
-        });
-        server.mock(move |when, then| {
-            when.method(HEAD).path("/unknown.deb");
-            then.status(302);
-        });
-        let platform = default_platform_info();
-        let updater = Updater::builder()
-            .settings(settings)
-            .platform(platform)
-            .data_path(temp_path)
-            .insecure(false)
-            .build();
-
-        // wait for state update available
-        assert_timeout_eq!(
-            Duration::from_millis(200),
-            UpdateState::UpdateAvailable,
-            updater.state().await
-        );
-
-        let result = updater.download().await;
-
-        assert!(result.is_err(), "expected the download to return an error");
-        match result.err().unwrap() {
-            UpdateError::DownloadFailed(status, _) => {
-                assert_eq!(StatusCode::NOT_FOUND.to_string(), status)
-            }
-            _ => assert!(false, "expected UpdateError::DownloadFailed"),
-        }
-    }
-
-    #[tokio::test]
     async fn test_install_no_update() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
@@ -1373,7 +1135,6 @@ mod test {
         let (server, settings) = create_server_and_settings(temp_path);
         no_update_response(&server);
         let platform = default_platform_info();
-        let (tx, mut rx) = unbounded_channel();
         let updater = Updater::builder()
             .settings(settings)
             .platform(platform)
@@ -1381,24 +1142,29 @@ mod test {
             .insecure(false)
             .build();
 
-        let mut receiver = updater.subscribe();
-        tokio::spawn(async move {
-            while let Ok(event) = receiver.recv().await {
-                tx.send((*event).clone()).unwrap()
-            }
-        });
+        // poll the latest version info
+        let result = updater.poll().await.expect("expected the poll to succeed");
+        assert_eq!(
+            "0.0.5",
+            result.application.version.as_str(),
+            "expected the application version to match"
+        );
 
-        let _ = recv_timeout!(&mut rx, Duration::from_millis(300));
+        // check the current state of the updater
+        let result = updater.state().await;
+        assert_eq!(UpdateState::NoUpdateAvailable, result);
 
-        if let Err(result) = updater.install().await {
-            match result {
-                UpdateError::UpdateNotAvailable(state) => {
-                    assert_eq!(UpdateState::NoUpdateAvailable, state)
-                }
-                _ => assert!(false, "expected UpdateError::UpdateNotAvailable"),
+        // try to install a non-existing update
+        let result = updater.install().await;
+        match result {
+            Err(Error::UpdateNotAvailable(state)) => {
+                assert_eq!(UpdateState::NoUpdateAvailable, state);
             }
-        } else {
-            assert!(false, "expected an error to have been returned")
+            _ => assert!(
+                false,
+                "expected Err(Error::UpdateNotAvailable), but got {:?}",
+                result
+            ),
         }
     }
 
@@ -1450,11 +1216,12 @@ mod test {
             .insecure(false)
             .build();
 
-        // wait for the UpdateAvailable state
-        assert_timeout_eq!(
-            Duration::from_millis(200),
-            UpdateState::UpdateAvailable,
-            updater.state().await
+        // poll the latest version info
+        let result = updater.poll().await.expect("expected the poll to succeed");
+        assert_eq!(
+            "99.0.0",
+            result.application.version.as_str(),
+            "expected the application version to match"
         );
 
         // download the update
@@ -1527,22 +1294,48 @@ mod test {
             .insecure(false)
             .build();
 
-        // wait for the UpdateAvailable state
-        assert_timeout_eq!(
-            Duration::from_millis(200),
-            UpdateState::UpdateAvailable,
-            updater.state().await
+        // poll for updates
+        let result = updater.poll().await.expect("expected the poll to succeed");
+        assert_eq!(
+            "99.0.0",
+            result.runtime.version.as_str(),
+            "expected the application version to match"
         );
 
-        // download the update
-        if let Err(err) = updater.download().await {
-            assert!(false, "expected the download to succeed, {}", err);
-        }
+        // check the state of the updater
+        let result = updater.state().await;
+        assert_eq!(UpdateState::UpdateAvailable, result);
+
+        // subscribe to the updater events
+        let (tx, mut rx) = unbounded_channel();
+        let mut receiver = updater.subscribe();
+        tokio::spawn(async move {
+            while let Ok(event) = receiver.recv().await {
+                if let UpdateEvent::StateChanged(state) = &*event {
+                    let _ = tx.send(state.clone());
+                }
+            }
+        });
+
+        // start downloading the update
+        updater
+            .download()
+            .await
+            .expect("expected the download to succeed");
+
+        // wait for the download to finish
+        let state =
+            timeout!(rx.recv(), Duration::from_millis(200)).expect("expected a state update");
+        assert_eq!(UpdateState::Downloading, state); // the first state event is the download being started
+        let state =
+            timeout!(rx.recv(), Duration::from_millis(200)).expect("expected a state update");
+        assert_eq!(UpdateState::DownloadFinished, state);
 
         // install the update
-        if let Err(err) = updater.install().await {
-            assert!(false, "expected the installation to succeed, {}", err);
-        }
+        updater
+            .install()
+            .await
+            .expect("expected the installation to succeed");
 
         // wait for the installation to complete
         assert_timeout_eq!(
@@ -1567,7 +1360,6 @@ mod test {
         let updates_directory = temp_dir.path().join(UPDATE_DIRECTORY);
         let filename = "popcorn-time_99.0.0.deb";
         let platform_mock = MockDummyPlatformData::new();
-        let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
         let settings = ApplicationConfig::builder()
             .storage(temp_path)
             .properties(PopcornProperties {
@@ -1581,18 +1373,11 @@ mod test {
             .build();
         let updater = Updater::builder()
             .settings(settings)
-            .platform(platform)
+            .platform(Arc::new(platform_mock))
             .data_path(temp_path)
             .insecure(false)
             .build();
         copy_test_file(updates_directory.to_str().unwrap(), filename, None);
-
-        // wait for the polling to complete
-        assert_timeout!(
-            Duration::from_millis(1500),
-            updater.state().await == UpdateState::CheckingForNewVersion,
-            "expected the version updates to have been polled"
-        );
 
         // drop the updater to start the cleanup
         drop(updater);
@@ -1640,12 +1425,21 @@ mod test {
         tokio::spawn(async move {
             while let Ok(event) = receiver.recv().await {
                 if let UpdateEvent::StateChanged(state) = &*event {
-                    tx.send(state.clone()).unwrap()
+                    let _ = tx.send(state.clone());
                 }
             }
         });
 
-        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
+        updater.check_for_updates().await;
+
+        // wait for the updating check to start
+        let result =
+            timeout!(rx.recv(), Duration::from_millis(200)).expect("expected a state change event");
+        assert_eq!(UpdateState::CheckingForNewVersion, result);
+
+        // wait for the update check state change result
+        let result =
+            timeout!(rx.recv(), Duration::from_millis(200)).expect("expected a state change event");
         assert_eq!(UpdateState::NoUpdateAvailable, result);
         first_mock.delete();
         server.mock(|when, then| {
@@ -1689,44 +1483,6 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_update_version_info_invalid_application_version() {
-        init_logger!();
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = create_simple_settings(temp_path);
-        let platform = default_platform_info();
-        let updater = Updater::builder()
-            .settings(settings)
-            .platform(platform)
-            .data_path(temp_path)
-            .insecure(false)
-            .build();
-
-        let result = updater
-            .inner
-            .update_version_info(&VersionInfo {
-                application: PatchInfo {
-                    version: "lorem".to_string(),
-                    platforms: Default::default(),
-                },
-                runtime: PatchInfo {
-                    version: "ipsum".to_string(),
-                    platforms: Default::default(),
-                },
-            })
-            .await;
-
-        if let Err(err) = result {
-            match err {
-                UpdateError::InvalidApplicationVersion(_, _) => {}
-                _ => assert!(false, "expected UpdateError::InvalidApplicationVersion"),
-            }
-        } else {
-            assert!(false, "expected an error to be returned")
-        }
-    }
-
-    #[tokio::test]
     async fn test_builder_callback() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
@@ -1746,10 +1502,12 @@ mod test {
         tokio::spawn(async move {
             while let Ok(event) = receiver.recv().await {
                 if let UpdateEvent::StateChanged(_) = &*event {
-                    tx.send((*event).clone()).unwrap()
+                    let _ = tx.send((*event).clone());
                 }
             }
         });
+
+        updater.check_for_updates().await;
 
         let event = recv_timeout!(&mut rx, Duration::from_millis(300));
         match event {
@@ -1783,6 +1541,8 @@ mod test {
             }
         });
 
+        updater.check_for_updates().await;
+
         let event = recv_timeout!(&mut rx, Duration::from_millis(300));
         match event {
             UpdateEvent::StateChanged(_) => {}
@@ -1810,14 +1570,544 @@ mod test {
         assert!(debug_output.contains("storage_path: Some"));
     }
 
-    fn default_platform_info() -> Arc<Box<dyn PlatformData>> {
+    mod poll {
+        use super::*;
+
+        #[tokio::test]
+        async fn test_newer_version() {
+            init_logger!();
+            let temp_dir = tempdir().unwrap();
+            let temp_path = temp_dir.path().to_str().unwrap();
+            let (server, settings) = create_server_and_settings(temp_path);
+            server.mock(|when, then| {
+                when.method(GET).path(format!("/{}", UPDATE_INFO_FILE));
+                then.status(200)
+                    .header("content-type", "application/json")
+                    .body(format!(
+                        r#"{{
+  "application": {{
+    "version": "999.0.0",
+    "platforms": {{
+        "debian.x86_64": "{}"
+    }}
+  }},
+  "runtime": {{
+    "version": "1.0.0",
+    "platforms": {{}}
+  }}
+}}"#,
+                        server.url("/v999.0.0/popcorn-time_999.0.0.deb")
+                    ));
+            });
+            server.mock(|when, then| {
+                when.method(HEAD).path("/v999.0.0/popcorn-time_999.0.0.deb");
+                then.status(200);
+            });
+            let platform = default_platform_info();
+            let updater = Updater::builder()
+                .settings(settings)
+                .platform(platform)
+                .data_path(temp_path)
+                .insecure(false)
+                .build();
+
+            let (tx, mut rx) = unbounded_channel();
+            let mut receiver = updater.subscribe();
+            tokio::spawn(async move {
+                while let Ok(event) = receiver.recv().await {
+                    if let UpdateEvent::StateChanged(state) = &*event {
+                        let _ = tx.send(*state);
+                    }
+                }
+            });
+
+            // poll the latest version info
+            let result = updater
+                .poll()
+                .await
+                .expect("expected the version info to have been polled");
+            assert_eq!("999.0.0", result.application.version.as_str());
+
+            // check that the returned state is update available
+            let result = updater.state().await;
+            assert_eq!(UpdateState::UpdateAvailable, result);
+
+            // check that the initial state event was CheckingForNewVersion
+            let result = timeout!(rx.recv(), Duration::from_millis(100))
+                .expect("expected the state to be updated");
+            assert_eq!(UpdateState::CheckingForNewVersion, result);
+
+            // check that the state event is UpdateAvailable
+            let result = timeout!(rx.recv(), Duration::from_millis(100))
+                .expect("expected the state to be updated");
+            assert_eq!(UpdateState::UpdateAvailable, result);
+        }
+
+        #[tokio::test]
+        async fn test_older_version() {
+            init_logger!();
+            let temp_dir = tempdir().unwrap();
+            let temp_path = temp_dir.path().to_str().unwrap();
+            let (server, settings) = create_server_and_settings(temp_path);
+            server.mock(|when, then| {
+                when.method(GET).path(format!("/{}", UPDATE_INFO_FILE));
+                then.status(200)
+                    .header("content-type", "application/json")
+                    .body(
+                        r#"{
+  "application": {
+    "version": "0.5.0",
+    "platforms": {}
+  },
+  "runtime": {
+    "version": "8.0.12",
+    "platforms": {
+      "debian.x86_64": "http://localhost/runtime.tar.gz"
+    }
+  }
+}"#,
+                    );
+            });
+            let platform = default_platform_info();
+            let updater = Updater::builder()
+                .settings(settings)
+                .platform(platform)
+                .data_path(temp_path)
+                .insecure(false)
+                .build();
+
+            let result = updater
+                .poll()
+                .await
+                .expect("expected the version info to have been polled");
+            assert_eq!(
+                "0.5.0",
+                result.application.version.as_str(),
+                "expected the application version to match"
+            );
+
+            let result = updater.state().await;
+            assert_eq!(UpdateState::NoUpdateAvailable, result);
+        }
+
+        #[tokio::test]
+        async fn test_invalid_application_version() {
+            init_logger!();
+            let temp_dir = tempdir().unwrap();
+            let temp_path = temp_dir.path().to_str().unwrap();
+            let (server, settings) = create_server_and_settings(temp_path);
+            server.mock(move |when, then| {
+                when.method(GET).path("/versions.json");
+                then.status(200)
+                    .header("content-type", "application/json")
+                    .body(r#"{
+  "application": {
+    "version": "lorem",
+    "platforms": {
+      "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v1.0.0/patch_app_1.0.0_debian_x86_64.tar.gz"
+    }
+  },
+  "runtime": {
+    "version": "1.0.0",
+    "platforms": {
+      "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v1.0.0/patch_runtime_21.0.3_debian_x86_64.tar.gz"
+    }
+  }
+}"#);
+            });
+            let platform = default_platform_info();
+            let updater = Updater::builder()
+                .settings(settings)
+                .platform(platform)
+                .data_path(temp_path)
+                .insecure(false)
+                .build();
+
+            let result = updater.poll().await;
+            match result {
+                Err(Error::InvalidApplicationVersion(value, _)) => {
+                    assert_eq!("lorem", value, "expected the invalid value to match");
+                }
+                _ => assert!(
+                    false,
+                    "expected Err(Error::InvalidApplicationVersion), but got {:?}",
+                    result
+                ),
+            }
+        }
+
+        #[tokio::test]
+        async fn test_invalid_runtime_version() {
+            init_logger!();
+            let temp_dir = tempdir().unwrap();
+            let temp_path = temp_dir.path().to_str().unwrap();
+            let (server, settings) = create_server_and_settings(temp_path);
+            server.mock(move |when, then| {
+                when.method(GET).path("/versions.json");
+                then.status(200)
+                    .header("content-type", "application/json")
+                    .body(r#"{
+  "application": {
+    "version": "1.0.0",
+    "platforms": {
+      "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v1.0.0/patch_app_1.0.0_debian_x86_64.tar.gz"
+    }
+  },
+  "runtime": {
+    "version": "FooBar",
+    "platforms": {
+      "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v1.0.0/patch_runtime_21.0.3_debian_x86_64.tar.gz"
+    }
+  }
+}"#);
+            });
+            let platform = default_platform_info();
+            let updater = Updater::builder()
+                .settings(settings)
+                .platform(platform)
+                .data_path(temp_path)
+                .insecure(false)
+                .build();
+
+            let result = updater.poll().await;
+            match result {
+                Err(Error::InvalidRuntimeVersion(value, _)) => {
+                    assert_eq!("FooBar", value, "expected the invalid value to match");
+                }
+                _ => assert!(
+                    false,
+                    "expected Err(Error::InvalidRuntimeVersion), but got {:?}",
+                    result
+                ),
+            }
+        }
+    }
+
+    mod download {
+        use super::*;
+
+        /// Download the available update and wait for the expected state.
+        macro_rules! download_and_wait {
+            ($updater:expr) => {{
+                download_and_wait!(
+                    $updater,
+                    crate::core::updater::UpdateState::DownloadFinished
+                )
+            }};
+            ($updater:expr, $state:expr) => {{
+                use crate::core::updater::{UpdateState, Updater};
+
+                let updater: &Updater = $updater;
+                let expected_state: UpdateState = $state;
+
+                // subscribe to the updater events
+                let (tx, mut rx) = unbounded_channel();
+                let mut receiver = updater.subscribe();
+                tokio::spawn(async move {
+                    while let Ok(event) = receiver.recv().await {
+                        if let UpdateEvent::StateChanged(state) = &*event {
+                            let _ = tx.send(state.clone());
+                        }
+                    }
+                });
+
+                // start downloading the update
+                let _ = updater
+                    .download()
+                    .await
+                    .expect("expected the download to start");
+
+                // wait for the download to finish
+                let result = timeout!(rx.recv(), Duration::from_millis(100))
+                    .expect("expected the download to start");
+                assert_eq!(UpdateState::Downloading, result);
+                let result = timeout!(rx.recv(), Duration::from_millis(500))
+                    .expect("expected the download to finish");
+                assert_eq!(expected_state, result);
+            }};
+        }
+
+        #[tokio::test]
+        async fn test_application() {
+            init_logger!();
+            let temp_dir = tempdir().unwrap();
+            let temp_path = temp_dir.path().to_str().unwrap();
+            let (server, settings) = create_server_and_settings(temp_path);
+            let filename = "popcorn-time_99.0.0.deb";
+            let app_url = server.url("/v99.0.0/popcorn-time_99.0.0.deb");
+            server.mock(move |when, then| {
+                when.method(GET).path(format!("/{}", UPDATE_INFO_FILE));
+                then.status(200)
+                    .header("content-type", "application/json")
+                    .body(format!(
+                        r#"{{
+  "application": {{
+    "version": "99.0.0",
+    "platforms": {{
+        "debian.x86_64": "{}"
+    }}
+  }},
+  "runtime": {{
+    "version": "1.0.0",
+    "platforms": {{}}
+  }}
+}}"#,
+                        app_url
+                    ));
+            });
+            server.mock(|when, then| {
+                when.method(HEAD).path("/v99.0.0/popcorn-time_99.0.0.deb");
+                then.status(302);
+            });
+            server.mock(move |when, then| {
+                when.method(GET).path("/v99.0.0/popcorn-time_99.0.0.deb");
+                then.status(200)
+                    .header("content-type", "application/octet-stream")
+                    .body_from_file(test_resource_filepath(filename).to_str().unwrap());
+            });
+            let platform = default_platform_info();
+            let updater = Updater::builder()
+                .settings(settings)
+                .platform(platform)
+                .data_path(temp_path)
+                .insecure(false)
+                .build();
+            let expected_result = read_test_file_to_string(filename);
+
+            // poll the latest version info
+            let result = updater.poll().await.expect("expected the poll to succeed");
+            assert_eq!(
+                "99.0.0",
+                result.application.version.as_str(),
+                "expected the application version to match"
+            );
+
+            // check the state of the updater
+            let result = updater.state().await;
+            assert_eq!(UpdateState::UpdateAvailable, result);
+
+            // start downloading the update
+            download_and_wait!(&updater);
+
+            // verify that the update has been downloaded to the expected path
+            let result =
+                read_temp_dir_file_as_string(&temp_dir, format!("updates/{}", filename).as_str());
+            assert_eq!(expected_result, result)
+        }
+
+        #[tokio::test]
+        async fn test_runtime() {
+            init_logger!();
+            let temp_dir = tempdir().unwrap();
+            let temp_path = temp_dir.path().to_str().unwrap();
+            let (server, settings) = create_server_and_settings(temp_path);
+            let filename = "runtime.tar.gz";
+            let runtime_url = server.url("/v100.0.0/runtime.tar.gz");
+            server.mock(move |when, then| {
+                when.method(GET).path(format!("/{}", UPDATE_INFO_FILE));
+                then.status(200)
+                    .header("content-type", "application/json")
+                    .body(format!(
+                        r#"{{
+  "application": {{
+    "version": "1.0.0",
+    "platforms": {{}}
+  }},
+  "runtime": {{
+    "version": "100.0.0",
+    "platforms": {{
+        "debian.x86_64": "{}"
+    }}
+  }}
+}}"#,
+                        runtime_url
+                    ));
+            });
+            server.mock(move |when, then| {
+                when.method(HEAD).path("/v100.0.0/runtime.tar.gz");
+                then.status(302);
+            });
+            server.mock(move |when, then| {
+                when.method(GET).path("/v100.0.0/runtime.tar.gz");
+                then.status(200)
+                    .header("content-type", "application/octet-stream")
+                    .body_from_file(test_resource_filepath(filename).to_str().unwrap());
+            });
+            let platform = default_platform_info();
+            let updater = Updater::builder()
+                .settings(settings)
+                .platform(platform)
+                .data_path(temp_path)
+                .insecure(false)
+                .build();
+            let expected_result = read_test_file_to_bytes(filename);
+
+            // poll the latest version info
+            let result = updater.poll().await.expect("expected the poll to succeed");
+            assert_eq!(
+                "100.0.0",
+                result.runtime.version.as_str(),
+                "expected the application version to match"
+            );
+
+            // check the state of the updater
+            let result = updater.state().await;
+            assert_eq!(UpdateState::UpdateAvailable, result);
+
+            // start downloading the update
+            download_and_wait!(&updater);
+
+            // check that the update has been downloaded to the expected path
+            let result =
+                read_temp_dir_file_as_bytes(&temp_dir, format!("updates/{}", filename).as_str());
+            assert_eq!(expected_result, result)
+        }
+
+        #[tokio::test]
+        async fn test_not_found() {
+            init_logger!();
+            let temp_dir = tempdir().unwrap();
+            let temp_path = temp_dir.path().to_str().unwrap();
+            let (server, settings) = create_server_and_settings(temp_path);
+            let url = server.url("/unknown.deb");
+            server.mock(move |when, then| {
+                when.method(GET).path(format!("/{}", UPDATE_INFO_FILE));
+                then.status(200)
+                    .header("content-type", "application/json")
+                    .body(format!(
+                        r#"{{
+  "application": {{
+    "version": "99.0.0",
+    "platforms": {{
+        "debian.x86_64": "{}"
+    }}
+  }},
+  "runtime": {{
+    "version": "17.0.0",
+    "platforms": {{}}
+  }} }}"#,
+                        url
+                    ));
+            });
+            server.mock(move |when, then| {
+                when.method(HEAD).path("/unknown.deb");
+                then.status(302);
+            });
+            let platform = default_platform_info();
+            let updater = Updater::builder()
+                .settings(settings)
+                .platform(platform)
+                .data_path(temp_path)
+                .insecure(false)
+                .build();
+
+            // poll the latest version info
+            let result = updater.poll().await.expect("expected the poll to succeed");
+            assert_eq!(
+                "99.0.0",
+                result.application.version.as_str(),
+                "expected the application version to match"
+            );
+
+            // try to download the update
+            download_and_wait!(&updater, UpdateState::Error);
+        }
+
+        #[tokio::test]
+        async fn test_multiple_tasks_with_same_filename() {
+            init_logger!();
+            let temp_dir = tempdir().unwrap();
+            let temp_path = temp_dir.path().to_str().unwrap();
+            let (server, settings) = create_server_and_settings(temp_path);
+            let app_url = server.url("/v99.0.0/shared.bin");
+            let runtime_url = server.url("/v100.0.0/shared.bin");
+            let app_body = "application-payload";
+            let runtime_body = "runtime-payload";
+            server.mock(move |when, then| {
+                when.method(GET).path(format!("/{}", UPDATE_INFO_FILE));
+                then.status(200)
+                    .header("content-type", "application/json")
+                    .body(format!(
+                        r#"{{
+  "application": {{
+    "version": "99.0.0",
+    "platforms": {{
+        "debian.x86_64": "{}"
+    }}
+  }},
+  "runtime": {{
+    "version": "100.0.0",
+    "platforms": {{
+      "debian.x86_64": "{}"
+    }}
+  }}
+}}"#,
+                        app_url, runtime_url
+                    ));
+            });
+            server.mock(move |when, then| {
+                when.method(HEAD).path("/v99.0.0/shared.bin");
+                then.status(302);
+            });
+            server.mock(move |when, then| {
+                when.method(HEAD).path("/v100.0.0/shared.bin");
+                then.status(302);
+            });
+            server.mock(move |when, then| {
+                when.method(GET).path("/v99.0.0/shared.bin");
+                then.status(200).body(app_body);
+            });
+            server.mock(move |when, then| {
+                when.method(GET).path("/v100.0.0/shared.bin");
+                then.status(200).body(runtime_body);
+            });
+            let platform = default_platform_info();
+            let updater = Updater::builder()
+                .settings(settings)
+                .platform(platform)
+                .data_path(temp_path)
+                .insecure(false)
+                .build();
+
+            // poll the latest version info
+            let _ = updater.poll().await.expect("expected the poll to succeed");
+            let result = updater.state().await;
+            assert_eq!(UpdateState::UpdateAvailable, result);
+
+            // download the update
+            download_and_wait!(&updater);
+
+            let updates_path = temp_dir.path().join(UPDATE_DIRECTORY);
+            let files = fs::read_dir(updates_path)
+                .unwrap()
+                .map(|entry| entry.unwrap().path())
+                .collect_vec();
+            assert_eq!(
+                2,
+                files.len(),
+                "expected both tasks to store separate archives"
+            );
+
+            let mut contents = files
+                .iter()
+                .map(|path| String::from_utf8(fs::read(path).unwrap()).unwrap())
+                .collect_vec();
+            contents.sort();
+            assert_eq!(
+                vec![app_body.to_string(), runtime_body.to_string()],
+                contents
+            );
+        }
+    }
+
+    fn default_platform_info() -> Arc<dyn PlatformData> {
         let mut platform_mock = MockDummyPlatformData::new();
         platform_mock.expect_info().returning(|| PlatformInfo {
             platform_type: PlatformType::Linux,
             arch: "x86_64".to_string(),
         });
-        let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
-        platform
+
+        Arc::new(platform_mock)
     }
 
     fn no_update_response(server: &MockServer) {

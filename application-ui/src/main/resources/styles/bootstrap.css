@@ -1,3 +1,18 @@
+@font-face {
+    font-family: "Open Sans";
+    src: url("../fonts/OpenSans-Regular.woff");
+}
+
+@font-face {
+    font-family: "Open Sans Bold";
+    src: url("../fonts/OpenSans-Bold.woff");
+}
+
+@font-face {
+    font-family: "Open Sans Semibold";
+    src: url("../fonts/OpenSans-Semibold.woff");
+}
+
 * {
     -text-primary: #fff;
     -text-primary-emphasis: #e6e6e6;
@@ -9,6 +24,8 @@
     -text-danger-emphasis: #d66b6b;
     -text-warning: #ffc900;
     -text-warning-subtle: #e6c345;
+    -text-info: #2468cc;
+    -text-info-emphasis: #73a1e6;
     -text-black: #000;
     -text-white: #fff;
     -bg-primary: #17181b;
@@ -16,6 +33,10 @@
     -bg-secondary: #212225;
     -bg-danger: #f15153;
     -bg-danger-subtle: #2c0b0e;
+    -bg-warning: #dbb756;
+    -bg-warning-subtile: #99803c;
+    -bg-info: #3498db;
+    -bg-info-subtle: #256a99;
     -bg-body-secondary: #3d414d;
     -bg-body-tertiary: #30333c;
     -bg-body: #17181b;
@@ -64,6 +85,14 @@
     -fx-text-fill: -text-warning-subtle !important;
 }
 
+.text-info {
+    -fx-text-fill: -text-info !important;
+}
+
+.text-info-emphasis {
+    -fx-text-fill: -text-info-emphasis !important;
+}
+
 .text-black {
     -fx-text-fill: -text-black !important;
 }
@@ -90,6 +119,22 @@
 
 .bg-danger-subtle {
     -fx-background-color: -bg-danger-subtle !important;
+}
+
+.bg-warning {
+    -fx-background-color: -bg-warning !important;
+}
+
+.bg-warning-subtile {
+    -fx-background-color: -bg-warning-subtle !important;
+}
+
+.bg-info {
+    -fx-background-color: -bg-info !important;
+}
+
+.bg-info-subtile {
+    -fx-background-color: -bg-info-subtle !important;
 }
 
 .bg-body-secondary {

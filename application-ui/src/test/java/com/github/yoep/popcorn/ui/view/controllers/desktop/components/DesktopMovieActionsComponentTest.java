@@ -10,8 +10,8 @@ import com.github.yoep.popcorn.backend.media.MovieDetails;
 import com.github.yoep.popcorn.backend.player.PlayerManagerListener;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.subtitles.ISubtitleInfo;
-import com.github.yoep.popcorn.backend.subtitles.SubtitleInfoWrapper;
 import com.github.yoep.popcorn.backend.subtitles.ISubtitleService;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleInfoWrapper;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.view.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
@@ -37,7 +37,6 @@ import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
@@ -184,6 +183,8 @@ class DesktopMovieActionsComponentTest {
         when(subtitleService.retrieveSubtitles(media)).thenReturn(CompletableFuture.completedFuture(asList(
                 english, german
         )));
+        when(subtitleService.getDefaultOrInterfaceLanguage(isA(List.class)))
+                .thenReturn(CompletableFuture.completedFuture(english));
         component.initialize(url, resourceBundle);
 
         eventPublisher.publish(new ShowMovieDetailsEvent(this, media));

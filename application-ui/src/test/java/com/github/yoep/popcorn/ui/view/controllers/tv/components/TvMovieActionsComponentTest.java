@@ -106,6 +106,7 @@ class TvMovieActionsComponentTest {
                 .build());
         when(localeText.get(DetailsMessage.REMOVE)).thenReturn(expectedText);
         when(detailsComponentService.isLiked(media)).thenReturn(CompletableFuture.completedFuture(true));
+        when(subtitleService.retrieveSubtitles(media)).thenReturn(new CompletableFuture<>());
         component.initialize(location, resources);
         eventPublisher.publishEvent(new ShowMovieDetailsEvent(this, media));
         var listener = this.listener.get();
@@ -125,6 +126,7 @@ class TvMovieActionsComponentTest {
                 .build());
         when(localeText.get(DetailsMessage.ADD)).thenReturn(expectedText);
         when(detailsComponentService.isLiked(media)).thenReturn(CompletableFuture.completedFuture(false));
+        when(subtitleService.retrieveSubtitles(media)).thenReturn(new CompletableFuture<>());
         component.initialize(location, resources);
         eventPublisher.publishEvent(new ShowMovieDetailsEvent(this, media));
         var listener = this.listener.get();
@@ -157,6 +159,7 @@ class TvMovieActionsComponentTest {
                 .build());
         when(event.getCode()).thenReturn(KeyCode.ENTER);
         when(detailsComponentService.isLiked(media)).thenReturn(CompletableFuture.completedFuture(true));
+        when(subtitleService.retrieveSubtitles(media)).thenReturn(new CompletableFuture<>());
         component.initialize(location, resources);
         eventPublisher.publishEvent(new ShowMovieDetailsEvent(this, media));
         WaitForAsyncUtils.waitForFxEvents();

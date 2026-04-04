@@ -281,9 +281,9 @@ impl PopcornFX {
             Updater::builder()
                 .settings(settings.clone())
                 .platform(platform.clone())
-                .insecure(args.insecure)
                 .data_path(args.data_directory.as_str())
-                .build(),
+                .build()
+                .map_err(|e| Error::Initialization(e.to_string()))?,
         );
         let playback_controls = PlaybackControls::builder()
             .platform(platform.clone())

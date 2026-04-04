@@ -244,7 +244,8 @@
 
 .root .filter-bar ComboBox:focused > .list-cell,
 .root .filter-bar ComboBox:focused {
-    -fx-background-color: -text-info-emphasis;
+    -fx-text-fill: -text-primary-emphasis;
+    -fx-background-color: -bg-info-subtle;
 }
 
 .root .filter-bar .filterGroup ComboBox .arrow {

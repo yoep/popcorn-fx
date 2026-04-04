@@ -1,15 +1,7 @@
-use std::cmp::Ordering;
-use std::fmt::{Debug, Formatter};
-use std::fs::OpenOptions;
-use std::io;
-use std::path::PathBuf;
-use std::sync::Arc;
-
 use crate::core::channel::{ChannelReceiver, ChannelSender, Reply};
 use crate::core::config::ApplicationConfig;
 use crate::core::launcher::LauncherOptions;
 use crate::core::platform::PlatformData;
-use crate::core::storage::{Storage, StorageError};
 use crate::core::updater::task::UpdateTask;
 use crate::core::updater::{Error, Result, VersionInfo};
 use crate::VERSION;
@@ -21,10 +13,16 @@ use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
 use reqwest::{Client, ClientBuilder, Response, StatusCode};
 use semver::Version;
+use std::cmp::Ordering;
+use std::fmt::{Debug, Formatter};
+use std::fs::OpenOptions;
+use std::io;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use tar::Archive;
 use tokio::io::AsyncWriteExt;
-use tokio::select;
 use tokio::sync::Mutex;
+use tokio::{fs, select};
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
@@ -103,26 +101,26 @@ impl Updater {
         UpdaterBuilder::default()
     }
 
+    /// Create a new application updater instance.
     pub fn new(
         settings: ApplicationConfig,
         platform: Arc<dyn PlatformData>,
         data_path: &str,
-        insecure: bool,
-    ) -> Self {
+    ) -> Result<Self> {
         let (sender, command_receiver) = channel!(16);
 
-        let mut inner = InnerUpdater::new(settings, insecure, platform, data_path);
+        let mut inner = InnerUpdater::new(settings, platform, data_path)?;
         let callbacks = inner.callbacks.clone();
         let cancellation_token = inner.cancellation_token.clone();
         tokio::spawn(async move {
             inner.run(command_receiver).await;
         });
 
-        Self {
+        Ok(Self {
             sender,
             callbacks,
             cancellation_token,
-        }
+        })
     }
 
     /// Returns the latest application version info, if available.
@@ -260,7 +258,6 @@ impl Drop for Updater {
 #[derive(Default)]
 pub struct UpdaterBuilder {
     settings: Option<ApplicationConfig>,
-    insecure: bool,
     platform: Option<Arc<dyn PlatformData>>,
     data_path: Option<String>,
 }
@@ -269,12 +266,6 @@ impl UpdaterBuilder {
     /// Sets the application settings for the updater.
     pub fn settings(mut self, settings: ApplicationConfig) -> Self {
         self.settings = Some(settings);
-        self
-    }
-
-    /// Sets whether the updater should use insecure connections to download updates.
-    pub fn insecure(mut self, insecure: bool) -> Self {
-        self.insecure = insecure;
         self
     }
 
@@ -303,13 +294,12 @@ impl UpdaterBuilder {
     /// - `settings`
     /// - `platform`
     /// - `data_path`
-    pub fn build(self) -> Updater {
+    pub fn build(self) -> Result<Updater> {
         let settings = self.settings.expect("Settings are not set");
         let platform = self.platform.expect("Platform is not set");
         let data_path = self.data_path.expect("Data path is not set");
-        let insecure = self.insecure;
 
-        Updater::new(settings, platform, data_path.as_str(), insecure)
+        Updater::new(settings, platform, data_path.as_str())
     }
 }
 
@@ -317,7 +307,6 @@ impl Debug for UpdaterBuilder {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("UpdaterBuilder")
             .field("settings", &self.settings)
-            .field("insecure", &self.insecure)
             .field("platform", &self.platform)
             .field("storage_path", &self.data_path)
             .finish()
@@ -378,17 +367,17 @@ struct InnerUpdater {
 impl InnerUpdater {
     fn new(
         settings: ApplicationConfig,
-        insecure: bool,
         platform: Arc<dyn PlatformData>,
         data_path: &str,
-    ) -> Self {
-        Self {
+    ) -> Result<Self> {
+        let client = ClientBuilder::new()
+            .build()
+            .map_err(|e| Error::Io(io::Error::new(io::ErrorKind::Other, e)))?;
+
+        Ok(Self {
             settings,
             platform,
-            client: ClientBuilder::new()
-                .danger_accept_invalid_certs(insecure)
-                .build()
-                .unwrap(),
+            client,
             cache: None,
             state: UpdateState::NoUpdateAvailable,
             callbacks: MultiThreadedCallback::new(),
@@ -397,10 +386,13 @@ impl InnerUpdater {
             tasks: Default::default(),
             launcher_options: LauncherOptions::new(data_path),
             cancellation_token: Default::default(),
-        }
+        })
     }
 
     async fn run(&mut self, mut command_receiver: ChannelReceiver<UpdateCommand>) {
+        // start by cleaning the older versions of the application
+        self.clean_data_path().await;
+
         loop {
             select! {
                 _ = self.cancellation_token.cancelled() => break,
@@ -408,7 +400,6 @@ impl InnerUpdater {
             }
         }
 
-        self.cleanup().await;
         debug!("Updater main loop ended");
     }
 
@@ -422,7 +413,7 @@ impl InnerUpdater {
             UpdateCommand::StartDownload { response } => response.send(self.start_download().await),
             UpdateCommand::StartInstall { response } => response.send(self.start_install().await),
             UpdateCommand::Clean { response } => {
-                response.send(self.cleanup().await);
+                response.send(self.clean_data_path().await);
             }
             UpdateCommand::Download => self.download().await,
             UpdateCommand::Install => self.install().await,
@@ -454,7 +445,9 @@ impl InnerUpdater {
         trace!("Parsing update channel url {}", update_channel);
         match Url::parse(update_channel) {
             Ok(mut url) => {
-                url = url.join(UPDATE_INFO_FILE).unwrap();
+                url = url
+                    .join(UPDATE_INFO_FILE)
+                    .map_err(|e| Error::Io(io::Error::new(io::ErrorKind::InvalidData, e)))?;
                 let response = self.poll_info_from_url(url).await?;
                 let version_info = Self::handle_query_response(response).await?;
 
@@ -755,7 +748,7 @@ impl InnerUpdater {
     }
 
     async fn create_updates_directory(&self, directory: &PathBuf) -> Result<()> {
-        trace!("Creating updates directory {}", directory.to_str().unwrap());
+        trace!("Creating updates directory {:?}", directory);
         match tokio::fs::create_dir_all(directory).await {
             Ok(_) => Ok(()),
             Err(e) => {
@@ -940,25 +933,83 @@ impl InnerUpdater {
         false
     }
 
-    /// Clean the updates directory
-    async fn cleanup(&self) {
-        trace!(
-            "Starting cleanup of update directory located at {:?}",
-            self.update_directory_path()
-        );
-        match Storage::clean_directory(self.update_directory_path()) {
-            Ok(_) => info!(
-                "Cleaned updates directory located at {:?}",
-                self.update_directory_path()
-            ),
+    /// Clean older installation versions of the application in the current data path.
+    async fn clean_data_path(&self) {
+        let options = &self.launcher_options;
+
+        // clean old application versions
+        match self
+            .clean_installation_dir(&self.data_path, options.version.as_str())
+            .await
+        {
+            Ok(_) => {
+                debug!("Old application versions have been removed");
+            }
             Err(e) => {
-                if let StorageError::NotFound(e) = e {
-                    debug!("Unable to clean updates directory, {}", e);
-                } else {
-                    warn!("Unable to clean updates directory, {}", e)
-                }
+                error!("Updater failed to clean old application versions, {}", e);
             }
         }
+
+        // clean old runtime versions
+        match self
+            .clean_installation_dir(
+                self.data_path.join(RUNTIMES_DIRECTORY),
+                options.runtime_version.as_str(),
+            )
+            .await
+        {
+            Ok(_) => {
+                debug!("Old runtime versions have been removed");
+            }
+            Err(e) => {
+                error!("Updater failed to clean old runtime versions, {}", e);
+            }
+        }
+    }
+
+    async fn clean_installation_dir<P: AsRef<Path>>(
+        &self,
+        path: P,
+        expected_version: &str,
+    ) -> Result<()> {
+        let path = path.as_ref();
+        let launcher_filename = PathBuf::from(LauncherOptions::filename())
+            .file_stem()
+            .and_then(|e| e.to_str())
+            .map(String::from)
+            .ok_or(Error::Io(io::Error::new(
+                io::ErrorKind::Other,
+                "launcher filename is invalid".to_string(),
+            )))?;
+
+        let mut entries = fs::read_dir(path).await?;
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            if !entry.file_type().await?.is_dir() {
+                continue;
+            }
+
+            let name = entry.file_name().into_string().map_err(|_| {
+                Error::Io(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "failed to read filename",
+                ))
+            })?;
+            if name.starts_with(RUNTIMES_DIRECTORY) || name.starts_with(launcher_filename.as_str())
+            {
+                continue;
+            }
+
+            if name != expected_version {
+                trace!(
+                    "Updater is removing old version {} from {:?}",
+                    name,
+                    entry.path()
+                );
+                tokio::fs::remove_dir_all(entry.path()).await?;
+                debug!("Updater removed {:?}", entry.path());
+            }
+        }
+        Ok(())
     }
 
     /// Retrieve the current platform identifier which can be used to get the correct binary from the update channel.
@@ -1059,8 +1110,8 @@ mod test {
             .settings(settings)
             .platform(platform)
             .data_path(temp_path)
-            .insecure(false)
-            .build();
+            .build()
+            .unwrap();
         let expected_result = VersionInfo {
             application: PatchInfo {
                 version: "1.0.0".to_string(),
@@ -1117,8 +1168,8 @@ mod test {
             .settings(settings)
             .platform(platform)
             .data_path(temp_path)
-            .insecure(false)
-            .build();
+            .build()
+            .unwrap();
 
         assert_timeout_eq!(
             Duration::from_millis(500),
@@ -1139,8 +1190,8 @@ mod test {
             .settings(settings)
             .platform(platform)
             .data_path(temp_path)
-            .insecure(false)
-            .build();
+            .build()
+            .unwrap();
 
         // poll the latest version info
         let result = updater.poll().await.expect("expected the poll to succeed");
@@ -1213,8 +1264,8 @@ mod test {
             .settings(settings)
             .platform(platform)
             .data_path(temp_path)
-            .insecure(false)
-            .build();
+            .build()
+            .unwrap();
 
         // poll the latest version info
         let result = updater.poll().await.expect("expected the poll to succeed");
@@ -1291,8 +1342,8 @@ mod test {
             .settings(settings)
             .platform(platform)
             .data_path(temp_path)
-            .insecure(false)
-            .build();
+            .build()
+            .unwrap();
 
         // poll for updates
         let result = updater.poll().await.expect("expected the poll to succeed");
@@ -1353,7 +1404,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_clean_updates_directory() {
+    async fn test_cleanup_data_path() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -1371,20 +1422,24 @@ mod test {
                 tracking: Default::default(),
             })
             .build();
-        let updater = Updater::builder()
+        copy_test_file(updates_directory.to_str().unwrap(), filename, None);
+
+        // create the updater instance
+        // it should run the cleanup cycle as first operation within the task loop
+        let _updater = Updater::builder()
             .settings(settings)
             .platform(Arc::new(platform_mock))
             .data_path(temp_path)
-            .insecure(false)
-            .build();
-        copy_test_file(updates_directory.to_str().unwrap(), filename, None);
-
-        // drop the updater to start the cleanup
-        drop(updater);
+            .build()
+            .unwrap();
 
         assert_timeout!(
             Duration::from_millis(500),
-            updates_directory.read_dir().unwrap().next().is_none(),
+            updates_directory
+                .read_dir()
+                .ok()
+                .and_then(|mut e| e.next())
+                .is_none(),
             "expected the updates directory to have been cleaned"
         );
     }
@@ -1418,8 +1473,8 @@ mod test {
             .settings(settings)
             .platform(platform)
             .data_path(temp_path)
-            .insecure(false)
-            .build();
+            .build()
+            .unwrap();
 
         let mut receiver = updater.subscribe();
         tokio::spawn(async move {
@@ -1495,8 +1550,8 @@ mod test {
             .settings(settings)
             .platform(platform)
             .data_path(temp_path)
-            .insecure(false)
-            .build();
+            .build()
+            .unwrap();
 
         let mut receiver = updater.subscribe();
         tokio::spawn(async move {
@@ -1529,8 +1584,8 @@ mod test {
             .settings(settings)
             .platform(platform)
             .data_path(temp_path)
-            .insecure(false)
-            .build();
+            .build()
+            .unwrap();
 
         let mut receiver = updater.subscribe();
         tokio::spawn(async move {
@@ -1548,26 +1603,6 @@ mod test {
             UpdateEvent::StateChanged(_) => {}
             _ => assert!(false, "expected UpdateEvent::StateChanged event"),
         }
-    }
-
-    #[tokio::test]
-    async fn test_updater_builder_debug() {
-        init_logger!();
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let builder = UpdaterBuilder::default()
-            .settings(create_simple_settings(temp_path))
-            .platform(default_platform_info())
-            .data_path(temp_path)
-            .insecure(false);
-
-        let debug_output = format!("{:?}", builder);
-
-        assert!(debug_output.contains("UpdaterBuilder"));
-        assert!(debug_output.contains("settings: Some"));
-        assert!(debug_output.contains("insecure: false"));
-        assert!(debug_output.contains("platform: Some"));
-        assert!(debug_output.contains("storage_path: Some"));
     }
 
     mod poll {
@@ -1608,8 +1643,8 @@ mod test {
                 .settings(settings)
                 .platform(platform)
                 .data_path(temp_path)
-                .insecure(false)
-                .build();
+                .build()
+                .unwrap();
 
             let (tx, mut rx) = unbounded_channel();
             let mut receiver = updater.subscribe();
@@ -1673,8 +1708,8 @@ mod test {
                 .settings(settings)
                 .platform(platform)
                 .data_path(temp_path)
-                .insecure(false)
-                .build();
+                .build()
+                .unwrap();
 
             let result = updater
                 .poll()
@@ -1720,8 +1755,8 @@ mod test {
                 .settings(settings)
                 .platform(platform)
                 .data_path(temp_path)
-                .insecure(false)
-                .build();
+                .build()
+                .unwrap();
 
             let result = updater.poll().await;
             match result {
@@ -1766,8 +1801,8 @@ mod test {
                 .settings(settings)
                 .platform(platform)
                 .data_path(temp_path)
-                .insecure(false)
-                .build();
+                .build()
+                .unwrap();
 
             let result = updater.poll().await;
             match result {
@@ -1870,8 +1905,8 @@ mod test {
                 .settings(settings)
                 .platform(platform)
                 .data_path(temp_path)
-                .insecure(false)
-                .build();
+                .build()
+                .unwrap();
             let expected_result = read_test_file_to_string(filename);
 
             // poll the latest version info
@@ -1938,8 +1973,8 @@ mod test {
                 .settings(settings)
                 .platform(platform)
                 .data_path(temp_path)
-                .insecure(false)
-                .build();
+                .build()
+                .unwrap();
             let expected_result = read_test_file_to_bytes(filename);
 
             // poll the latest version info
@@ -1998,8 +2033,8 @@ mod test {
                 .settings(settings)
                 .platform(platform)
                 .data_path(temp_path)
-                .insecure(false)
-                .build();
+                .build()
+                .unwrap();
 
             // poll the latest version info
             let result = updater.poll().await.expect("expected the poll to succeed");
@@ -2066,8 +2101,8 @@ mod test {
                 .settings(settings)
                 .platform(platform)
                 .data_path(temp_path)
-                .insecure(false)
-                .build();
+                .build()
+                .unwrap();
 
             // poll the latest version info
             let _ = updater.poll().await.expect("expected the poll to succeed");
@@ -2129,20 +2164,6 @@ mod test {
                 )
                 .delay(Duration::from_millis(100));
         });
-    }
-
-    fn create_simple_settings(temp_path: &str) -> ApplicationConfig {
-        ApplicationConfig::builder()
-            .storage(temp_path)
-            .properties(PopcornProperties {
-                loggers: Default::default(),
-                update_channel: "http://localhost:8080/update.json".to_string(),
-                providers: Default::default(),
-                enhancers: Default::default(),
-                subtitle: Default::default(),
-                tracking: Default::default(),
-            })
-            .build()
     }
 
     fn create_server_and_settings(temp_path: &str) -> (MockServer, ApplicationConfig) {

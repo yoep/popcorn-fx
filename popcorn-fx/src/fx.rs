@@ -163,7 +163,7 @@ pub struct PopcornFX {
     favorites_service: Arc<dyn FavoriteService>,
     image_loader: Arc<dyn ImageLoader>,
     media_loader: Arc<dyn MediaLoader>,
-    platform: Arc<Box<dyn PlatformData>>,
+    platform: Arc<dyn PlatformData>,
     playback_controls: PlaybackControls,
     player_discovery_services: Vec<Arc<Box<dyn Discovery>>>,
     player_manager: Arc<Box<dyn PlayerManager>>,
@@ -233,9 +233,9 @@ impl PopcornFX {
                 .await
                 .map_err(|e| Error::Initialization(e.to_string()))?,
         );
-        let platform = Arc::new(Box::new(DefaultPlatform::default()) as Box<dyn PlatformData>);
-        let favorites_service =
-            Arc::new(FXFavoriteService::new(app_directory_path)) as Arc<dyn FavoriteService>;
+        let platform: Arc<dyn PlatformData> = Arc::new(DefaultPlatform::default());
+        let favorites_service: Arc<dyn FavoriteService> =
+            Arc::new(FXFavoriteService::new(app_directory_path));
         let watched_service = Arc::new(DefaultWatchedService::new(
             app_directory_path,
             event_publisher.clone(),
@@ -277,13 +277,13 @@ impl PopcornFX {
                 .provider_manager(providers.clone())
                 .build(),
         );
-        let app_updater = Arc::new(
+        let updater = Arc::new(
             Updater::builder()
                 .settings(settings.clone())
                 .platform(platform.clone())
-                .insecure(args.insecure)
                 .data_path(args.data_directory.as_str())
-                .build(),
+                .build()
+                .map_err(|e| Error::Initialization(e.to_string()))?,
         );
         let playback_controls = PlaybackControls::builder()
             .platform(platform.clone())
@@ -361,6 +361,9 @@ impl PopcornFX {
             }
         });
 
+        // Start checking for new updates
+        updater.check_for_updates().await;
+
         Ok(Self {
             auto_resume_service,
             cache_manager,
@@ -381,7 +384,7 @@ impl PopcornFX {
             torrent_manager,
             tracking_provider,
             tracking_sync,
-            updater: app_updater,
+            updater,
             watched_service,
             player_discovery_services,
             stream_server,
@@ -405,7 +408,7 @@ impl PopcornFX {
     }
 
     /// The system platform on which the Popcorn FX instance is running.
-    pub fn platform(&mut self) -> &Arc<Box<dyn PlatformData>> {
+    pub fn platform(&mut self) -> &Arc<dyn PlatformData> {
         &self.platform
     }
 

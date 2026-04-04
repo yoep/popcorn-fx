@@ -86,7 +86,7 @@ impl Callback<PlaybackControlEvent> for PlaybackControls {
 /// ```
 #[derive(Default)]
 pub struct PlaybackControlsBuilder {
-    platform: Option<Arc<Box<dyn PlatformData>>>,
+    platform: Option<Arc<dyn PlatformData>>,
     event_publisher: Option<EventPublisher>,
 }
 
@@ -96,7 +96,7 @@ impl PlaybackControlsBuilder {
     /// # Panics
     ///
     /// Panics if the `platform` is not set when `build()` is called.
-    pub fn platform(mut self, platform: Arc<Box<dyn PlatformData>>) -> Self {
+    pub fn platform(mut self, platform: Arc<dyn PlatformData>) -> Self {
         self.platform = Some(platform);
         self
     }
@@ -148,7 +148,7 @@ impl PlaybackControlsBuilder {
 
 #[derive(Debug)]
 struct InnerPlaybackControls {
-    platform: Arc<Box<dyn PlatformData>>,
+    platform: Arc<dyn PlatformData>,
     callbacks: MultiThreadedCallback<PlaybackControlEvent>,
     cancellation_token: CancellationToken,
 }
@@ -242,7 +242,7 @@ mod test {
         platform.expect_subscribe().return_once(move || rx);
         let event_publisher = EventPublisher::default();
         let controls = PlaybackControls::builder()
-            .platform(Arc::new(Box::new(platform)))
+            .platform(Arc::new(platform))
             .event_publisher(event_publisher.clone())
             .build();
 
@@ -270,7 +270,7 @@ mod test {
         platform.expect_subscribe().return_once(move || rx);
         let event_publisher = EventPublisher::default();
         let controls = PlaybackControls::builder()
-            .platform(Arc::new(Box::new(platform)))
+            .platform(Arc::new(platform))
             .event_publisher(event_publisher.clone())
             .build();
 
@@ -303,7 +303,7 @@ mod test {
         });
         let event_publisher = EventPublisher::default();
         let _controls = PlaybackControls::builder()
-            .platform(Arc::new(Box::new(platform)))
+            .platform(Arc::new(platform))
             .event_publisher(event_publisher.clone())
             .build();
 
@@ -352,7 +352,7 @@ mod test {
         });
         let event_publisher = EventPublisher::default();
         let _controls = PlaybackControls::builder()
-            .platform(Arc::new(Box::new(platform)))
+            .platform(Arc::new(platform))
             .event_publisher(event_publisher.clone())
             .build();
 
@@ -381,7 +381,7 @@ mod test {
         });
         let event_publisher = EventPublisher::default();
         let _controls = PlaybackControls::builder()
-            .platform(Arc::new(Box::new(platform)))
+            .platform(Arc::new(platform))
             .event_publisher(event_publisher.clone())
             .build();
 

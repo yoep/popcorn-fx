@@ -2,7 +2,7 @@ use crate::ipc::proto::update;
 use crate::ipc::proto::update::update::error;
 use crate::ipc::proto::update::update_event;
 use popcorn_fx_core::core::updater::{
-    DownloadProgress, PatchInfo, UpdateError, UpdateEvent, UpdateState, VersionInfo,
+    DownloadProgress, Error, PatchInfo, UpdateEvent, UpdateState, VersionInfo,
 };
 use protobuf::MessageField;
 
@@ -86,19 +86,19 @@ impl From<&UpdateEvent> for update::UpdateEvent {
     }
 }
 
-impl From<&UpdateError> for update::update::Error {
-    fn from(value: &UpdateError) -> Self {
+impl From<&Error> for update::update::Error {
+    fn from(value: &Error) -> Self {
         let mut err = Self::new();
 
         match value {
-            UpdateError::InvalidUpdateChannel(channel) => {
+            Error::InvalidUpdateChannel(channel) => {
                 err.type_ = error::Type::INVALID_UPDATE_CHANNEL.into();
                 err.invalid_update_channel = MessageField::some(error::InvalidUpdateChannel {
                     channel: channel.clone(),
                     special_fields: Default::default(),
                 });
             }
-            UpdateError::InvalidApplicationVersion(version, reason) => {
+            Error::InvalidApplicationVersion(version, reason) => {
                 err.type_ = error::Type::INVALID_APPLICATION_VERSION.into();
                 err.invalid_application_version =
                     MessageField::some(error::InvalidApplicationVersion {
@@ -107,7 +107,7 @@ impl From<&UpdateError> for update::update::Error {
                         special_fields: Default::default(),
                     });
             }
-            UpdateError::InvalidRuntimeVersion(version, reason) => {
+            Error::InvalidRuntimeVersion(version, reason) => {
                 err.type_ = error::Type::INVALID_RUNTIME_VERSION.into();
                 err.invalid_runtime_version = MessageField::some(error::InvalidRuntimeVersion {
                     version_value: version.clone(),
@@ -115,35 +115,35 @@ impl From<&UpdateError> for update::update::Error {
                     special_fields: Default::default(),
                 });
             }
-            UpdateError::UnknownVersion => {
+            Error::UnknownVersion => {
                 err.type_ = error::Type::UNKNOWN_VERSION.into();
             }
-            UpdateError::Response(response) => {
+            Error::Response(response) => {
                 err.type_ = error::Type::RESPONSE.into();
                 err.invalid_response = MessageField::some(error::InvalidResponse {
                     reason: response.clone(),
                     special_fields: Default::default(),
                 });
             }
-            UpdateError::InvalidDownloadUrl(url) => {
+            Error::InvalidDownloadUrl(url) => {
                 err.type_ = error::Type::INVALID_DOWNLOAD_URL.into();
                 err.invalid_download_url = MessageField::some(error::InvalidDownloadUrl {
                     url: url.clone(),
                     special_fields: Default::default(),
                 });
             }
-            UpdateError::PlatformUpdateUnavailable => {}
-            UpdateError::DownloadFailed(_, _) => {}
-            UpdateError::IO(_) => {}
-            UpdateError::UpdateNotAvailable(state) => {
+            Error::PlatformUpdateUnavailable => {}
+            Error::DownloadFailed(_, _) => {}
+            Error::Io(_) => {}
+            Error::UpdateNotAvailable(state) => {
                 err.type_ = error::Type::UPDATE_NOT_AVAILABLE.into();
                 err.update_not_available = MessageField::some(error::UpdateNotAvailable {
                     state: update::update::State::from(state).into(),
                     special_fields: Default::default(),
                 });
             }
-            UpdateError::ExtractionFailed(_) => {}
-            UpdateError::ArchiveLocationAlreadyExists => {}
+            Error::ExtractionFailed(_) => {}
+            Error::ArchiveLocationAlreadyExists => {}
         }
 
         err
@@ -278,7 +278,7 @@ mod tests {
     #[test]
     fn test_update_error_from_invalid_channel() {
         let channel = "MyUpdateChannel";
-        let err = UpdateError::InvalidUpdateChannel(channel.to_string());
+        let err = Error::InvalidUpdateChannel(channel.to_string());
         let expected_result = update::update::Error {
             type_: error::Type::INVALID_UPDATE_CHANNEL.into(),
             invalid_update_channel: MessageField::some(error::InvalidUpdateChannel {
@@ -302,7 +302,7 @@ mod tests {
     fn test_update_error_from_invalid_application_version() {
         let version = "400.87.9";
         let reason = "version doesn't exist";
-        let err = UpdateError::InvalidApplicationVersion(version.to_string(), reason.to_string());
+        let err = Error::InvalidApplicationVersion(version.to_string(), reason.to_string());
         let expected_result = update::update::Error {
             type_: error::Type::INVALID_APPLICATION_VERSION.into(),
             invalid_update_channel: Default::default(),
@@ -327,7 +327,7 @@ mod tests {
     fn test_update_error_from_invalid_runtime_version() {
         let version = "410.11.9";
         let reason = "version doesn't exist";
-        let err = UpdateError::InvalidRuntimeVersion(version.to_string(), reason.to_string());
+        let err = Error::InvalidRuntimeVersion(version.to_string(), reason.to_string());
         let expected_result = update::update::Error {
             type_: error::Type::INVALID_RUNTIME_VERSION.into(),
             invalid_update_channel: Default::default(),
@@ -350,7 +350,7 @@ mod tests {
 
     #[test]
     fn test_update_error_from_unknown_version() {
-        let err = UpdateError::UnknownVersion;
+        let err = Error::UnknownVersion;
         let expected_result = update::update::Error {
             type_: error::Type::UNKNOWN_VERSION.into(),
             invalid_update_channel: Default::default(),
@@ -370,7 +370,7 @@ mod tests {
     #[test]
     fn test_update_error_from_response() {
         let response = "server response error";
-        let err = UpdateError::Response(response.to_string());
+        let err = Error::Response(response.to_string());
         let expected_result = update::update::Error {
             type_: error::Type::RESPONSE.into(),
             invalid_update_channel: Default::default(),
@@ -393,7 +393,7 @@ mod tests {
     #[test]
     fn test_update_error_from_invalid_download_url() {
         let url = "MyDownloadUrl";
-        let err = UpdateError::InvalidDownloadUrl(url.to_string());
+        let err = Error::InvalidDownloadUrl(url.to_string());
         let expected_result = update::update::Error {
             type_: error::Type::INVALID_DOWNLOAD_URL.into(),
             invalid_update_channel: Default::default(),
@@ -415,7 +415,7 @@ mod tests {
 
     #[test]
     fn test_update_error_from_update_not_available() {
-        let err = UpdateError::UpdateNotAvailable(UpdateState::NoUpdateAvailable);
+        let err = Error::UpdateNotAvailable(UpdateState::NoUpdateAvailable);
         let expected_result = update::update::Error {
             type_: error::Type::UPDATE_NOT_AVAILABLE.into(),
             invalid_update_channel: Default::default(),

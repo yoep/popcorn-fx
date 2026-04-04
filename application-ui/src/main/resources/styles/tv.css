@@ -18,19 +18,19 @@
 
 .root .menu .bar .menu-item.active Icon,
 .root .menu .bar .menu-item.active Label {
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
 }
 
 .root .menu .bar .menu-item .text-field {
     -fx-font-family: "Open Sans Semibold";
     -fx-background-color: transparent;
-    -fx-text-fill: #c3c5c7;
+    -fx-text-fill: -text-primary-emphasis;
     -fx-border-width: 0;
     -fx-padding: 0 0 0 0;
 }
 
 .root .menu .bar .menu-item .text-field:focused {
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
 }
 
 .root .menu .bar .sub-menu {
@@ -53,7 +53,7 @@
 .root .menu .bar .menu-item:focused Icon,
 .root .menu .bar .menu-item:focused Label,
 .root .menu .bar .menu-item:focused .text-field {
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
 }
 
 .root .menu .shadow {
@@ -99,17 +99,17 @@
 
 .root .movie-details .subtitle.loading,
 .root .show-details .subtitle.loading {
-    -fx-text-fill: #2d8ef5;
+    -fx-text-fill: -text-info;
 }
 
 .root .movie-details .subtitle.success,
 .root .show-details .subtitle.success {
-    -fx-text-fill: #2ad942;
+    -fx-text-fill: -text-success;
 }
 
 .root .movie-details .subtitle.failed,
 .root .show-details .subtitle.failed {
-    -fx-text-fill: #d53f3f;
+    -fx-text-fill: -text-danger;
 }
 
 .root .content-section .movie-details .banner .top {
@@ -141,7 +141,7 @@
 .root .content-section .movie-details .actions .action Label,
 .root .content-section .show-details .actions .action Label {
     -fx-font-family: "Open Sans Bold";
-    -fx-text-fill: #ccc;
+    -fx-text-fill: -text-primary-emphasis;
     -fx-font-size: 1.5em;
 }
 
@@ -152,15 +152,15 @@
     -fx-border-color: transparent;
     -fx-border-style: solid;
     -fx-alignment: center;
-    -fx-text-fill: #ccc;
+    -fx-text-fill: -text-primary-emphasis;
     -fx-font-size: 3em;
     -fx-padding: 3 10 2 10;
 }
 
 .root .content-section .movie-details .banner-actions .action:focused .graphic,
 .root .content-section .movie-details .banner-actions .action:hover .graphic {
-    -fx-border-color: #fff;
-    -fx-text-fill: #fff;
+    -fx-border-color: -text-primary;
+    -fx-text-fill: -text-primary;
 }
 
 .root .content-section .movie-details .actions .action .button,
@@ -171,9 +171,9 @@
     -fx-background-radius: 10;
     -fx-border-width: 2;
     -fx-border-radius: 10;
-    -fx-border-color: #ccc;
+    -fx-border-color: -text-secondary;
     -fx-alignment: center;
-    -fx-text-fill: #ccc;
+    -fx-text-fill: -text-secondary;
     -fx-font-size: 2em;
 }
 
@@ -187,12 +187,12 @@
 
 .root .content-section .movie-details .actions .action .button.liked,
 .root .content-section .show-details .actions .action .button.liked {
-    -fx-text-fill: #df2d37;
+    -fx-text-fill: -text-danger;
 }
 
 .root .content-section .movie-details .actions .action .button.watched,
 .root .content-section .show-details .actions .action .button.watched {
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
 }
 
 .root .content-section .movie-details .actions .action:hover .button,
@@ -200,8 +200,8 @@
 .root .content-section .show-details .actions .action:hover .button,
 .root .content-section .show-details .actions .action:focused .button {
     -fx-background-color: rgba(45, 114, 217, 0.6);
-    -fx-border-color: #fff;
-    -fx-text-fill: #fff;
+    -fx-border-color: -text-primary;
+    -fx-text-fill: -text-primary;
 }
 
 .root .content-section .movie-details .banner-actions .action:hover Label,
@@ -210,7 +210,7 @@
 .root .content-section .movie-details .actions .action:focused Label,
 .root .content-section .show-details .actions .action:hover Label,
 .root .content-section .show-details .actions .action:focused Label {
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
 }
 
 .root .content-section .overlay .list-view {
@@ -235,8 +235,8 @@
 
 .root .content-section .overlay .list-view .list-cell:focused {
     -fx-background-color: rgba(45, 114, 217, 0.6);
-    -fx-border-color: #fff;
-    -fx-text-fill: #fff;
+    -fx-border-color: -text-primary;
+    -fx-text-fill: -text-primary;
 }
 
 .root .content-section .overlay .list-view .list-cell:empty {
@@ -438,7 +438,7 @@
     -fx-min-width: 0;
     -fx-font-size: 1.5em;
     -fx-font-family: "Open Sans Semibold";
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
     -fx-text-overrun: clip;
 }
 
@@ -587,7 +587,7 @@
     -fx-min-width: 4em;
     -fx-font-size: 1.75em;
     -fx-font-family: "Open Sans Bold";
-    -fx-text-fill: #fff;
+    -fx-text-fill: -text-primary;
 }
 
 .root .player .player-controls .menu-button {

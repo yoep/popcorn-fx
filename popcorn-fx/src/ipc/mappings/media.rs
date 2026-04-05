@@ -1,8 +1,9 @@
 use crate::ipc::proto::media::media;
 use crate::ipc::{Error, Result};
 use popcorn_fx_core::core::media::{
-    Category, Episode, Genre, Images, MediaDetails, MediaError, MediaIdentifier, MediaOverview,
-    MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo,
+    Category, ContextLocale, Episode, Genre, Images, MediaDetails, MediaError, MediaIdentifier,
+    MediaOverview, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy,
+    TorrentInfo,
 };
 use protobuf::{Message, MessageField};
 use std::collections::HashMap;
@@ -195,7 +196,7 @@ impl From<&media::ShowDetails> for ShowDetails {
             num_seasons: value.number_of_seasons,
             images: value.images.as_ref().map(Images::from).unwrap_or_default(),
             rating: value.rating.as_ref().map(Rating::from),
-            context_locale: String::new(),
+            context_locale: ContextLocale::Disabled,
             synopsis: value.synopsis.clone().unwrap_or_default(),
             runtime: value.runtime.as_ref().map(|e| e.to_string()),
             status: value.status.clone().unwrap_or_default(),

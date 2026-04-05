@@ -15,26 +15,28 @@
 
 * {
     -text-primary: #fff;
-    -text-primary-emphasis: #e6e6e6;
-    -text-secondary: #909498;
-    -text-secondary-emphasis: #333;
-    -text-success: #299000;
-    -text-success-emphasis: #75b798;
+    -text-primary-emphasis: #f8f9fa;
+    -text-secondary: #adb5bd;
+    -text-secondary-emphasis: #dee2e6;
+    -text-success: #75b798;
+    -text-success-emphasis: #a3cfbb;
     -text-danger: #d53f3f;
     -text-danger-emphasis: #d66b6b;
-    -text-warning: #ffc900;
-    -text-warning-subtle: #e6c345;
-    -text-info: #2468cc;
-    -text-info-emphasis: #73a1e6;
+    -text-warning: #ffda6a;
+    -text-warning-subtle: #ffe69c;
+    -text-info: #6ea8fe;
+    -text-info-emphasis: #9ec5fe;
     -text-black: #000;
     -text-white: #fff;
     -bg-primary: #17181b;
     -bg-primary-subtle: #1a191c;
     -bg-secondary: #212225;
+    -bg-success: #198754;
+    -bg-success-subtle: #051b11;
     -bg-danger: #f15153;
     -bg-danger-subtle: #2c0b0e;
     -bg-warning: #dbb756;
-    -bg-warning-subtile: #99803c;
+    -bg-warning-subtle: #99803c;
     -bg-info: #3498db;
     -bg-info-subtle: #256a99;
     -bg-body-secondary: #3d414d;
@@ -113,6 +115,14 @@
     -fx-background-color: -bg-secondary !important;
 }
 
+.bg-success {
+    -fx-background-color: -bg-success !important;
+}
+
+.bg-success-subtle {
+    -fx-background-color: -bg-success-subtle !important;
+}
+
 .bg-danger {
     -fx-background-color: -bg-danger !important;
 }
@@ -125,7 +135,7 @@
     -fx-background-color: -bg-warning !important;
 }
 
-.bg-warning-subtile {
+.bg-warning-subtle {
     -fx-background-color: -bg-warning-subtle !important;
 }
 

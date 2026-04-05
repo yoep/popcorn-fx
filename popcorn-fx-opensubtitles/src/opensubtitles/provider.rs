@@ -769,7 +769,7 @@ mod test {
             num_seasons: 1,
             images: Images::none(),
             rating: None,
-            context_locale: "".to_string(),
+            context_locale: ContextLocale::Disabled,
             synopsis: "".to_string(),
             runtime: None,
             status: "".to_string(),

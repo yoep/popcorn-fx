@@ -123,8 +123,8 @@ impl Default for PlatformLinux {
 
 #[cfg(test)]
 mod test {
-    use crate::platform::platform_linux::PlatformLinux;
-    use crate::platform::SystemPlatform;
+    use crate::platform_linux::PlatformLinux;
+    use crate::SystemPlatform;
 
     /* NOTE: Github actions is unable to activate the DPMS and XScreenSaver within xvfb */
     /* thereby actually verifying the results of the actions is useless as they will always fail within the CI */

@@ -243,7 +243,7 @@ mod test {
     use crate::core::media::providers::enhancers::MockEnhancer;
     use crate::core::media::providers::MockMediaDetailsProvider;
     use crate::core::media::providers::ShowProvider;
-    use crate::core::media::{Episode, ShowDetails, ShowOverview};
+    use crate::core::media::{ContextLocale, Episode, ShowDetails, ShowOverview};
 
     use super::*;
 
@@ -335,7 +335,7 @@ mod test {
                     num_seasons: 0,
                     images: Default::default(),
                     rating: None,
-                    context_locale: "".to_string(),
+                    context_locale: ContextLocale::Disabled,
                     synopsis: "".to_string(),
                     runtime: None,
                     status: "".to_string(),

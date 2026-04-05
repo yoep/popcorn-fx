@@ -1,10 +1,11 @@
-use derive_more::Display;
-use log::warn;
-use serde::{Deserialize, Serialize};
-
 use crate::core::media::{
     Episode, Images, MediaDetails, MediaIdentifier, MediaOverview, MediaType, Rating,
 };
+use derive_more::Display;
+use log::warn;
+use serde::de::{Error, Visitor};
+use serde::{Deserialize, Serialize};
+use std::fmt::Formatter;
 
 /// The show media information of a specific serie.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Display)]
@@ -107,7 +108,7 @@ pub struct ShowDetails {
     pub images: Images,
     pub rating: Option<Rating>,
     #[serde(rename = "contextLocale")]
-    pub context_locale: String,
+    pub context_locale: ContextLocale,
     pub synopsis: String,
     #[serde(
         default,
@@ -203,14 +204,66 @@ impl MediaDetails for ShowDetails {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum ContextLocale {
+    Disabled,
+    Locale(String),
+}
+
+impl Serialize for ContextLocale {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            ContextLocale::Disabled => serializer.serialize_bool(false),
+            ContextLocale::Locale(locale) => serializer.serialize_str(locale),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for ContextLocale {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct ContextLocaleVisitor;
+        impl<'de> Visitor<'de> for ContextLocaleVisitor {
+            type Value = ContextLocale;
+
+            fn expecting(&self, f: &mut Formatter) -> std::fmt::Result {
+                write!(f, "expected a boolean or string")
+            }
+
+            fn visit_bool<E>(self, value: bool) -> Result<Self::Value, E>
+            where
+                E: Error,
+            {
+                if value {
+                    return Err(E::custom("expected bool false"));
+                }
+
+                Ok(ContextLocale::Disabled)
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: Error,
+            {
+                Ok(ContextLocale::Locale(v.to_string()))
+            }
+        }
+
+        deserializer.deserialize_any(ContextLocaleVisitor)
+    }
+}
+
 mod serde_empty_string {
     use serde::de::{Error, Visitor};
     use serde::Deserializer;
     use std::fmt::Formatter;
 
-    #[derive(Debug)]
-    pub struct EmptyStringVisitor;
-
+    struct EmptyStringVisitor;
     impl<'de> Visitor<'de> for EmptyStringVisitor {
         type Value = Option<String>;
 
@@ -238,5 +291,30 @@ mod serde_empty_string {
         D: Deserializer<'de>,
     {
         Ok(deserializer.deserialize_string(EmptyStringVisitor {})?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod show_details {
+        use super::*;
+
+        #[test]
+        fn test_deserialize_context_locale_disabled() {
+            let imdb_id = "tt15428778";
+            let value = r#"{"_id":"tt15428778","imdb_id":"tt15428778","tmdb_id":207863,"tvdb_id":"413074","title":"","year":"2023","slug":"","original_language":"en","exist_translations":["ru","ua"],"num_seasons":2,"images":{"poster":"http://image.tmdb.org/t/p/w500/eDl1veju2Hf3tyFmGAedtGXb9Yv.jpg","fanart":"http://image.tmdb.org/t/p/w500/9DHo5qXkG0titQmr2PF92N3aYYk.jpg","banner":"http://image.tmdb.org/t/p/w500/eDl1veju2Hf3tyFmGAedtGXb9Yv.jpg"},"rating":{"percentage":73,"watching":0,"votes":1427,"loved":0,"hated":0},"contextLocale":false,"__v":0,"synopsis":"","runtime":"","country":"US","network":"AMC","last_updated":1768147497,"air_day":"","air_time":"","status":"Returning Series","genres":["drama","sci-fi & fantasy"],"episodes":[]}"#;
+
+            let result: ShowDetails =
+                serde_json::from_str(value).expect("expected the show details to be deserialized");
+
+            assert_eq!(imdb_id, result.imdb_id, "expected the imdb id to match");
+            assert_eq!(
+                ContextLocale::Disabled,
+                result.context_locale,
+                "expected the context locale to be disabled"
+            );
+        }
     }
 }

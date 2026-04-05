@@ -1,4 +1,4 @@
-use crate::trakt::{AddToWatchList, Movie, MovieId, WatchedMovie};
+use crate::{AddToWatchList, Movie, MovieId, WatchedMovie};
 use async_trait::async_trait;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;

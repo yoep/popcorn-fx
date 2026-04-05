@@ -159,7 +159,7 @@ mod test {
     use httpmock::Method::GET;
     use httpmock::MockServer;
 
-    use crate::core::media::{Episode, Images, MovieDetails, ShowDetails};
+    use crate::core::media::{ContextLocale, Episode, Images, MovieDetails, ShowDetails};
     use crate::testing::read_test_file_to_string;
 
     use super::*;
@@ -203,7 +203,7 @@ mod test {
             num_seasons: 0,
             images: Images::none(),
             rating: None,
-            context_locale: "".to_string(),
+            context_locale: ContextLocale::Disabled,
             synopsis: "".to_string(),
             runtime: None,
             status: "".to_string(),

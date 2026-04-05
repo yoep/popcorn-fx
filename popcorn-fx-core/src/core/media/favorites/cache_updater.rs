@@ -1,7 +1,7 @@
 use crate::core::media::favorites::model::Favorites;
 use crate::core::media::favorites::FavoriteService;
 use crate::core::media::providers::ProviderManager;
-use crate::core::media::{MediaIdentifier, MediaType, MovieDetails, ShowDetails};
+use crate::core::media::{MediaIdentifier, MediaType, MovieDetails, MovieOverview, ShowDetails};
 use chrono::{Duration, Local};
 use itertools::Itertools;
 use log::{debug, info, trace, warn};
@@ -179,12 +179,11 @@ impl InnerCacheUpdater {
                 Ok(e) => {
                     trace!("Retrieved updated media item {}", e);
                     match e.media_type() {
-                        MediaType::Movie => Box::new(
-                            e.into_any()
+                        MediaType::Movie => Box::new(MovieOverview::from(
+                            &*e.into_any()
                                 .downcast::<MovieDetails>()
-                                .expect("expected a MovieDetails item")
-                                .to_overview(),
-                        ) as Box<dyn MediaIdentifier>,
+                                .expect("expected a MovieDetails item"),
+                        )) as Box<dyn MediaIdentifier>,
                         MediaType::Show => Box::new(
                             e.into_any()
                                 .downcast::<ShowDetails>()

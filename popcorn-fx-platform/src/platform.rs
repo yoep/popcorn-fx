@@ -14,11 +14,11 @@ use popcorn_fx_core::core::platform::{
 use popcorn_fx_core::core::playback::{MediaInfo, MediaNotificationEvent};
 
 #[cfg(target_os = "linux")]
-use crate::platform::platform_linux::PlatformLinux;
+use crate::platform_linux::PlatformLinux;
 #[cfg(target_os = "macos")]
-use crate::platform::platform_mac::PlatformMac;
+use crate::platform_mac::PlatformMac;
 #[cfg(target_os = "windows")]
-use crate::platform::platform_win::PlatformWin;
+use crate::platform_win::PlatformWin;
 
 const DBUS_NAME: &str = "popcorn_time.media";
 const DISPLAY_NAME: &str = "Popcorn Time";

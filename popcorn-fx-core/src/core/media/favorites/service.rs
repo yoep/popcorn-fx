@@ -182,7 +182,7 @@ impl FavoriteService for FXFavoriteService {
         } else if let Some(media) = favorite.downcast_ref::<ShowOverview>() {
             favorites.add_show(&media);
         } else if let Some(media) = favorite.downcast_ref::<MovieDetails>() {
-            favorites.add_movie(&media.to_overview());
+            favorites.add_movie(&MovieOverview::from(media));
         } else if let Some(media) = favorite.downcast_ref::<ShowDetails>() {
             favorites.add_show(&media.to_overview());
         } else {

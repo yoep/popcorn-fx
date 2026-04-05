@@ -297,7 +297,7 @@ mod tests {
     use crate::ipc::test::create_channel_pair;
     use crate::tests::default_args;
     use httpmock::{Method, MockServer};
-    use popcorn_fx_core::core::media::{Images, Rating, TorrentInfo};
+    use popcorn_fx_core::core::media::{ContextLocale, Images, Rating, TorrentInfo};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::testing::read_test_file_to_string;
     use protobuf::EnumOrUnknown;
@@ -458,7 +458,7 @@ mod tests {
                 loved: 0,
                 hated: 0,
             }),
-            context_locale: "".to_string(),
+            context_locale: ContextLocale::Disabled,
             synopsis: "".to_string(),
             runtime: None,
             status: "".to_string(),

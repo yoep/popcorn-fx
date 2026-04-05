@@ -105,7 +105,7 @@ impl LauncherOptions {
     /// An empty `Result` indicating success, or an `Err` value if an error occurred.
     pub fn write<P: AsRef<Path>>(&self, filepath: P) -> Result<()> {
         let value =
-            serde_yaml::to_string(self).map_err(|e| LauncherError::ParsingError(e.to_string()))?;
+            yaml_serde::to_string(self).map_err(|e| LauncherError::ParsingError(e.to_string()))?;
         let mut file = fs::OpenOptions::new()
             .create(true)
             .write(true)
@@ -164,16 +164,13 @@ impl Default for LauncherOptions {
 impl From<&str> for LauncherOptions {
     fn from(value: &str) -> Self {
         trace!("Parsing launcher options data {}", value);
-        let options: LauncherOptions = match serde_yaml::from_str(value) {
-            Ok(properties) => properties,
-            Err(err) => {
-                warn!(
-                    "Failed to parse launcher options, using defaults instead, {}",
-                    err
-                );
-                serde_yaml::from_str(String::new().as_str()).unwrap()
-            }
-        };
+        let options: LauncherOptions = yaml_serde::from_str(value).unwrap_or_else(|err| {
+            warn!(
+                "Failed to parse launcher options, using defaults instead, {}",
+                err
+            );
+            LauncherOptions::default()
+        });
 
         debug!("Parsed launcher options {:?}", &options);
         options

@@ -292,16 +292,15 @@ impl From<&str> for PopcornProperties {
     /// If the given string slice is invalid, the defaults will be returned.
     fn from(json_value: &str) -> Self {
         trace!("Parsing configuration properties data {}", json_value);
-        let data: PropertiesWrapper = match serde_yaml::from_str(json_value) {
-            Ok(properties) => properties,
-            Err(err) => {
-                warn!(
-                    "Failed to parse properties, using defaults instead, {}",
-                    err
-                );
-                serde_yaml::from_str(String::new().as_str()).unwrap()
+        let data: PropertiesWrapper = yaml_serde::from_str(json_value).unwrap_or_else(|err| {
+            warn!(
+                "Failed to parse properties, using defaults instead, {}",
+                err
+            );
+            PropertiesWrapper {
+                popcorn: Default::default(),
             }
-        };
+        });
 
         debug!("Parsed configuration properties data {:?}", &data);
         data.popcorn

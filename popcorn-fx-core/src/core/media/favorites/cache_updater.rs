@@ -174,11 +174,12 @@ impl InnerCacheUpdater {
         );
 
         debug!("Updating a total of {} favorite items", media_items.len());
-        futures::future::join_all(media_items.into_iter().map(|media| async {
+        let mut result = vec![];
+        for media in media_items {
             match self.providers.retrieve_details(&media).await {
                 Ok(e) => {
                     trace!("Retrieved updated media item {}", e);
-                    match e.media_type() {
+                    result.push(match e.media_type() {
                         MediaType::Movie => Box::new(MovieOverview::from(
                             &*e.into_any()
                                 .downcast::<MovieDetails>()
@@ -198,15 +199,15 @@ impl InnerCacheUpdater {
                             );
                             media
                         }
-                    }
+                    })
                 }
                 Err(e) => {
                     warn!("Failed to update media item {}, {}", media.imdb_id(), e);
-                    media
+                    result.push(media);
                 }
             }
-        }))
-        .await
+        }
+        result
     }
 }
 

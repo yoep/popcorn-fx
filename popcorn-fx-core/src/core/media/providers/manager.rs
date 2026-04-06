@@ -239,7 +239,6 @@ impl ProviderManagerBuilder {
 #[cfg(test)]
 mod test {
     use crate::core::cache::CacheManagerBuilder;
-    use crate::core::config::ApplicationConfig;
     use crate::core::media::providers::enhancers::MockEnhancer;
     use crate::core::media::providers::MockMediaDetailsProvider;
     use crate::core::media::providers::ShowProvider;
@@ -276,12 +275,12 @@ mod test {
         init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = ApplicationConfig::builder().storage(temp_path).build();
+        let settings = settings!(temp_path);
         let cache_manager = CacheManagerBuilder::default()
             .storage_path(temp_path)
             .build();
         let provider: Box<dyn MediaProvider> =
-            Box::new(ShowProvider::new(&settings, cache_manager, false).await);
+            Box::new(ShowProvider::new(settings, cache_manager, false).await);
         let manager = ProviderManagerBuilder::new()
             .with_provider(provider)
             .build();

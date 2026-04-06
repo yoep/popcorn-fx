@@ -38,17 +38,8 @@ pub struct MovieProvider {
 
 impl MovieProvider {
     /// Creates a new `MovieProvider` instance.
-    ///
-    /// # Arguments
-    ///
-    /// * `settings` - The application settings for configuring the provider.
-    /// * `insecure` - A flag indicating whether to allow insecure connections.
-    ///
-    /// # Returns
-    ///
-    /// A new `MovieProvider` instance.
     pub async fn new(
-        settings: &ApplicationConfig,
+        settings: ApplicationConfig,
         cache_manager: CacheManager,
         insecure: bool,
     ) -> Self {
@@ -63,7 +54,7 @@ impl MovieProvider {
         .await;
 
         Self {
-            base: Arc::new(Mutex::new(BaseProvider::new(uris, insecure))),
+            base: Arc::new(Mutex::new(BaseProvider::new(uris, settings, insecure))),
             cache_manager,
         }
     }
@@ -246,7 +237,7 @@ mod test {
         let cache_manager = CacheManagerBuilder::default()
             .storage_path(temp_path)
             .build();
-        let provider = MovieProvider::new(&settings, cache_manager, false).await;
+        let provider = MovieProvider::new(settings, cache_manager, false).await;
 
         // make the api fail and become disabled
         let _ = provider
@@ -273,7 +264,7 @@ mod test {
         let cache_manager = CacheManagerBuilder::default()
             .storage_path(temp_path)
             .build();
-        let provider = MovieProvider::new(&settings, cache_manager, false).await;
+        let provider = MovieProvider::new(settings, cache_manager, false).await;
         let expected_result = MovieOverview::new_detailed(
             "Lorem Ipsum".to_string(),
             "tt9764362".to_string(),
@@ -327,7 +318,7 @@ mod test {
         let cache_manager = CacheManagerBuilder::default()
             .storage_path(temp_path)
             .build();
-        let provider = MovieProvider::new(&settings, cache_manager, false).await;
+        let provider = MovieProvider::new(settings, cache_manager, false).await;
 
         let result = provider
             .retrieve_details(&imdb_id)

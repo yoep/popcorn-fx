@@ -631,7 +631,7 @@ mod test {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let result = ApplicationConfig::builder().storage(temp_path).build();
+        let result = settings!(temp_path);
         let expected_result = "https://api.opensubtitles.com/api/v1".to_string();
 
         assert_eq!(&expected_result, result.properties().subtitle().url())
@@ -644,7 +644,7 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         copy_test_file(temp_path, "settings.json", None);
         let (tx, mut rx) = unbounded_channel();
-        let application = ApplicationConfig::builder().storage(temp_path).build();
+        let application = settings!(temp_path);
         let expected_result = PopcornSettings {
             subtitle_settings: SubtitleSettings::new(
                 None,
@@ -682,7 +682,7 @@ mod test {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let application = ApplicationConfig::builder().storage(temp_path).build();
+        let application = settings!(temp_path);
         let expected_result = PopcornSettings::default();
 
         let result = application.user_settings().await;
@@ -698,7 +698,7 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         copy_test_file(temp_path, "settings.json", None); // copy the initial settings to the test dir
         let (tx, mut rx) = unbounded_channel();
-        let application = ApplicationConfig::builder().storage(temp_path).build();
+        let application = settings!(temp_path);
         application
             .inner
             .storage
@@ -747,7 +747,7 @@ mod test {
         let (tx, mut rx) = unbounded_channel();
         let (tx_loaded, mut rx_loaded) = unbounded_channel();
         copy_test_file(temp_path, "settings.json", None);
-        let application = ApplicationConfig::builder().storage(temp_path).build();
+        let application = settings!(temp_path);
         let expected_result = SubtitleSettings {
             directory: "my-directory".to_string(),
             auto_cleaning_enabled: false,
@@ -829,7 +829,7 @@ mod test {
             decoration: DecorationType::None,
             bold: false,
         };
-        let application = ApplicationConfig::builder().storage(temp_path).build();
+        let application = settings!(temp_path);
         let (tx, mut rx) = unbounded_channel();
 
         let mut reciever = application.subscribe();
@@ -868,7 +868,7 @@ mod test {
             download_rate_limit: 0,
             upload_rate_limit: 0,
         };
-        let application = ApplicationConfig::builder().storage(temp_path).build();
+        let application = settings!(temp_path);
         let (tx, mut rx) = unbounded_channel();
 
         let mut reciever = application.subscribe();
@@ -905,7 +905,7 @@ mod test {
             maximized: false,
             native_window_enabled: false,
         };
-        let application = ApplicationConfig::builder().storage(temp_path).build();
+        let application = settings!(temp_path);
         let (tx, mut rx) = unbounded_channel();
 
         let mut reciever = application.subscribe();
@@ -937,7 +937,7 @@ mod test {
             serie_api_servers: vec![],
             update_api_servers_automatically: false,
         };
-        let application = ApplicationConfig::builder().storage(temp_path).build();
+        let application = settings!(temp_path);
         let (tx, mut rx) = unbounded_channel();
 
         let mut reciever = application.subscribe();

@@ -34,7 +34,7 @@ use popcorn_fx_core::core::torrents::collection::TorrentCollection;
 use popcorn_fx_core::core::torrents::{FxTorrentManager, TorrentManager};
 use popcorn_fx_core::core::updater::Updater;
 use popcorn_fx_logging::FxLogger;
-use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
+use popcorn_fx_opensubtitles::OpensubtitlesProvider;
 use popcorn_fx_platform::DefaultPlatform;
 use popcorn_fx_players::chromecast::ChromecastDiscovery;
 use popcorn_fx_players::dlna::DlnaDiscovery;
@@ -561,10 +561,12 @@ impl PopcornFX {
         favorites: &Arc<dyn FavoriteService>,
         watched: &Arc<dyn WatchedService>,
     ) -> ProviderManager {
-        let movie_provider =
-            Box::new(MovieProvider::new(settings, cache_manager.clone(), args.insecure).await);
-        let show_provider =
-            Box::new(ShowProvider::new(settings, cache_manager.clone(), args.insecure).await);
+        let movie_provider = Box::new(
+            MovieProvider::new(settings.clone(), cache_manager.clone(), args.insecure).await,
+        );
+        let show_provider = Box::new(
+            ShowProvider::new(settings.clone(), cache_manager.clone(), args.insecure).await,
+        );
         let favorites_provider =
             Box::new(FavoritesProvider::new(favorites.clone(), watched.clone()));
         let thumb_enhancer = Box::new(ThumbEnhancer::new(

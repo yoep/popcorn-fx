@@ -1,8 +1,8 @@
 [Setup]
 AppId=Popcorn-Time
 AppName=Popcorn Time
-AppVersion=0.9.4
-AppVerName=Popcorn-Time 0.9.4
+AppVersion=0.9.5
+AppVerName=Popcorn-Time 0.9.5
 AppPublisher=Popcorn FX
 AppPublisherURL=https://github.com/yoep/popcorn-fx
 AppSupportURL=https://github.com/yoep/popcorn-fx
@@ -37,9 +37,9 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "../../target/package/popcorn-time.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "../../target/package/runtimes/*"; DestDir: "{app}\main\runtimes"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "../../target/package/popcorn-time.jar"; DestDir: "{app}\main\0.9.4"; Flags: ignoreversion
-Source: "../../target/package/libfx.exe"; DestDir: "{app}\main\0.9.4"; Flags: ignoreversion
-Source: "../../target/package/libfx.pdb"; DestDir: "{app}\main\0.9.4"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "../../target/package/popcorn-time.jar"; DestDir: "{app}\main\0.9.5"; Flags: ignoreversion
+Source: "../../target/package/libfx.exe"; DestDir: "{app}\main\0.9.5"; Flags: ignoreversion
+Source: "../../target/package/libfx.pdb"; DestDir: "{app}\main\0.9.5"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "popcorn-time.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [UninstallDelete]

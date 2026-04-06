@@ -47,6 +47,33 @@ macro_rules! init_logger {
     }};
 }
 
+/// Create an application config instance.
+macro_rules! settings {
+    ($temp_path:expr) => {{
+        settings!($temp_path, crate::core::config::UiSettings::default())
+    }};
+    ($temp_path:expr, $ui_settings:expr) => {{
+        use crate::core::config::ApplicationConfig;
+        use crate::core::config::PopcornSettings;
+        use crate::core::config::UiSettings;
+
+        let temp_path: &str = $temp_path;
+        let ui_settings: UiSettings = $ui_settings;
+
+        ApplicationConfig::builder()
+            .storage(temp_path)
+            .settings(PopcornSettings {
+                ui_settings,
+                subtitle_settings: Default::default(),
+                server_settings: Default::default(),
+                torrent_settings: Default::default(),
+                playback_settings: Default::default(),
+                tracking_settings: Default::default(),
+            })
+            .build()
+    }};
+}
+
 /// A macro wrapper for [`tokio::time::timeout`] that awaits a future with a timeout duration.
 macro_rules! timeout {
     ($future:expr, $duration:expr) => {{

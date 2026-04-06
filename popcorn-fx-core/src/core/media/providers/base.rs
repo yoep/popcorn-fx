@@ -1,4 +1,5 @@
 use crate::core::cache::{CacheOptions, CacheType};
+use crate::core::config::ApplicationConfig;
 use crate::core::media::{Genre, MediaError, SortBy};
 use chrono::Duration;
 use derive_more::Display;
@@ -8,6 +9,8 @@ use reqwest::{Client, Response, Url};
 use serde::de::DeserializeOwned;
 use tokio::time;
 
+const LOCALE_QUERY: &str = "locale";
+const CONTENT_LOCALE_QUERY: &str = "contentLocale";
 const SORT_QUERY: &str = "sort";
 const ORDER_QUERY: &str = "order";
 const GENRE_QUERY: &str = "genre";
@@ -35,27 +38,20 @@ const ORDER_QUERY_VALUE: &str = "-1";
 #[derive(Debug)]
 pub struct BaseProvider {
     client: Client,
+    settings: ApplicationConfig,
     uri_providers: Vec<UriProvider>,
 }
 
 impl BaseProvider {
     /// Create a new base provider.
-    ///
-    /// # Arguments
-    ///
-    /// * `uris` - The available host URIs to use for this provider.
-    /// * `insecure` - A flag indicating whether to accept invalid certificates.
-    ///
-    /// # Returns
-    ///
-    /// A new `BaseProvider` instance.
-    pub fn new(uris: Vec<String>, insecure: bool) -> Self {
+    pub fn new(uris: Vec<String>, settings: ApplicationConfig, insecure: bool) -> Self {
         Self {
             client: Client::builder()
                 .redirect(Policy::limited(3))
                 .danger_accept_invalid_certs(insecure)
                 .build()
                 .expect("Client should have been created"),
+            settings,
             uri_providers: uris.into_iter().map(UriProvider::new).collect(),
         }
     }
@@ -93,6 +89,7 @@ impl BaseProvider {
         T: DeserializeOwned,
     {
         let client = self.client.clone();
+        let settings = self.settings.clone();
         let available_providers: Vec<&mut UriProvider> = self.available_providers();
 
         if available_providers.is_empty() {
@@ -102,7 +99,17 @@ impl BaseProvider {
 
         for provider in available_providers {
             trace!("Using search provider {}", provider);
-            match Self::create_search_uri(provider.uri(), resource, genre, sort, keywords, page) {
+            match Self::create_search_uri(
+                &settings,
+                provider.uri(),
+                resource,
+                genre,
+                sort,
+                keywords,
+                page,
+            )
+            .await
+            {
                 None => {
                     debug!("Disabling invalid provider {}", provider);
                     provider.disable();
@@ -139,6 +146,7 @@ impl BaseProvider {
         T: DeserializeOwned,
     {
         let client = self.client.clone();
+        let settings = self.settings.clone();
         let available_providers: Vec<&mut UriProvider> = self.available_providers();
 
         if available_providers.is_empty() {
@@ -148,7 +156,7 @@ impl BaseProvider {
 
         for provider in available_providers {
             trace!("Using details provider {}", provider);
-            match Self::create_details_uri(provider.uri(), resource, id) {
+            match Self::create_details_uri(&settings, provider.uri(), resource, id).await {
                 None => {
                     debug!("Disabling invalid provider {}", provider);
                     provider.disable();
@@ -270,7 +278,8 @@ impl BaseProvider {
             .collect()
     }
 
-    fn create_search_uri(
+    async fn create_search_uri(
+        settings: &ApplicationConfig,
         host: &String,
         resource: &str,
         genre: &Genre,
@@ -278,12 +287,17 @@ impl BaseProvider {
         keywords: &str,
         page: u32,
     ) -> Option<Url> {
-        let mut query_params: Vec<(&str, &str)> = vec![];
-
-        query_params.push((ORDER_QUERY, ORDER_QUERY_VALUE));
-        query_params.push((GENRE_QUERY, genre.key()));
-        query_params.push((SORT_QUERY, sort.key()));
-        query_params.push((KEYWORDS_QUERY, keywords));
+        let locale = settings
+            .user_settings_ref(|e| e.ui_settings.default_language.clone())
+            .await;
+        let query_params: Vec<(&str, &str)> = vec![
+            (ORDER_QUERY, ORDER_QUERY_VALUE),
+            (GENRE_QUERY, genre.key()),
+            (SORT_QUERY, sort.key()),
+            (KEYWORDS_QUERY, keywords),
+            (LOCALE_QUERY, locale.as_str()),
+            (CONTENT_LOCALE_QUERY, "en"),
+        ];
 
         match Url::parse_with_params(host.as_str(), &query_params) {
             Ok(mut e) => {
@@ -308,8 +322,21 @@ impl BaseProvider {
         }
     }
 
-    fn create_details_uri(host: &String, resource: &str, id: &str) -> Option<Url> {
-        match Url::parse(host.as_str()) {
+    async fn create_details_uri(
+        settings: &ApplicationConfig,
+        host: &String,
+        resource: &str,
+        id: &str,
+    ) -> Option<Url> {
+        let locale = settings
+            .user_settings_ref(|e| e.ui_settings.default_language.clone())
+            .await;
+        let query_params: Vec<(&str, &str)> = vec![
+            (LOCALE_QUERY, locale.as_str()),
+            (CONTENT_LOCALE_QUERY, "en"),
+        ];
+
+        match Url::parse_with_params(host.as_str(), &query_params) {
             Ok(mut url) => {
                 url.path_segments_mut()
                     .expect("segments should be mutable")
@@ -380,39 +407,67 @@ impl UriProvider {
 
 #[cfg(test)]
 mod test {
+    use super::*;
+    use crate::core::media::Category;
     use httpmock::Method::GET;
     use httpmock::MockServer;
+    use tempfile::tempdir;
 
-    use super::*;
-
-    #[test]
-    fn test_create_search_uri() {
+    #[tokio::test]
+    async fn test_create_search_uri() {
         init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
         let host = "https://lorem.com/api/v1/".to_string();
         let resource = "movies";
         let genre = Genre::all();
         let sort_by = SortBy::new("trending".to_string(), String::new());
         let keywords = "pirates".to_string();
         let page = 2;
+        let settings = settings!(
+            temp_path,
+            UiSettings {
+                default_language: "fr".to_string(),
+                ui_scale: Default::default(),
+                start_screen: Category::Movies,
+                maximized: false,
+                native_window_enabled: false,
+            }
+        );
         let expected_result =
-            "https://lorem.com/api/v1/movies/2?order=-1&genre=all&sort=trending&keywords=pirates";
+            "https://lorem.com/api/v1/movies/2?order=-1&genre=all&sort=trending&keywords=pirates&locale=fr&contentLocale=en";
 
-        let result =
-            BaseProvider::create_search_uri(&host, resource, &genre, &sort_by, &keywords, page)
-                .expect("Expected the created url to be valid");
+        let result = BaseProvider::create_search_uri(
+            &settings, &host, resource, &genre, &sort_by, &keywords, page,
+        )
+        .await
+        .expect("Expected the created url to be valid");
 
         assert_eq!(expected_result, result.as_str())
     }
 
-    #[test]
-    fn test_create_details_uri() {
+    #[tokio::test]
+    async fn test_create_details_uri() {
         init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
         let host = "https://lorem.com/api/v1/".to_string();
         let resource = "movie";
         let id = "tt9764362".to_string();
-        let expected_result = "https://lorem.com/api/v1/movie/tt9764362";
+        let settings = settings!(
+            temp_path,
+            UiSettings {
+                default_language: "de".to_string(),
+                ui_scale: Default::default(),
+                start_screen: Category::Movies,
+                maximized: false,
+                native_window_enabled: false,
+            }
+        );
+        let expected_result = "https://lorem.com/api/v1/movie/tt9764362?locale=de&contentLocale=en";
 
-        let result = BaseProvider::create_details_uri(&host, resource, &id)
+        let result = BaseProvider::create_details_uri(&settings, &host, resource, &id)
+            .await
             .expect("Expected the created url to be valid");
 
         assert_eq!(expected_result, result.as_str())
@@ -421,6 +476,8 @@ mod test {
     #[tokio::test]
     async fn test_handle_failed_response() {
         init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
         let path = "/error";
         let status_code = 503;
         let server = MockServer::start();
@@ -429,7 +486,8 @@ mod test {
             then.status(status_code);
         });
         let url = Url::parse(server.url(path).as_str()).unwrap();
-        let provider = BaseProvider::new(vec![server.url("")], false);
+        let settings = settings!(temp_path);
+        let provider = BaseProvider::new(vec![server.url("")], settings, false);
 
         let response = provider.client.get(url.clone()).send().await.unwrap();
 

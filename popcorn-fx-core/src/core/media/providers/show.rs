@@ -36,18 +36,8 @@ pub struct ShowProvider {
 
 impl ShowProvider {
     /// Creates a new `ShowProvider` instance.
-    ///
-    /// # Arguments
-    ///
-    /// * `settings` - The application settings for configuring the provider.
-    /// * `cache_manager` - The cache manager for caching provider responses.
-    /// * `insecure` - A flag indicating whether to allow insecure connections.
-    ///
-    /// # Returns
-    ///
-    /// A new `ShowProvider` instance.
     pub async fn new(
-        settings: &ApplicationConfig,
+        settings: ApplicationConfig,
         cache_manager: CacheManager,
         insecure: bool,
     ) -> Self {
@@ -62,7 +52,7 @@ impl ShowProvider {
         .await;
 
         Self {
-            base: Arc::new(Mutex::new(BaseProvider::new(uris, insecure))),
+            base: Arc::new(Mutex::new(BaseProvider::new(uris, settings, insecure))),
             cache_manager,
         }
     }
@@ -234,7 +224,7 @@ mod test {
         let cache_manager = CacheManagerBuilder::default()
             .storage_path(temp_path)
             .build();
-        let provider = ShowProvider::new(&settings, cache_manager, false).await;
+        let provider = ShowProvider::new(settings, cache_manager, false).await;
 
         let result = provider
             .retrieve(&genre, &sort_by, &String::new(), 1)
@@ -260,7 +250,7 @@ mod test {
         let cache_manager = CacheManagerBuilder::default()
             .storage_path(temp_path)
             .build();
-        let provider = ShowProvider::new(&settings, cache_manager, false).await;
+        let provider = ShowProvider::new(settings, cache_manager, false).await;
 
         let result = provider
             .retrieve_details(&imdb_id)

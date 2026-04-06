@@ -1,25 +1,22 @@
-use std::collections::HashMap;
-use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
-use std::{fs, io};
-
+use crate::model::*;
 use async_trait::async_trait;
 use derive_more::Display;
 use futures::StreamExt;
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
-use reqwest::header::HeaderMap;
-use reqwest::{Client, ClientBuilder, Response, StatusCode, Url};
-use tokio::fs::OpenOptions;
-
 use popcorn_fx_core::core::config::ApplicationConfig;
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
 use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
 use popcorn_fx_core::core::subtitles::{Result, SubtitleError, SubtitleFile, SubtitleProvider};
-
-use crate::opensubtitles::model::*;
+use reqwest::header::HeaderMap;
+use reqwest::{Client, ClientBuilder, Response, StatusCode, Url};
+use std::collections::HashMap;
+use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
+use std::{fs, io};
+use tokio::fs::OpenOptions;
 
 const API_HEADER_KEY: &str = "Api-Key";
 const USER_AGENT_HEADER_KEY: &str = "User-Agent";
@@ -43,11 +40,11 @@ impl OpensubtitlesProvider {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```rust,no_run
     /// use std::sync::Arc;
     /// use tokio::sync::Mutex;
     /// use popcorn_fx_core::core::config::ApplicationConfig;
-    /// use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
+    /// use popcorn_fx_opensubtitles::OpensubtitlesProvider;
     ///
     /// let settings = ApplicationConfig::builder()
     ///     .storage("storage/path")
@@ -563,11 +560,11 @@ impl OpensubtitlesProviderBuilder {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```rust,no_run
     /// use std::sync::Arc;
     /// use tokio::sync::Mutex;
     /// use popcorn_fx_core::core::config::ApplicationConfig;
-    /// use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
+    /// use popcorn_fx_opensubtitles::OpensubtitlesProvider;
     ///
     /// let settings = ApplicationConfig::builder()
     ///     .storage("storage/path")
@@ -585,8 +582,8 @@ impl OpensubtitlesProviderBuilder {
     ///
     /// # Examples
     ///
-    /// ```no_run
-    /// use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
+    /// ```rust,no_run
+    /// use popcorn_fx_opensubtitles::OpensubtitlesProvider;
     ///
     /// let provider = OpensubtitlesProvider::builder()
     ///     .insecure(true)

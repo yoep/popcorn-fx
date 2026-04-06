@@ -1,7 +1,11 @@
 extern crate core;
 
+pub use model::*;
+pub use provider::*;
+
 #[cfg(test)]
 #[macro_use]
 mod test_macros;
 
-pub mod opensubtitles;
+mod model;
+mod provider;

@@ -172,7 +172,7 @@ mod tests {
         let mut data = LoadingData::from(item);
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = ApplicationConfig::builder().storage(temp_path).build();
+        let settings = settings!(temp_path);
         let torrent_manager = MockTorrentManager::new();
         let task = create_loading_task!();
         let context = task.context();
@@ -203,7 +203,7 @@ mod tests {
         data.torrent = Some(Box::new(torrent));
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = ApplicationConfig::builder().storage(temp_path).build();
+        let settings = settings!(temp_path);
         let (tx, mut rx) = unbounded_channel();
         let mut torrent_manager = MockTorrentManager::new();
         torrent_manager

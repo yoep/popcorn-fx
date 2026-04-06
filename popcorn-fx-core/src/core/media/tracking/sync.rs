@@ -313,7 +313,7 @@ mod tests {
         init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let config = ApplicationConfig::builder().storage(temp_path).build();
+        let config = settings!(temp_path);
         let callbacks = MultiThreadedCallback::new();
         let callback_receiver = callbacks.subscribe();
         let mut provider = MockTrackingProvider::new();
@@ -361,7 +361,7 @@ mod tests {
         init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let config = ApplicationConfig::builder().storage(temp_path).build();
+        let config = settings!(temp_path);
         let watched_service = MockWatchedService::new();
         let callbacks = MultiThreadedCallback::new();
         let callback_receiver = callbacks.subscribe();
@@ -387,7 +387,7 @@ mod tests {
         init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let config = ApplicationConfig::builder().storage(temp_path).build();
+        let config = settings!(temp_path);
         let callbacks = MultiThreadedCallback::new();
         let callback_receiver = callbacks.subscribe();
         let mut provider = MockTrackingProvider::new();
@@ -430,7 +430,7 @@ mod tests {
         init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let config = ApplicationConfig::builder().storage(temp_path).build();
+        let config = settings!(temp_path);
         let callbacks = MultiThreadedCallback::new();
         let callback_receiver = callbacks.subscribe();
         let mut provider = MockTrackingProvider::new();
@@ -473,7 +473,7 @@ mod tests {
         init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let config = ApplicationConfig::builder().storage(temp_path).build();
+        let config = settings!(temp_path);
         let callbacks = MultiThreadedCallback::<TrackingEvent>::new();
         let callback_receiver = callbacks.subscribe();
         let mut provider = MockTrackingProvider::new();

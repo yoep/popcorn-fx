@@ -2076,9 +2076,9 @@ checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
 
 [[package]]
 name = "mdns-sd"
-version = "0.18.2"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d797ab3274a16f4940f9650a29838e940223aeff31773df5c2827ad82150182f"
+checksum = "451927183d65d600e52b4e877a1251e051576f84fa01e5b4a50b450dfaaa537c"
 dependencies = [
  "fastrand",
  "flume",
@@ -2444,7 +2444,7 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 
 [[package]]
 name = "popcorn-fx"
-version = "0.9.4"
+version = "0.9.5"
 dependencies = [
  "async-trait",
  "byteorder",
@@ -2479,7 +2479,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-bootstrap"
-version = "0.9.4"
+version = "0.9.5"
 dependencies = [
  "directories",
  "log",
@@ -2496,7 +2496,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-core"
-version = "0.9.4"
+version = "0.9.5"
 dependencies = [
  "async-trait",
  "axum",
@@ -2535,7 +2535,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-logging"
-version = "0.9.4"
+version = "0.9.5"
 dependencies = [
  "log",
  "log4rs",
@@ -2545,7 +2545,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-opensubtitles"
-version = "0.9.4"
+version = "0.9.5"
 dependencies = [
  "async-trait",
  "derive_more 2.1.1",
@@ -2564,7 +2564,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-platform"
-version = "0.9.4"
+version = "0.9.5"
 dependencies = [
  "core-foundation 0.10.1",
  "futures",
@@ -2582,7 +2582,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-players"
-version = "0.9.4"
+version = "0.9.5"
 dependencies = [
  "async-trait",
  "chbs",
@@ -2621,7 +2621,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-trakt"
-version = "0.9.4"
+version = "0.9.5"
 dependencies = [
  "async-trait",
  "axum",

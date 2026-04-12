@@ -7,9 +7,9 @@ import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.backend.media.MovieDetails;
 import com.github.yoep.popcorn.backend.media.ShowDetails;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
-import com.github.yoep.popcorn.backend.subtitles.SubtitleHelper;
 import com.github.yoep.popcorn.backend.subtitles.ISubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.ISubtitleService;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleHelper;
 import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
 import com.github.yoep.popcorn.ui.view.controls.Overlay;
 import com.github.yoep.popcorn.ui.view.services.VideoQualityService;
@@ -36,7 +36,7 @@ public abstract class AbstractActionsComponent implements Initializable {
     protected final VideoQualityService videoQualityService;
     protected final PlaylistManager playlistManager;
 
-    private CompletableFuture<List<ISubtitleInfo>> subtitleFuture;
+    CompletableFuture<Void> subtitleFuture;
 
     @FXML
     Overlay qualityOverlay;
@@ -57,13 +57,11 @@ public abstract class AbstractActionsComponent implements Initializable {
             return event;
         });
 
-        subtitleService.getDefaultOrInterfaceLanguage(subtitles.getItems()).thenAccept(subtitle -> {
-            qualities.setOnItemActivated(newValue -> {
-                qualityOverlay.hide();
-                subtitleOverlay.show();
-                subtitles.setSelectedItem(subtitle, true);
-            });
-        });
+        subtitleService.getDefaultOrInterfaceLanguage(subtitles.getItems()).thenAccept(subtitle -> qualities.setOnItemActivated(newValue -> {
+            qualityOverlay.hide();
+            subtitleOverlay.show();
+            onDefaultSubtitleChanged(subtitle);
+        }));
 
         subtitles.setOnItemActivated(subtitle -> {
             subtitleOverlay.hide();
@@ -113,11 +111,33 @@ public abstract class AbstractActionsComponent implements Initializable {
         if (subtitleFuture != null)
             subtitleFuture.cancel(true);
 
-        subtitleService.defaultSubtitles().thenAccept(defaultSubtitles -> {
+        subtitleFuture = subtitleService.defaultSubtitles().thenAccept(defaultSubtitles -> {
             Platform.runLater(() -> subtitles.setItems(defaultSubtitles.toArray(new ISubtitleInfo[0])));
+            subtitleFuture = retrieveSubtitles()
+                    .thenAccept(this::onSubtitlesChanged)
+                    .exceptionally(throwable -> {
+                        log.warn("Failed to retrieve subtitles", throwable);
+                        return null;
+                    });
+        });
+    }
 
-            retrieveSubtitles().thenAccept(subtitles ->
-                    Platform.runLater(() -> this.subtitles.setItems(subtitles.toArray(new ISubtitleInfo[0]))));
+    private void onSubtitlesChanged(List<ISubtitleInfo> subtitles) {
+        Platform.runLater(() -> {
+            this.subtitles.setItems(subtitles.toArray(new ISubtitleInfo[0]));
+            subtitleFuture = subtitleService.getDefaultOrInterfaceLanguage(subtitles)
+                    .thenAccept(this::onDefaultSubtitleChanged)
+                    .exceptionally(throwable -> {
+                        log.warn("Failed to retrieve default subtitle", throwable);
+                        return null;
+                    });
+        });
+    }
+
+    private void onDefaultSubtitleChanged(ISubtitleInfo subtitle) {
+        Platform.runLater(() -> {
+            this.subtitles.requestFocus();
+            this.subtitles.setSelectedItem(subtitle, true);
         });
     }
 }

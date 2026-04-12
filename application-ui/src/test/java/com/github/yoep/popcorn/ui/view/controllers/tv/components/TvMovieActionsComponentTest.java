@@ -7,8 +7,8 @@ import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
 import com.github.yoep.popcorn.backend.media.MovieDetails;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.subtitles.ISubtitleInfo;
-import com.github.yoep.popcorn.backend.subtitles.SubtitleInfoWrapper;
 import com.github.yoep.popcorn.backend.subtitles.ISubtitleService;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleInfoWrapper;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
@@ -213,5 +213,44 @@ class TvMovieActionsComponentTest {
 
         verify(playlistManager).play(media, quality);
         verify(subtitleService).retrieveSubtitles(media);
+    }
+
+    @Test
+    void testOnShowMovieDetailsEvent_shouldSelectDefaultSubtitle() {
+        var movie = new MovieDetails(Media.MovieDetails.newBuilder()
+                .setImdbId("tt000001")
+                .setTitle("Test Movie")
+                .build());
+        List<ISubtitleInfo> subtitles = asList(
+                new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                        .setLanguage(Subtitle.Language.ENGLISH)
+                        .build()),
+                new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                        .setLanguage(Subtitle.Language.FRENCH)
+                        .build()));
+        when(subtitleService.defaultSubtitles()).thenReturn(CompletableFuture.completedFuture(asList(
+                new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                        .setLanguage(Subtitle.Language.NONE)
+                        .build()),
+                new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                        .setLanguage(Subtitle.Language.CUSTOM)
+                        .build())
+        )));
+        when(subtitleService.retrieveSubtitles(isA(MovieDetails.class))).thenReturn(CompletableFuture.completedFuture(subtitles));
+        when(subtitleService.getDefaultOrInterfaceLanguage(isA(List.class))).thenReturn(CompletableFuture.completedFuture(
+                new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                        .setLanguage(Subtitle.Language.ENGLISH)
+                        .build())));
+        when(detailsComponentService.isLiked(isA(MovieDetails.class))).thenReturn(CompletableFuture.completedFuture(false));
+        component.initialize(location, resources);
+
+        eventPublisher.publishEvent(new ShowMovieDetailsEvent(this, movie));
+        WaitForAsyncUtils.waitForFxEvents();
+
+        verify(subtitleService).defaultSubtitles();
+        verify(subtitleService).retrieveSubtitles(movie);
+        verify(subtitleService).getDefaultOrInterfaceLanguage(subtitles);
+        var result = component.subtitles.getSelectedItem();
+        assertEquals(Subtitle.Language.ENGLISH, result.getLanguage());
     }
 }

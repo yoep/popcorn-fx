@@ -44,7 +44,7 @@
         <commons-io.version>2.21.0</commons-io.version>
         <hamcrest.version>3.0</hamcrest.version>
         <jacoco.version>0.8.14</jacoco.version>
-        <javafx.version>22.0.1</javafx.version>
+        <javafx.version>26</javafx.version>
         <junit-jupiter.version>6.0.3</junit-jupiter.version>
         <log4j-to-slf4j.version>2.25.4</log4j-to-slf4j.version>
         <logback-classic.version>1.5.32</logback-classic.version>

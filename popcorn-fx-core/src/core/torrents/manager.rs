@@ -128,6 +128,7 @@ impl FxTorrentManager {
             )
             .dht(dht)
             .local_service_discovery(lsd)
+            .default_extensions()
             .build()
             .map(|e| Box::new(e))
             .map_err(|e| Error::TorrentError(e.to_string()))?;

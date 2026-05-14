@@ -46,7 +46,7 @@ httpmock.workspace = true
 log4rs = { workspace = true, features = ["console_writer"] }
 mockall.workspace = true
 protobuf.workspace = true
-rcgen = "0.14.7"
+rcgen = "0.14.8"
 rust_cast = { version = "0.21.0", features = ["thread_safe", "cast"] }
 socket2 = "0.6.3"
 tempfile.workspace = true

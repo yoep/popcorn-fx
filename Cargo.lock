@@ -2485,7 +2485,7 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 
 [[package]]
 name = "popcorn-fx"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "async-trait",
  "byteorder",
@@ -2520,7 +2520,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-bootstrap"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "directories",
  "log",
@@ -2537,7 +2537,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-core"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "async-trait",
  "axum",
@@ -2576,7 +2576,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-logging"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "log",
  "log4rs",
@@ -2586,7 +2586,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-opensubtitles"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "async-trait",
  "derive_more 2.1.1",
@@ -2605,7 +2605,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-platform"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "core-foundation 0.10.1",
  "futures",
@@ -2623,7 +2623,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-players"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "async-trait",
  "chbs",
@@ -2662,7 +2662,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-trakt"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "async-trait",
  "axum",
@@ -2981,9 +2981,9 @@ checksum = "63b8176103e19a2643978565ca18b50549f6101881c443590420e4dc998a3c69"
 
 [[package]]
 name = "rcgen"
-version = "0.14.7"
+version = "0.14.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10b99e0098aa4082912d4c649628623db6aba77335e4f4569ff5083a6448b32e"
+checksum = "57f6d249aad744e274e682777a50283a225a32705394ee6d5fcc01efa25e4055"
 dependencies = [
  "pem",
  "ring",
@@ -4957,10 +4957,11 @@ dependencies = [
 
 [[package]]
 name = "yasna"
-version = "0.5.2"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e17bb3549cc1321ae1296b9cdc2698e2b6cb1992adfa19a8c72e5b7a738f44cd"
+checksum = "b5f6765e852b9b4dc8e2a76843e4d64d1cea8e79bcde0b6901aea8e7c7f08282"
 dependencies = [
+ "bit-vec",
  "time",
 ]
 

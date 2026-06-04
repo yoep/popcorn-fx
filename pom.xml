@@ -47,7 +47,7 @@
         <javafx.version>22.0.1</javafx.version>
         <junit-jupiter.version>6.1.0</junit-jupiter.version>
         <log4j-to-slf4j.version>2.25.4</log4j-to-slf4j.version>
-        <logback-classic.version>1.5.32</logback-classic.version>
+        <logback-classic.version>1.5.34</logback-classic.version>
         <lombok.version>1.18.46</lombok.version>
         <mockito.version>5.23.0</mockito.version>
         <slf4j-api.version>2.0.18</slf4j-api.version>

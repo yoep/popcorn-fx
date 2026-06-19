@@ -48,7 +48,7 @@ mockall.workspace = true
 protobuf.workspace = true
 rcgen = "0.14.8"
 rust_cast = { version = "0.21.0", features = ["thread_safe", "cast"] }
-socket2 = "0.6.3"
+socket2 = "0.6.4"
 tempfile.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tokio-rustls.workspace = true

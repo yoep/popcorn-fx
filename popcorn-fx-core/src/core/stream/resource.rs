@@ -148,3 +148,58 @@ impl From<TorrentStream> for FxStream {
         Self::Torrent(value)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::stream::FileStreamingResource;
+    use crate::testing::copy_test_file;
+    use std::path::PathBuf;
+    use tempfile::tempdir;
+
+    mod fx_stream {
+        use super::*;
+
+        #[tokio::test]
+        async fn test_from_file_stream() {
+            init_logger!();
+            let temp_dir = tempdir().unwrap();
+            let temp_path = temp_dir.path().to_str().unwrap();
+            let filepath = PathBuf::from(copy_test_file(temp_path, "large-[123].txt", None));
+            let resource = FileStreamingResource::new(filepath).unwrap();
+            let file = resource.stream().await.unwrap();
+
+            let stream: FxStream = file.into();
+
+            assert_eq!(5871, stream.resource_len());
+        }
+
+        #[tokio::test]
+        async fn test_range() {
+            init_logger!();
+            let temp_dir = tempdir().unwrap();
+            let temp_path = temp_dir.path().to_str().unwrap();
+            let filepath = PathBuf::from(copy_test_file(temp_path, "large-[123].txt", None));
+            let resource = FileStreamingResource::new(filepath).unwrap();
+            let file = resource.stream().await.unwrap();
+            let stream: FxStream = file.into();
+
+            let result = stream.range();
+            assert_eq!(0..5871, result, "expected the stream range to match");
+        }
+
+        #[tokio::test]
+        async fn test_stream_range() {
+            init_logger!();
+            let temp_dir = tempdir().unwrap();
+            let temp_path = temp_dir.path().to_str().unwrap();
+            let filepath = PathBuf::from(copy_test_file(temp_path, "large-[123].txt", None));
+            let resource = FileStreamingResource::new(filepath).unwrap();
+            let file = resource.stream_range(0, Some(1024)).await.unwrap();
+            let stream: FxStream = file.into();
+
+            let result = stream.range();
+            assert_eq!(0..1024, result, "expected the stream range to match");
+        }
+    }
+}

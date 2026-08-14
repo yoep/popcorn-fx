@@ -26,12 +26,12 @@ pub mod tests {
         #[async_trait]
         impl StreamingResource for StreamingResource {
             fn filename(&self) -> &str;
-            async fn stream(&self) -> Result<Box<dyn Stream>>;
+            async fn stream(&self) -> Result<FxStream>;
             async fn stream_range(
                 &self,
                 start: u64,
                 end: Option<u64>,
-            ) -> Result<Box<dyn Stream>>;
+            ) -> Result<FxStream>;
             async fn state(&self) -> StreamState;
             async fn stop(&self);
         }
@@ -42,9 +42,9 @@ pub mod tests {
     }
 
     /// Reads the stream resource as a string.
-    pub async fn read_stream(stream: Box<dyn Stream>) -> String {
+    pub async fn read_stream(stream: FxStream) -> String {
         let mut result: Vec<u8> = vec![];
-        let mut stream = Box::into_pin(stream);
+        let mut stream = Box::pin(stream);
 
         while let Ok(Some(data)) = stream.try_next().await {
             result.append(&mut data.to_vec());

@@ -1,6 +1,6 @@
 use crate::core::stream;
 use crate::core::stream::{
-    Error, Stream, StreamBytesResult, StreamEvent, StreamRange, StreamState, StreamingResource,
+    Error, FxStream, StreamBytesResult, StreamEvent, StreamRange, StreamState, StreamingResource,
 };
 use async_trait::async_trait;
 use derive_more::Display;
@@ -30,7 +30,7 @@ impl FileStreamingResource {
         let filename = filepath
             .file_name()
             .map(|e| e.to_string_lossy().to_string())
-            .ok_or(stream::Error::Io(io::Error::new(
+            .ok_or(Error::Io(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 "filepath is invalid",
             )))?;
@@ -52,14 +52,14 @@ impl StreamingResource for FileStreamingResource {
         self.inner.filename.as_str()
     }
 
-    async fn stream(&self) -> stream::Result<Box<dyn Stream>> {
+    async fn stream(&self) -> stream::Result<FxStream> {
         self.stream_range(0, None).await
     }
 
-    async fn stream_range(&self, start: u64, end: Option<u64>) -> stream::Result<Box<dyn Stream>> {
+    async fn stream_range(&self, start: u64, end: Option<u64>) -> stream::Result<FxStream> {
         self.inner.assert_state().await?;
         let stream = FileStream::new(&self.inner.filepath, start, end)?;
-        Ok(Box::new(stream))
+        Ok(stream.into())
     }
 
     async fn state(&self) -> StreamState {
@@ -124,7 +124,7 @@ impl FileStream {
     fn new<P: AsRef<Path>>(filepath: P, start: u64, end: Option<u64>) -> stream::Result<Self> {
         let filepath = filepath.as_ref();
         let file = OpenOptions::new().read(true).open(filepath)?;
-        let resource_length = Self::resource_len(&file).ok_or(Error::Io(io::Error::new(
+        let resource_length = Self::resolve_resource_len(&file).ok_or(Error::Io(io::Error::new(
             io::ErrorKind::Unsupported,
             "failed to get file length",
         )))? as u64;
@@ -138,6 +138,32 @@ impl FileStream {
             stream_range: stream_start..stream_end,
             cursor: 0,
         })
+    }
+
+    /// Returns the range of bytes that will be streamed from the resource.
+    pub fn range(&self) -> StreamRange {
+        self.stream_range.clone()
+    }
+
+    /// Returns the total number of bytes in the resource.
+    ///
+    /// This is different from the total number of bytes that will be returned by the stream.
+    /// The stream length is determined by the [Stream::range].
+    pub fn resource_len(&self) -> u64 {
+        self.resource_length
+    }
+
+    /// The HTTP content range that will be provided by this stream.
+    pub fn content_range(&self) -> String {
+        let range = format!(
+            "bytes {}-{}/{}",
+            self.stream_range.start,
+            self.stream_range.end.saturating_sub(1),
+            self.resource_len()
+        );
+
+        trace!("File stream {} has content range {{{}}}", self, &range);
+        range
     }
 
     /// Returns the next buffer range for the stream.
@@ -169,30 +195,8 @@ impl FileStream {
     }
 
     /// Returns the length of the resource, if known.
-    fn resource_len(file: &File) -> Option<usize> {
+    fn resolve_resource_len(file: &File) -> Option<usize> {
         file.metadata().map(|e| e.len() as usize).ok()
-    }
-}
-
-impl Stream for FileStream {
-    fn range(&self) -> StreamRange {
-        self.stream_range.clone()
-    }
-
-    fn resource_len(&self) -> u64 {
-        self.resource_length
-    }
-
-    fn content_range(&self) -> String {
-        let range = format!(
-            "bytes {}-{}/{}",
-            self.stream_range.start,
-            self.stream_range.end.saturating_sub(1),
-            self.resource_len()
-        );
-
-        trace!("File stream {} has content range {{{}}}", self, &range);
-        range
     }
 }
 
@@ -213,7 +217,7 @@ impl futures::Stream for FileStream {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (0, Self::resource_len(&self.file))
+        (0, Self::resolve_resource_len(&self.file))
     }
 }
 

@@ -153,7 +153,7 @@ impl From<TorrentStream> for FxStream {
 mod tests {
     use super::*;
     use crate::core::stream::FileStreamingResource;
-    use crate::testing::copy_test_file;
+    use crate::testing::{copy_test_file, read_test_file_to_bytes};
     use std::path::PathBuf;
     use tempfile::tempdir;
 
@@ -171,7 +171,8 @@ mod tests {
 
             let stream: FxStream = file.into();
 
-            assert_eq!(5871, stream.resource_len());
+            let expected_len = test_file_len("large-[123].txt");
+            assert_eq!(expected_len as u64, stream.resource_len());
         }
 
         #[tokio::test]
@@ -184,8 +185,13 @@ mod tests {
             let file = resource.stream().await.unwrap();
             let stream: FxStream = file.into();
 
+            let expected_len = test_file_len("large-[123].txt");
             let result = stream.range();
-            assert_eq!(0..5871, result, "expected the stream range to match");
+            assert_eq!(
+                0..expected_len,
+                result,
+                "expected the stream range to match"
+            );
         }
 
         #[tokio::test]
@@ -201,5 +207,10 @@ mod tests {
             let result = stream.range();
             assert_eq!(0..1024, result, "expected the stream range to match");
         }
+    }
+
+    fn test_file_len(filename: &str) -> usize {
+        let bytes = read_test_file_to_bytes(filename);
+        bytes.len()
     }
 }

@@ -9,9 +9,8 @@ use downcast_rs::{impl_downcast, DowncastSync};
 use fx_callback::{Callback, MultiThreadedCallback, Subscription};
 use fx_torrent::dht::DhtTracker;
 use fx_torrent::{
-    FileIndex, FilePriority, FxTorrentSession, LocalServiceDiscovery, Magnet, Session,
-    SessionConfig, SessionEvent, TorrentEvent, TorrentFiles, TorrentFlags, TorrentHealth,
-    TorrentState,
+    FileIndex, FilePriority, FxSession, LocalServiceDiscovery, Magnet, SessionConfig, SessionEvent,
+    TorrentEvent, TorrentFiles, TorrentFlags, TorrentHealth, TorrentState,
 };
 use log::{debug, error, info, log_enabled, trace, warn, Level};
 #[cfg(any(test, feature = "testing"))]
@@ -119,7 +118,7 @@ impl FxTorrentManager {
         let lsd = LocalServiceDiscovery::new(Ipv4Addr::LOCALHOST.into())
             .await
             .map_err(|e| Error::TorrentError(e.to_string()))?;
-        let session = FxTorrentSession::builder()
+        let session = FxSession::builder()
             .config(
                 SessionConfig::builder()
                     .client_name("PopcornFX")
@@ -130,7 +129,6 @@ impl FxTorrentManager {
             .local_service_discovery(lsd)
             .default_extensions()
             .build()
-            .map(|e| Box::new(e))
             .map_err(|e| Error::TorrentError(e.to_string()))?;
         let inner = Arc::new(InnerTorrentManager {
             settings,
@@ -205,7 +203,7 @@ struct InnerTorrentManager {
     /// The settings of the application
     settings: ApplicationConfig,
     /// The underlying torrent sessions of the application
-    session: Box<dyn Session>,
+    session: FxSession,
     /// The torrent files being downloaded,
     torrent_files: RwLock<HashMap<TorrentHandle, String>>,
     /// The files older than this duration will be cleaned

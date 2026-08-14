@@ -1,9 +1,15 @@
-use crate::core::stream::Result;
+use crate::core::stream::{Error, FileStream, Result};
+use crate::core::torrents::TorrentStream;
 use async_trait::async_trait;
 use derive_more::Display;
+use futures::{Stream, StreamExt};
 use fx_callback::Callback;
 use fx_handle::Handle;
+use fx_torrent::TorrentError;
 use std::fmt::Debug;
+use std::io;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
 /// The unique identifier handle of a stream.
 pub type StreamHandle = Handle;
@@ -64,11 +70,11 @@ pub trait StreamingResource: Debug + Callback<StreamEvent> + Send + Sync {
 
     /// Try to create a new stream for this streaming resource.
     /// It returns a new [Stream] resource if available, else the error.
-    async fn stream(&self) -> Result<Box<dyn Stream>>;
+    async fn stream(&self) -> Result<FxStream>;
 
     /// Try to create a new stream for this streaming resource for the specified byte range.
     /// It returns a new [Stream] resource if available, else the error.
-    async fn stream_range(&self, start: u64, end: Option<u64>) -> Result<Box<dyn Stream>>;
+    async fn stream_range(&self, start: u64, end: Option<u64>) -> Result<FxStream>;
 
     /// Returns the state of the streaming resource.
     async fn state(&self) -> StreamState;
@@ -81,18 +87,64 @@ pub trait StreamingResource: Debug + Callback<StreamEvent> + Send + Sync {
 /// The range of bytes that will be streamed from the resource.
 pub type StreamRange = std::ops::Range<usize>;
 
-/// The stream created by a [StreamingResource].
-/// It extends the [futures::Stream] trait to provide additional information about the stream.
-pub trait Stream: Debug + futures::Stream<Item = StreamBytesResult> + Send {
+/// A stream of media bytes.
+#[derive(Debug)]
+pub enum FxStream {
+    File(FileStream),
+    Torrent(TorrentStream),
+}
+
+impl FxStream {
     /// Returns the range of bytes that will be streamed from the resource.
-    fn range(&self) -> StreamRange;
+    pub fn range(&self) -> StreamRange {
+        match self {
+            FxStream::File(file) => file.range(),
+            FxStream::Torrent(torrent) => torrent.range(),
+        }
+    }
 
     /// Returns the total number of bytes in the resource.
     ///
     /// This is different from the total number of bytes that will be returned by the stream.
     /// The stream length is determined by the [Stream::range].
-    fn resource_len(&self) -> u64;
+    pub fn resource_len(&self) -> u64 {
+        match self {
+            FxStream::File(file) => file.resource_len(),
+            FxStream::Torrent(torrent) => torrent.len() as u64,
+        }
+    }
 
     /// The HTTP content range that will be provided by this stream.
-    fn content_range(&self) -> String;
+    pub fn content_range(&self) -> String {
+        match self {
+            FxStream::File(file) => file.content_range(),
+            FxStream::Torrent(torrent) => torrent.content_range(),
+        }
+    }
+}
+
+impl Stream for FxStream {
+    type Item = StreamBytesResult;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        match self.get_mut() {
+            FxStream::File(file) => file.poll_next_unpin(cx),
+            FxStream::Torrent(torrent) => torrent.poll_next_unpin(cx).map_err(|e| match e {
+                TorrentError::Io(e) => Error::Io(e),
+                _ => Error::Io(io::Error::new(io::ErrorKind::Other, e)),
+            }),
+        }
+    }
+}
+
+impl From<FileStream> for FxStream {
+    fn from(value: FileStream) -> Self {
+        Self::File(value)
+    }
+}
+
+impl From<TorrentStream> for FxStream {
+    fn from(value: TorrentStream) -> Self {
+        Self::Torrent(value)
+    }
 }

@@ -9,7 +9,7 @@ use std::fmt::Debug;
 use std::path::PathBuf;
 
 use fx_torrent;
-use fx_torrent::{Metrics, PiecePriority, TorrentFlags};
+use fx_torrent::{FileStream, Metrics, PiecePriority, TorrentFlags};
 pub use fx_torrent::{PieceIndex, TorrentEvent, TorrentState};
 
 #[cfg(any(test, feature = "testing"))]
@@ -24,9 +24,6 @@ pub type TorrentHandle = Handle;
 pub trait Torrent: Debug + DowncastSync + Callback<TorrentEvent> + Send + Sync {
     /// Get the unique identifier handle of the torrent.
     fn handle(&self) -> TorrentHandle;
-
-    /// Get the absolute filesystem path to a given file in the torrent.
-    async fn absolute_file_path(&self, file: &fx_torrent::File) -> PathBuf;
 
     /// Get the files of the torrent.
     /// It might return an empty array if the metadata is unknown.
@@ -47,35 +44,19 @@ pub trait Torrent: Debug + DowncastSync + Callback<TorrentEvent> + Send + Sync {
     /// It returns [None] if the metadata is currently unknown of the torrent.
     async fn largest_file(&self) -> Option<fx_torrent::File>;
 
-    /// Check if the given bytes are available within the torrent.
-    /// This will check if the underlying pieces that contain the given byte range are downloaded, validated and written to storage.
-    ///
-    /// # Arguments
-    ///
-    /// * `bytes` - The byte range to check.
-    ///
-    /// # Returns
-    ///
-    /// Returns true when all bytes are downloaded, validated and written to storage, else false.
-    async fn has_bytes(&self, bytes: &std::ops::Range<usize>) -> bool;
+    /// Stream the given file from the torrent. It returns an error if the file stream couldn't be started.
+    async fn stream(&self, file: &fx_torrent::File) -> fx_torrent::Result<FileStream>;
 
     /// Check if the given piece is downloaded, validated and written to storage.
     ///
     /// It returns true when the piece is present, else false.
     async fn has_piece(&self, piece: PieceIndex) -> bool;
 
-    /// Prioritize the given bytes to be downloaded.
-    async fn prioritize_bytes(&self, bytes: &std::ops::Range<usize>);
-
     /// Prioritize the given piece indexes.
     async fn prioritize_pieces(&self, pieces: &[PieceIndex]);
 
     /// Returns the piece priorities of the torrent.
     async fn piece_priorities(&self) -> BTreeMap<PieceIndex, PiecePriority>;
-
-    /// Get the total number of pieces in the torrent.
-    /// It might return [None] when the metadata is still being retrieved.
-    async fn total_pieces(&self) -> usize;
 
     /// Update the download mode of the torrent to sequential.
     async fn sequential_mode(&self);
@@ -93,10 +74,6 @@ impl_downcast!(sync Torrent);
 impl Torrent for fx_torrent::Torrent {
     fn handle(&self) -> TorrentHandle {
         self.handle()
-    }
-
-    async fn absolute_file_path(&self, file: &fx_torrent::File) -> PathBuf {
-        self.absolute_file_path(file).await.unwrap_or_default()
     }
 
     async fn files(&self) -> Vec<fx_torrent::File> {
@@ -127,16 +104,12 @@ impl Torrent for fx_torrent::Torrent {
         result
     }
 
-    async fn has_bytes(&self, bytes: &std::ops::Range<usize>) -> bool {
-        self.has_bytes(bytes).await
+    async fn stream(&self, file: &fx_torrent::File) -> fx_torrent::Result<FileStream> {
+        self.stream(file).await
     }
 
     async fn has_piece(&self, piece: usize) -> bool {
         self.has_piece(&(piece as PieceIndex)).await
-    }
-
-    async fn prioritize_bytes(&self, bytes: &std::ops::Range<usize>) {
-        self.prioritize_bytes(bytes, PiecePriority::Now).await
     }
 
     async fn prioritize_pieces(&self, pieces: &[PieceIndex]) {
@@ -150,10 +123,6 @@ impl Torrent for fx_torrent::Torrent {
 
     async fn piece_priorities(&self) -> BTreeMap<PieceIndex, PiecePriority> {
         self.piece_priorities().await
-    }
-
-    async fn total_pieces(&self) -> usize {
-        self.total_pieces().await
     }
 
     async fn sequential_mode(&self) {
@@ -293,7 +262,6 @@ mod mock {
     use fx_callback::Subscription;
     use mockall::mock;
     use std::fmt::{Display, Formatter};
-    use std::ops::Range;
 
     mock! {
         #[derive(Debug, Clone)]
@@ -302,16 +270,13 @@ mod mock {
         #[async_trait]
         impl Torrent for Torrent {
             fn handle(&self) -> TorrentHandle;
-            async fn absolute_file_path(&self, file: &fx_torrent::File) -> PathBuf;
             async fn files(&self) -> Vec<fx_torrent::File>;
             async fn file_by_name(&self, name: &str) -> Option<fx_torrent::File>;
             async fn largest_file(&self) -> Option<fx_torrent::File>;
-            async fn has_bytes(&self, bytes: &Range<usize>) -> bool;
+            async fn stream(&self, file: &fx_torrent::File) -> fx_torrent::Result<FileStream>;
             async fn has_piece(&self, piece: usize) -> bool;
-            async fn prioritize_bytes(&self, bytes: &Range<usize>);
             async fn prioritize_pieces(&self, pieces: &[PieceIndex]);
             async fn piece_priorities(&self) -> BTreeMap<PieceIndex, PiecePriority>;
-            async fn total_pieces(&self) -> usize;
             async fn sequential_mode(&self);
             async fn state(&self) -> TorrentState;
             fn stats(&self) -> &Metrics;

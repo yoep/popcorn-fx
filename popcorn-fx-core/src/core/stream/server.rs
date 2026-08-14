@@ -258,7 +258,7 @@ impl InnerStreamServer {
                             .header(CONTENT_LENGTH, stream.range().len())
                             .header(CONNECTION, CONNECTION_TYPE)
                             .header(CONTENT_TYPE, media_type)
-                            .body(Body::from_stream(Box::into_pin(stream)))
+                            .body(Body::from_stream(Box::pin(stream)))
                             .unwrap_or_else(Self::handle_internal_error)
                     }
                     Err(e) => {

@@ -31,7 +31,7 @@ jobs:
           sudo apt install libdbus-1-dev pkg-config
           xvfb-run make package
       - name: Archive artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-package
           path: |
@@ -60,7 +60,7 @@ jobs:
       - name: Package
         run: make package
       - name: Archive artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-x64-package
           path: |
@@ -89,7 +89,7 @@ jobs:
       - name: Package
         run: make package
       - name: Archive artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-arm64-package
           path: |
@@ -120,7 +120,7 @@ jobs:
       - name: Package
         run: make package
       - name: Archive artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-package
           path: |

@@ -1566,7 +1566,7 @@
 
 .root .show-details-section .show-details .axis .button .icon {
     -fx-font-size: 1.2em;
-    -fx-text-fill: text-secondary;
+    -fx-text-fill: -text-secondary;
     -fx-padding: 10 5 10 5;
 }
 

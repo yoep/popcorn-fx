@@ -54,7 +54,7 @@
         <testfx.version>4.0.18</testfx.version>
         <vlcj-javafx.version>1.2.0</vlcj-javafx.version>
         <!-- vlcj 4.10+ breaks with vlcj-javafx 1.2, awaiting https://github.com/caprica/vlcj-javafx/issues/11 -->
-        <vlcj.version>4.9.0</vlcj.version>
+        <vlcj.version>4.12.1</vlcj.version>
     </properties>
 
     <dependencyManagement>

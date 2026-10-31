@@ -1294,9 +1294,9 @@ dependencies = [
 
 [[package]]
 name = "fx-torrent"
-version = "0.10.2"
+version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cade31203a1be1e8e554407dacf211aded8182e9ee76825f2ab55f9c339cafa3"
+checksum = "ca750f264825c7ce92e3da1ad20dd49789f5cd3ed2eaf8bb71259d3b0ce0fa76"
 dependencies = [
  "async-trait",
  "axum",

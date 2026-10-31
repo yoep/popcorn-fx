@@ -89,8 +89,11 @@ impl DefaultPlatform {
         let metadata = MediaMetadata {
             title: Some(&info.title),
             artist: info.subtitle.as_ref().map(|e| e.as_str()),
-            // FIXME: panicked at souvlaki-0.8.2/src/platform/macos/mod.rs:319:24: null pointer dereference occurred
-            // cover_url: info.thumb.as_ref().filter(|e| !e.is_empty()).map(|e| e.as_ref()),
+            cover_url: info
+                .thumb
+                .as_ref()
+                .filter(|e| !e.is_empty())
+                .map(|e| e.as_ref()),
             ..Default::default()
         };
 

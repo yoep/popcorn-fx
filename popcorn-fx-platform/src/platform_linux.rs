@@ -1,99 +1,162 @@
 use log::{debug, error, info, trace, warn};
-
 use popcorn_fx_core::core::platform;
 use popcorn_fx_core::core::platform::PlatformError;
+use std::sync::Mutex;
 use x11rb::connection::RequestConnection;
-use x11rb::protocol::dpms::{ConnectionExt as DpmsConnectionExt, DPMSMode};
-use x11rb::protocol::xproto::{Blanking, ConnectionExt as ScreensaverConnectionExt, Exposures};
+use x11rb::protocol::dpms::{self, ConnectionExt as DpmsConnectionExt};
+use x11rb::protocol::xproto::{Blanking, ConnectionExt as XprotoConnectionExt, Exposures};
 use x11rb::rust_connection::{ConnectionError, RustConnection};
 
 use crate::platform::SystemPlatform;
+
+/// The X11 power settings which were active before the screensaver was disabled.
+#[derive(Debug, Clone, Copy)]
+struct SavedState {
+    timeout: i16,
+    interval: i16,
+    prefer_blanking: Blanking,
+    allow_exposures: Exposures,
+    /// Indicates if DPMS was enabled, `None` if the extension isn't available.
+    dpms_enabled: Option<bool>,
+}
 
 /// The linux platform specific implementation
 #[derive(Debug)]
 pub struct PlatformLinux {
     /// The X11 server connection
     conn: Option<RustConnection>,
+    /// The settings to restore when the screensaver is enabled again, `Some` while disabled.
+    saved: Mutex<Option<SavedState>>,
 }
 
 impl PlatformLinux {
-    fn update_dpms_state(&self, mode: DPMSMode) -> platform::Result<()> {
-        let conn = self.conn.as_ref().unwrap();
-        if let None = conn
-            .extension_information(x11rb::protocol::dpms::X11_EXTENSION_NAME)
-            .unwrap()
-        {
-            return Err(PlatformError::Screensaver(
-                "DPMS extension not found, unable to prevent sleeping mode".to_string(),
-            ));
-        }
-
-        trace!("Sending DPMS force level to X11 server");
-        conn.dpms_force_level(mode)
-            .map_err(|e| PlatformError::Screensaver(e.to_string()))
-            .map(|cookie| {
-                cookie
-                    .check()
-                    .map(|_| {
-                        debug!("X11 DPMS mode activated");
-                        Ok(())
-                    })
-                    .map_err(|e| PlatformError::Screensaver(e.to_string()))?
-            })?
+    fn has_dpms(conn: &RustConnection) -> bool {
+        matches!(
+            conn.extension_information(dpms::X11_EXTENSION_NAME),
+            Ok(Some(_))
+        )
     }
 
-    fn disable_x11_screensaver(&self) -> platform::Result<()> {
-        let conn = self.conn.as_ref().unwrap();
+    fn err<E: ToString>(e: E) -> PlatformError {
+        PlatformError::Screensaver(e.to_string())
+    }
 
-        trace!("Sending screensaver attributes to X11");
-        conn.set_screen_saver(i16::MAX, 0, Blanking::NOT_PREFERRED, Exposures::NOT_ALLOWED)
-            .map_err(|e| PlatformError::Screensaver(format!("X11 connection error, {}", e)))
-            .map(|cookie| {
-                cookie
-                    .check()
-                    .map(|_| {
-                        debug!("Screensaver has been disabled");
-                        Ok(())
-                    })
-                    .map_err(|e| PlatformError::Screensaver(e.to_string()))?
-            })?
+    fn apply_disable(conn: &RustConnection) -> platform::Result<SavedState> {
+        let current = conn
+            .get_screen_saver()
+            .map_err(Self::err)?
+            .reply()
+            .map_err(Self::err)?;
+
+        let dpms_enabled = if Self::has_dpms(conn) {
+            let info = conn
+                .dpms_info()
+                .map_err(Self::err)?
+                .reply()
+                .map_err(Self::err)?;
+            Some(info.state)
+        } else {
+            warn!("DPMS extension not found, only the X11 screensaver will be disabled");
+            None
+        };
+
+        let saved = SavedState {
+            timeout: current.timeout as i16,
+            interval: current.interval as i16,
+            prefer_blanking: current.prefer_blanking,
+            allow_exposures: current.allow_exposures,
+            dpms_enabled,
+        };
+
+        trace!("Disabling the X11 screensaver timeout");
+        conn.set_screen_saver(0, 0, Blanking::NOT_PREFERRED, Exposures::NOT_ALLOWED)
+            .map_err(Self::err)?
+            .check()
+            .map_err(Self::err)?;
+
+        if dpms_enabled == Some(true) {
+            trace!("Disabling X11 DPMS");
+            conn.dpms_disable()
+                .map_err(Self::err)?
+                .check()
+                .map_err(Self::err)?;
+        }
+
+        Ok(saved)
+    }
+
+    fn apply_restore(conn: &RustConnection, saved: &SavedState) -> platform::Result<()> {
+        conn.set_screen_saver(
+            saved.timeout,
+            saved.interval,
+            saved.prefer_blanking,
+            saved.allow_exposures,
+        )
+        .map_err(Self::err)?
+        .check()
+        .map_err(Self::err)?;
+
+        if saved.dpms_enabled == Some(true) {
+            conn.dpms_enable()
+                .map_err(Self::err)?
+                .check()
+                .map_err(Self::err)?;
+        }
+
+        Ok(())
     }
 }
 
 impl SystemPlatform for PlatformLinux {
     fn disable_screensaver(&self) -> bool {
-        if self.conn.is_none() {
+        let Some(conn) = self.conn.as_ref() else {
             warn!("Unable to disable_screensaver, no X11 connection could be established");
             return false;
-        }
-
-        match self.update_dpms_state(DPMSMode::ON) {
-            Ok(_) => match self.disable_x11_screensaver() {
-                Ok(_) => {
-                    info!("X11 screensaver mode deactivated");
-                    return true;
-                }
-                Err(e) => error!("Screensaver failed, {}", e),
-            },
-            Err(e) => error!("Power management failed, {}", e),
-        }
-
-        false
-    }
-
-    fn enable_screensaver(&self) -> bool {
-        if self.conn.is_none() {
-            warn!("Unable to enable_screensaver, no X11 connection could be established");
+        };
+        let Ok(mut guard) = self.saved.lock() else {
+            error!("Failed to acquire the screensaver lock");
             return false;
+        };
+        if guard.is_some() {
+            trace!("Screensaver is already disabled");
+            return true;
         }
 
-        match self.update_dpms_state(DPMSMode::OFF) {
-            Ok(_) => {
-                debug!("Power management has been enabled");
+        match Self::apply_disable(conn) {
+            Ok(saved) => {
+                *guard = Some(saved);
+                info!("X11 screensaver and power management have been disabled");
                 true
             }
             Err(e) => {
-                error!("Failed to enabled power management, {}", e);
+                error!("Failed to disable the screensaver, {}", e);
+                false
+            }
+        }
+    }
+
+    fn enable_screensaver(&self) -> bool {
+        let Some(conn) = self.conn.as_ref() else {
+            warn!("Unable to enable_screensaver, no X11 connection could be established");
+            return false;
+        };
+        let Ok(mut guard) = self.saved.lock() else {
+            error!("Failed to acquire the screensaver lock");
+            return false;
+        };
+        let Some(saved) = *guard else {
+            debug!("Screensaver not disabled, nothing to restore");
+            return true;
+        };
+
+        match Self::apply_restore(conn, &saved) {
+            Ok(_) => {
+                *guard = None;
+                info!("X11 screensaver and power management have been restored");
+                true
+            }
+            Err(e) => {
+                error!("Failed to restore the screensaver, {}", e);
                 false
             }
         }
@@ -117,7 +180,10 @@ impl Default for PlatformLinux {
             })
             .unwrap();
 
-        Self { conn }
+        Self {
+            conn,
+            saved: Default::default(),
+        }
     }
 }
 

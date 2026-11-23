@@ -302,10 +302,10 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     private void selectUnwatchedSeason() {
         var seasons = this.seasons.getItems();
         showHelperService.getUnwatchedSeason(seasons, media)
-                .thenAccept(season -> {
-                    Platform.runLater(() -> this.seasons.setSelectedItem(season));
-                    selectUnwatchedEpisode(season);
-                })
+                .thenAccept(season -> season.ifPresentOrElse(e -> {
+                    Platform.runLater(() -> this.seasons.setSelectedItem(e));
+                    selectUnwatchedEpisode(e);
+                }, () -> log.warn("Failed to select unwatched season, no seasons available")))
                 .exceptionally(throwable -> {
                     log.error("Failed to load unwatched season", throwable);
                     return null;

@@ -66,7 +66,7 @@ public class ShowHelperService {
      * @param media   The media of the seasons.
      * @return Returns the unwatched season or last season if all seasons have been watched.
      */
-    public CompletableFuture<Season> getUnwatchedSeason(List<Season> seasons, ShowDetails media) {
+    public CompletableFuture<Optional<Season>> getUnwatchedSeason(List<Season> seasons, ShowDetails media) {
         Objects.requireNonNull(seasons, "seasons cannot be null");
         Objects.requireNonNull(media, "media cannot be null");
         var sortedSeasons = seasons.stream().sorted().toList();
@@ -79,7 +79,7 @@ public class ShowHelperService {
                         .filter(e -> !e.isWatched)
                         .findFirst()
                         .map(EnhancedSeason::season)
-                        .orElse(sortedSeasons.getLast()));
+                        .or(() -> seasons.isEmpty() ? Optional.empty() : Optional.of(sortedSeasons.getLast())));
     }
 
     /**

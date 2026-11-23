@@ -15,6 +15,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Collections;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static java.util.Arrays.asList;
@@ -151,7 +152,7 @@ class ShowHelperServiceTest {
 
             var result = ShowHelperService.getUnwatchedSeason(seasons, media).resultNow();
 
-            assertEquals(season2, result);
+            assertEquals(Optional.of(season2), result);
         }
 
         @Test
@@ -177,7 +178,7 @@ class ShowHelperServiceTest {
 
             var result = ShowHelperService.getUnwatchedSeason(seasons, media).resultNow();
 
-            assertEquals(season2, result);
+            assertEquals(Optional.of(season2), result);
         }
     }
 }

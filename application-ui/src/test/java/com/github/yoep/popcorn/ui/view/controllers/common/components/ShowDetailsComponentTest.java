@@ -14,6 +14,7 @@ import com.github.yoep.popcorn.ui.events.MediaQualityChangedEvent;
 import com.github.yoep.popcorn.ui.view.ViewLoader;
 import com.github.yoep.popcorn.ui.view.controls.*;
 import com.github.yoep.popcorn.ui.view.services.*;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.ColumnConstraints;
@@ -30,10 +31,7 @@ import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.ResourceBundle;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 import static java.util.Arrays.asList;
@@ -77,6 +75,8 @@ class ShowDetailsComponentTest {
         component.seasons = new AxisItemSelection<>();
         component.episodes = new AxisItemSelection<>();
         component.episodeDetails = new GridPane();
+        component.noEpisodes = new GridPane();
+        component.btnBack = new Button();
         component.showDetails = new GridPane();
         component.showDetails.getColumnConstraints().add(0, new ColumnConstraints());
         component.title = new Label("title");
@@ -119,8 +119,8 @@ class ShowDetailsComponentTest {
                         .setSeason(3)
                         .setEpisode(1)
                         .build())));
-        when(showHelperService.getUnwatchedSeason(isA(List.class), eq(media))).thenReturn(CompletableFuture.completedFuture(new Season(1, "1")));
-        when(showHelperService.getUnwatchedEpisode(isA(List.class), isA(Season.class))).thenReturn(CompletableFuture.completedFuture(media.getEpisodes().getFirst()));
+        when(showHelperService.getUnwatchedSeason(isA(List.class), eq(media))).thenReturn(CompletableFuture.completedFuture(Optional.of(new Season(1, "1"))));
+        when(showHelperService.getUnwatchedEpisode(isA(List.class), isA(Season.class))).thenReturn(CompletableFuture.completedFuture(Optional.of(media.getEpisodes().getFirst())));
         when(service.isWatched(isA(Media.class))).thenReturn(CompletableFuture.completedFuture(false));
         component.initialize(url, resourceBundle);
 

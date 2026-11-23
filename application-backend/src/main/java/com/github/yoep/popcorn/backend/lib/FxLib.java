@@ -6,15 +6,20 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 import static java.util.Arrays.asList;
 
 @Slf4j
 public class FxLib implements Closeable {
+    static final int ACCEPT_TIMEOUT_MILLIS = 10_000;
+    static final int PROCESS_TIMEOUT_SECONDS = 10;
+
     InputStream reader;
     OutputStream writer;
     Process process;
@@ -25,7 +30,7 @@ public class FxLib implements Closeable {
         try {
             createSocket(args);
         } catch (Exception ex) {
-            throw new FxLibException(String.format("FX Library failed to initialize, " + ex.getMessage()), ex);
+            throw new FxLibException(String.format("FX Library failed to initialize, %s", ex.getMessage()), ex);
         }
     }
 
@@ -39,9 +44,7 @@ public class FxLib implements Closeable {
         socket.close();
         serverSocket.close();
 
-        if (process != null && process.isAlive()) {
-            process.destroy();
-        }
+        this.stopProcess();
     }
 
     /**
@@ -112,6 +115,8 @@ public class FxLib implements Closeable {
 
             process = launchLibProcess(String.valueOf(port), libraryExecutable, args);
 
+            // fail when the library doesn't connect within the timeout
+            serverSocket.setSoTimeout(ACCEPT_TIMEOUT_MILLIS);
             var socket = serverSocket.accept();
 
             reader = new BufferedInputStream(socket.getInputStream());
@@ -119,8 +124,35 @@ public class FxLib implements Closeable {
 
             this.socket = socket;
             this.serverSocket = serverSocket;
+        } catch (SocketTimeoutException ex) {
+            this.stopProcess();
+            throw new FxLibException(String.format("IPC process \"%s\" did not connect within %d seconds", libraryExecutable, ACCEPT_TIMEOUT_MILLIS / 1000), ex);
         } catch (IOException ex) {
             throw new FxLibException(String.format("IPC process \"%s\" failed to start, %s", libraryExecutable, ex.getMessage()), ex);
+        }
+    }
+
+    /**
+     * Stops the underlying process, if it's still running.
+     * The process is asked to terminate gracefully first and is forcibly killed when it doesn't exit within the timeout.
+     */
+    private void stopProcess() {
+        if (process == null) {
+            return;
+        }
+
+        // gracefully shutdown the underlying process
+        process.destroy();
+
+        try {
+            if (!process.waitFor(PROCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                log.warn("IPC process didn't stop within {} seconds, forcing termination", PROCESS_TIMEOUT_SECONDS);
+                process.destroyForcibly();
+            }
+        } catch (InterruptedException ex) {
+            // restore the interrupt flag and make sure the process doesn't outlive us
+            Thread.currentThread().interrupt();
+            process.destroyForcibly();
         }
     }
 

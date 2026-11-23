@@ -26,16 +26,21 @@ module application.ui {
     exports com.github.yoep.popcorn.ui;
     exports com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-    opens com.github.yoep.popcorn.ui.torrent.controls to javafx.fxml;
-    opens com.github.yoep.popcorn.ui.view.controllers to javafx.fxml;
-    opens com.github.yoep.popcorn.ui.view.controllers.common.components to javafx.fxml;
-    opens com.github.yoep.popcorn.ui.view.controllers.common.sections to javafx.fxml;
-    opens com.github.yoep.popcorn.ui.view.controllers.desktop.components to javafx.fxml;
-    opens com.github.yoep.popcorn.ui.view.controllers.desktop.sections to javafx.fxml;
-    opens com.github.yoep.popcorn.ui.view.controllers.tv.components to javafx.fxml;
-    opens com.github.yoep.popcorn.ui.view.controls to javafx.fxml;
-    opens fonts to javafx.fxml;
-    opens images.flags to javafx.fxml;
+    opens com.github.yoep.popcorn.ui to org.junit.platform.commons;
+    opens com.github.yoep.popcorn.ui.font to org.junit.platform.commons;
+    opens com.github.yoep.popcorn.ui.torrent.controls to javafx.fxml, org.junit.platform.commons;
+    opens com.github.yoep.popcorn.ui.tracking to org.junit.platform.commons;
+    opens com.github.yoep.popcorn.ui.utils to org.junit.platform.commons;
+    opens com.github.yoep.popcorn.ui.view.controllers to javafx.fxml, org.junit.platform.commons;
+    opens com.github.yoep.popcorn.ui.view.controllers.common.components to javafx.fxml, org.junit.platform.commons;
+    opens com.github.yoep.popcorn.ui.view.controllers.common.sections to javafx.fxml, org.junit.platform.commons;
+    opens com.github.yoep.popcorn.ui.view.controllers.desktop.components to javafx.fxml, org.junit.platform.commons;
+    opens com.github.yoep.popcorn.ui.view.controllers.desktop.sections to javafx.fxml, org.junit.platform.commons;
+    opens com.github.yoep.popcorn.ui.view.controllers.tv.components to javafx.fxml, org.junit.platform.commons;
+    opens com.github.yoep.popcorn.ui.view.controls to javafx.fxml, org.junit.platform.commons;
+    opens com.github.yoep.popcorn.ui.view.services to org.junit.platform.commons;
+    opens fonts to javafx.fxml, org.junit.platform.commons;
+    opens images.flags to javafx.fxml, org.junit.platform.commons;
 
     opens images.icons;
     opens images.windows;

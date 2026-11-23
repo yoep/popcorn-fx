@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.backend.media.Season;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.subtitles.ISubtitleService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
+import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import com.github.yoep.popcorn.ui.events.MediaQualityChangedEvent;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
@@ -22,10 +23,13 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
@@ -37,7 +41,6 @@ import java.util.concurrent.CompletableFuture;
 import static java.util.Arrays.asList;
 
 @Slf4j
-
 public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDetails> {
     static final String POSTER_COMPONENT_FXML = "components/poster.component.fxml";
     static final String SERIE_ACTIONS_COMPONENT_FXML = "components/serie-actions.component.fxml";
@@ -70,6 +73,10 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     AxisItemSelection<Season> seasons;
     @FXML
     AxisItemSelection<Episode> episodes;
+    @FXML
+    Pane noEpisodes;
+    @FXML
+    Button btnBack;
     @FXML
     Overlay episodeDetailsOverlay;
     @FXML
@@ -247,6 +254,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     }
 
     private void loadSeasons() {
+        episodes.setItems();
         seasons.setItems(showHelperService.getSeasons(media).stream()
                 .filter(e -> !showHelperService.getSeasonEpisodes(e, media).isEmpty())
                 .toArray(Season[]::new));
@@ -302,10 +310,21 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     private void selectUnwatchedSeason() {
         var seasons = this.seasons.getItems();
         showHelperService.getUnwatchedSeason(seasons, media)
-                .thenAccept(season -> season.ifPresentOrElse(e -> {
-                    Platform.runLater(() -> this.seasons.setSelectedItem(e));
-                    selectUnwatchedEpisode(e);
-                }, () -> log.warn("Failed to select unwatched season, no seasons available")))
+                .thenAccept(season -> {
+                    Platform.runLater(() -> {
+                        episodes.setVisible(season.isPresent());
+                        noEpisodes.setVisible(season.isEmpty());
+
+                        if (season.isEmpty()) {
+                            btnBack.requestFocus();
+                        }
+                    });
+
+                    season.ifPresentOrElse(e -> {
+                        Platform.runLater(() -> this.seasons.setSelectedItem(e));
+                        selectUnwatchedEpisode(e);
+                    }, () -> log.warn("Failed to select unwatched season, no seasons available"));
+                })
                 .exceptionally(throwable -> {
                     log.error("Failed to load unwatched season", throwable);
                     return null;
@@ -390,6 +409,20 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     void onFavoriteClicked(MouseEvent event) {
         event.consume();
         service.toggleLikedState(media);
+    }
+
+    @FXML
+    void onBackClicked(MouseEvent event) {
+        event.consume();
+        eventPublisher.publish(new CloseDetailsEvent(this));
+    }
+
+    @FXML
+    void onBackPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            eventPublisher.publish(new CloseDetailsEvent(this));
+        }
     }
 
     //endregion

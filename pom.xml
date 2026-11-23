@@ -294,6 +294,7 @@
                     <argLine>
                         @{argLine}
                         -javaagent:${org.mockito:mockito-core:jar}
+                        --add-reads application.ui=org.junit.jupiter.api
                         --add-opens javafx.graphics/com.sun.javafx.application=ALL-UNNAMED
                         --add-opens javafx.base/com.sun.javafx.beans=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.adapters.player.listeners=ALL-UNNAMED

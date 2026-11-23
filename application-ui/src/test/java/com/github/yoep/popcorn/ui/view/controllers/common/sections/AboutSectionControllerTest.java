@@ -93,6 +93,7 @@ class AboutSectionControllerTest {
         when(updateService.getState()).thenReturn(CompletableFuture.completedFuture(Update.State.NO_UPDATE_AVAILABLE));
 
         controller.initialize(url, resourceBundle);
+        WaitForAsyncUtils.waitForFxEvents();
 
         assertEquals(VERSION_VALUE, controller.versionLabel.getText());
     }

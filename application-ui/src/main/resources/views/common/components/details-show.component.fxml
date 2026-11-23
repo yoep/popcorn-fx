@@ -10,7 +10,8 @@
 
     <!-- Background -->
     <BackgroundImageCover fx:id="backgroundImage"
-                          AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.bottomAnchor="0"/>
+                          AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0"
+                          AnchorPane.bottomAnchor="0"/>
 
     <GridPane fx:id="showDetails" styleClass="show-details"
               AnchorPane.topAnchor="25" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0">
@@ -70,6 +71,22 @@
         <!-- Episodes -->
         <AxisItemSelection fx:id="episodes" shortKeysEnabled="false" orientation="VERTICAL"
                            GridPane.columnIndex="0" GridPane.columnSpan="3" GridPane.rowIndex="6"/>
+        <GridPane fx:id="noEpisodes"
+                  GridPane.columnIndex="0" GridPane.columnSpan="3" GridPane.rowIndex="6">
+            <columnConstraints>
+                <ColumnConstraints hgrow="ALWAYS" halignment="CENTER"/>
+            </columnConstraints>
+            <rowConstraints>
+                <RowConstraints/>
+                <RowConstraints/>
+            </rowConstraints>
+
+            <Label styleClass="title" text="%details_episodes_placeholder"
+                   GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+            <Button fx:id="btnBack" text="%action_back" onMouseClicked="#onBackClicked"
+                    onKeyPressed="#onBackPressed"
+                    GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+        </GridPane>
     </GridPane>
 
     <Overlay fx:id="episodeDetailsOverlay" attachTo="showDetailsSection">

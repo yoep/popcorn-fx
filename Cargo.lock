@@ -2394,7 +2394,7 @@ checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 
 [[package]]
 name = "popcorn-fx"
-version = "0.9.6"
+version = "0.10.0"
 dependencies = [
  "async-trait",
  "byteorder",
@@ -2429,7 +2429,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-bootstrap"
-version = "0.9.6"
+version = "0.10.0"
 dependencies = [
  "directories",
  "log",
@@ -2446,7 +2446,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-core"
-version = "0.9.6"
+version = "0.10.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -2485,7 +2485,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-logging"
-version = "0.9.6"
+version = "0.10.0"
 dependencies = [
  "log",
  "log4rs",
@@ -2495,7 +2495,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-opensubtitles"
-version = "0.9.6"
+version = "0.10.0"
 dependencies = [
  "async-trait",
  "derive_more 2.1.1",
@@ -2514,7 +2514,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-platform"
-version = "0.9.6"
+version = "0.10.0"
 dependencies = [
  "core-foundation 0.10.1",
  "futures",
@@ -2532,7 +2532,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-players"
-version = "0.9.6"
+version = "0.10.0"
 dependencies = [
  "async-trait",
  "chbs",
@@ -2571,7 +2571,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-trakt"
-version = "0.9.6"
+version = "0.10.0"
 dependencies = [
  "async-trait",
  "axum",

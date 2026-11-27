@@ -9,6 +9,7 @@ import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
 import com.github.yoep.popcorn.ui.view.controls.Overlay;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -62,6 +63,8 @@ class TvSettingsSubtitlesComponentTest {
         component.fontSize = new Button();
         component.fontSizes = new AxisItemSelection<>();
         component.fontSizeOverlay = spy(new Overlay());
+        component.fontBold = new CheckBox();
+        component.clearCache = new CheckBox();
     }
 
     @Test

@@ -295,6 +295,7 @@ public class PopcornTimeApplication extends Application {
         IOC.register(TvMovieActionsComponent.class);
         IOC.register(TvSerieActionsComponent.class);
         IOC.register(TvSerieEpisodeActionsComponent.class);
+        IOC.register(TvSettingsPlaybackComponent.class);
         IOC.register(TvSettingsServerComponent.class);
         IOC.register(TvSettingsSubtitlesComponent.class);
         IOC.register(TvSettingsTorrentComponent.class);

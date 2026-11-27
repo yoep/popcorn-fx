@@ -2,24 +2,30 @@
 
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.*?>
+<?import com.github.yoep.popcorn.ui.view.controls.ManageableScrollPane?>
 <AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
             fx:controller="com.github.yoep.popcorn.ui.view.controllers.common.sections.SettingsSectionController"
-            fx:id="settings" styleClass="settings-section" onKeyPressed="#onSettingsPressed" onMousePressed="#onSettingsPressed">
-    <VBox styleClass="settings-section" AnchorPane.topAnchor="45" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="128">
+            fx:id="settings" styleClass="settings-section" onKeyPressed="#onSettingsPressed"
+            onMousePressed="#onSettingsPressed">
+    <VBox AnchorPane.topAnchor="45" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="128">
         <!-- Title -->
         <Label styleClass="settings-title" text="%settings"/>
 
-        <VBox>
-            <fx:include source="../components/settings-ui.component.fxml"/>
+        <ManageableScrollPane fitToWidth="true" fitToHeight="true" hbarPolicy="NEVER" shortKeysEnabled="false">
+            <VBox styleClass="settings-section">
+                <fx:include source="../components/settings-ui.component.fxml"/>
 
-            <fx:include source="../components/settings-subtitles.component.fxml"/>
+                <fx:include source="../components/settings-playback.component.fxml"/>
 
-            <fx:include source="../components/settings-torrent.component.fxml"/>
+                <fx:include source="../components/settings-subtitles.component.fxml"/>
 
-            <fx:include source="../components/settings-server.component.fxml"/>
+                <fx:include source="../components/settings-torrent.component.fxml"/>
 
-            <!-- Actions -->
-            <fx:include source="../../common/components/settings-actions.component.fxml"/>
-        </VBox>
+                <fx:include source="../components/settings-server.component.fxml"/>
+
+                <!-- Actions -->
+                <fx:include source="../../common/components/settings-actions.component.fxml"/>
+            </VBox>
+        </ManageableScrollPane>
     </VBox>
 </AnchorPane>

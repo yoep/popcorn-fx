@@ -18,7 +18,7 @@ popcorn-fx-logging = { path = "../popcorn-fx-logging" }
 
 directories.workspace = true
 log.workspace = true
-signal-hook = { version = "0.4.4" }
+signal-hook = { version = "0.4.6" }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 

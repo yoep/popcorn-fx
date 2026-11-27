@@ -1,5 +1,5 @@
 /// The current application version of Popcorn FX.
-pub const VERSION: &str = "0.9.6";
+pub const VERSION: &str = "0.10.0";
 
 #[cfg(test)]
 #[macro_use]

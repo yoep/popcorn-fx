@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.ui.events.CloseSettingsEvent;
+import javafx.scene.control.CheckBox;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
@@ -15,6 +16,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
@@ -46,6 +49,19 @@ class SettingsSectionControllerTest {
         controller.settings.getOnKeyPressed().handle(backspaceEvent);
         verify(backspaceEvent).consume();
         verify(eventPublisher).publishEvent(new CloseSettingsEvent(controller));
+    }
+
+    @Test
+    void testOnSettingsPressed_whenEnterIsPressedOnCheckBox_shouldToggleTheCheckBox() {
+        var checkBox = new CheckBox();
+        var event = new KeyEvent(checkBox, checkBox, KeyEvent.KEY_PRESSED, "", "", KeyCode.ENTER, false, false, false, false);
+
+        controller.settings.getOnKeyPressed().handle(event);
+        assertTrue(checkBox.isSelected());
+
+        controller.settings.getOnKeyPressed().handle(event);
+        assertFalse(checkBox.isSelected());
+        verify(eventPublisher, never()).publishEvent(any(CloseSettingsEvent.class));
     }
 
     @Test

@@ -14,6 +14,7 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
@@ -47,6 +48,16 @@ public class TvSettingsSubtitlesComponent extends AbstractSettingsComponent impl
     AxisItemSelection<Integer> fontSizes;
     @FXML
     Overlay fontSizeOverlay;
+    @FXML
+    CheckBox fontBold;
+    @FXML
+    CheckBox clearCache;
+
+    /**
+     * The last known subtitle settings, used as the base for saving so that
+     * settings which aren't editable in this view (e.g. the cache directory) are preserved.
+     */
+    private volatile ApplicationSettings.SubtitleSettings currentSettings = ApplicationSettings.SubtitleSettings.getDefaultInstance();
 
     public TvSettingsSubtitlesComponent(EventPublisher eventPublisher, LocaleText localeText, ApplicationConfig applicationConfig) {
         super(eventPublisher, localeText, applicationConfig);
@@ -91,6 +102,8 @@ public class TvSettingsSubtitlesComponent extends AbstractSettingsComponent impl
             onDecorationTypeChanged(newValue);
             onSave();
         });
+        fontBold.selectedProperty().addListener((observable, oldValue, newValue) -> onSave());
+        clearCache.selectedProperty().addListener((observable, oldValue, newValue) -> onSave());
     }
 
     private void initializeSubtitles() {
@@ -115,6 +128,10 @@ public class TvSettingsSubtitlesComponent extends AbstractSettingsComponent impl
     }
 
     private void onSettingsLoaded(ApplicationSettings.SubtitleSettings settings) {
+        currentSettings = settings;
+        fontBold.setSelected(settings.getBold());
+        clearCache.setSelected(settings.getAutoCleaningEnabled());
+
         subtitles.setSelectedItem(settings.getDefaultSubtitle(), true);
         onDefaultSubtitleLanguageChanged(settings.getDefaultSubtitle());
 
@@ -129,12 +146,15 @@ public class TvSettingsSubtitlesComponent extends AbstractSettingsComponent impl
     }
 
     private void onSave() {
-        applicationConfig.update(ApplicationSettings.SubtitleSettings.newBuilder()
+        currentSettings = ApplicationSettings.SubtitleSettings.newBuilder(currentSettings)
                 .setDefaultSubtitle(subtitles.getSelectedItem())
                 .setFontFamily(fontFamilies.getSelectedItem())
                 .setFontSize(fontSizes.getSelectedItem())
                 .setDecoration(decorations.getSelectedItem())
-                .build());
+                .setBold(fontBold.isSelected())
+                .setAutoCleaningEnabled(clearCache.isSelected())
+                .build();
+        applicationConfig.update(currentSettings);
         showNotification();
     }
 

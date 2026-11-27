@@ -2,6 +2,7 @@
 
 <?import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection?>
 <?import com.github.yoep.popcorn.ui.view.controls.Overlay?>
+<?import com.github.yoep.popcorn.ui.view.controls.VirtualKeyboard?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.Separator?>
@@ -17,17 +18,99 @@
     <rowConstraints>
         <RowConstraints/>
         <RowConstraints/>
+        <RowConstraints/>
+        <RowConstraints/>
+        <RowConstraints/>
     </rowConstraints>
 
     <Label styleClass="subsection-title" text="%settings_torrent" GridPane.valignment="TOP"
            GridPane.rowSpan="5" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
 
-    <Label styleClass="subsection-label" text="%settings_torrent_cleaning_mode"
+    <Label styleClass="subsection-label" text="%settings_torrent_download_limit"
            GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-    <Button fx:id="cacheCleanup"
+    <Button fx:id="downloadLimitBtn"
             GridPane.columnIndex="2" GridPane.rowIndex="0"/>
 
-    <Separator GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+    <Label styleClass="subsection-label" text="%settings_torrent_upload_limit"
+           GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+    <Button fx:id="uploadLimitBtn"
+            GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+
+    <Label styleClass="subsection-label" text="%settings_torrent_connection_limit"
+           GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+    <Button fx:id="connectionLimitBtn"
+            GridPane.columnIndex="2" GridPane.rowIndex="2"/>
+
+    <Label styleClass="subsection-label" text="%settings_torrent_cleaning_mode"
+           GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+    <Button fx:id="cacheCleanup"
+            GridPane.columnIndex="2" GridPane.rowIndex="3"/>
+
+    <Separator GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
+
+    <Overlay fx:id="downloadLimitOverlay" for="$downloadLimitBtn" attachTo="settings">
+        <GridPane>
+            <columnConstraints>
+                <ColumnConstraints minWidth="100" percentWidth="10"/>
+                <ColumnConstraints maxWidth="700"/>
+                <ColumnConstraints minWidth="100" percentWidth="10"/>
+            </columnConstraints>
+            <rowConstraints>
+                <RowConstraints/>
+                <RowConstraints/>
+                <RowConstraints/>
+            </rowConstraints>
+
+            <Label text="%settings_torrent_download_limit" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+            <Label fx:id="downloadLimitTxt" styleClass="virtual-keyboard-value"
+                   GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+            <VirtualKeyboard fx:id="downloadLimitInput" minWidth="0"
+                             enableSpecialKeys="true" enableCloseKey="true" onClose="#onCloseInputOverlay"
+                             GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+        </GridPane>
+    </Overlay>
+    <Overlay fx:id="uploadLimitOverlay" for="$uploadLimitBtn" attachTo="settings">
+        <GridPane>
+            <columnConstraints>
+                <ColumnConstraints minWidth="100" percentWidth="10"/>
+                <ColumnConstraints maxWidth="700"/>
+                <ColumnConstraints minWidth="100" percentWidth="10"/>
+            </columnConstraints>
+            <rowConstraints>
+                <RowConstraints/>
+                <RowConstraints/>
+                <RowConstraints/>
+            </rowConstraints>
+
+            <Label text="%settings_torrent_upload_limit" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+            <Label fx:id="uploadLimitTxt" styleClass="virtual-keyboard-value"
+                   GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+            <VirtualKeyboard fx:id="uploadLimitInput" minWidth="0"
+                             enableSpecialKeys="true" enableCloseKey="true" onClose="#onCloseInputOverlay"
+                             GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+        </GridPane>
+    </Overlay>
+    <Overlay fx:id="connectionLimitOverlay" for="$connectionLimitBtn" attachTo="settings">
+        <GridPane>
+            <columnConstraints>
+                <ColumnConstraints minWidth="100" percentWidth="10"/>
+                <ColumnConstraints maxWidth="700"/>
+                <ColumnConstraints minWidth="100" percentWidth="10"/>
+            </columnConstraints>
+            <rowConstraints>
+                <RowConstraints/>
+                <RowConstraints/>
+                <RowConstraints/>
+            </rowConstraints>
+
+            <Label text="%settings_torrent_connection_limit" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+            <Label fx:id="connectionLimitTxt" styleClass="virtual-keyboard-value"
+                   GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+            <VirtualKeyboard fx:id="connectionLimitInput" minWidth="0"
+                             enableSpecialKeys="true" enableCloseKey="true" onClose="#onCloseInputOverlay"
+                             GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+        </GridPane>
+    </Overlay>
 
     <Overlay fx:id="cacheCleanupOverlay" for="$cacheCleanup" attachTo="settings">
         <AxisItemSelection fx:id="cleanupModes" orientation="VERTICAL" spacing="5"/>

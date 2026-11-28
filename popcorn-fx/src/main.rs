@@ -148,9 +148,9 @@ mod tests {
         PopcornFxArgs {
             disable_logger: true,
             disable_mouse: false,
-            enable_youtube_video_player: true,
-            enable_fx_video_player: true,
-            enable_vlc_video_player: true,
+            disable_youtube_video_player: false,
+            disable_fx_video_player: false,
+            disable_vlc_video_player: false,
             tv: false,
             maximized: false,
             kiosk: false,

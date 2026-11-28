@@ -4,9 +4,9 @@ The following launch options can be used as startup arguments.
 
 | Option                      | Description                                                     | Default |
 |-----------------------------|-----------------------------------------------------------------|---------|
-| enable-vlc-video-player     | Enable the VLC video player from being activated.               | true    |
-| enable-youtube-video-player | Enable the youtube player from being activated.                 | true    |
-| enable-javafx-video-player  | Enable the JavaFX player from being activated.                  | true    |
+| disable-vlc-video-player    | Disable the VLC video player from being activated.              | false   |
+| disable-youtube-video-player | Disable the youtube player from being activated.               | false   |
+| disable-fx-video-player     | Disable the FX embedded player from being activated.            | false   |
 | disable-chromecast-player   | Disabled the chromecast player from being loaded.               | false   |
 | disable-mouse               | Permanently hides the mouse from the application.               | false   |
 | kiosk                       | Activate the kiosk mode (use alt+f4 to close the application).  | false   |
